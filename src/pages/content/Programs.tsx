@@ -26,6 +26,7 @@ export const Programs = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null)
 
   const { data: programsData, isLoading } = useQuery({
     queryKey: ['programs', searchQuery, languageFilter, statusFilter],
@@ -51,10 +52,16 @@ export const Programs = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminCollectionHelpers.delete('programs', id)
+      const result = await adminCollectionHelpers.delete('programs', id)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete program')
+      }
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programs'] })
+      queryClient.invalidateQueries({ queryKey: ['program_days'] })
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
     },
   })
 
@@ -77,10 +84,31 @@ export const Programs = () => {
 
   const getProgramStats = (programId: string) => {
     const programSessions = sessions.filter((s: any) => s.program === programId)
-    const enrolled = programSessions.length
+    
+    // Count unique users enrolled (in case there are duplicate sessions)
+    const uniqueUsers = new Set(programSessions.map((s: any) => s.user))
+    const enrolled = uniqueUsers.size
+    
+    // Count completed sessions (status = 'completed')
     const completed = programSessions.filter((s: any) => s.status === 'completed').length
+    
+    // Count active sessions (in_progress)
+    const active = programSessions.filter((s: any) => s.status === 'in_progress').length
+    
+    // Count not started
+    const notStarted = programSessions.filter((s: any) => s.status === 'not_started').length
+    
+    // Calculate completion rate based on enrolled users
     const completionRate = enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0
-    return { enrolled, completed, completionRate }
+    
+    return { 
+      enrolled, 
+      completed, 
+      active,
+      notStarted,
+      completionRate,
+      totalSessions: programSessions.length, // Total session records (may include duplicates)
+    }
   }
 
   const handleToggleActive = async (program: Program) => {
@@ -97,16 +125,64 @@ export const Programs = () => {
 
   const handleDelete = async (program: Program) => {
     const stats = getProgramStats(program.id)
+    
+    // Check for enrolled users
     if (stats.enrolled > 0) {
-      alert(`Cannot delete program. ${stats.enrolled} user(s) are enrolled.`)
+      alert(`Cannot delete program "${program.title}". ${stats.enrolled} user(s) are currently enrolled in this program. Please reassign or remove users before deleting.`)
       return
     }
-    if (confirm(`Are you sure you want to delete "${program.title}"? This action cannot be undone.`)) {
+
+    // Check for program days
+    try {
+      const { data: programDays } = await adminCollectionHelpers.getFullList('program_days', {
+        filter: `program = "${program.id}"`,
+      })
+      
+      if (programDays && programDays.length > 0) {
+        const confirmMessage = `This program has ${programDays.length} day(s) associated with it. Deleting will also remove all program days and their steps. Are you sure you want to delete "${program.title}"? This action cannot be undone.`
+        if (!confirm(confirmMessage)) {
+          return
+        }
+      } else {
+        if (!confirm(`Are you sure you want to delete "${program.title}"? This action cannot be undone.`)) {
+          return
+        }
+      }
+
+      // Attempt deletion
+      try {
+        const result = await deleteMutation.mutateAsync(program.id)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete program')
+        }
+        // Success is handled by onSuccess callback
+      } catch (error: any) {
+        console.error('Failed to delete program:', error)
+        const errorMessage = error?.error || error?.message || error?.response?.message || 'Failed to delete program'
+        
+        // Provide more specific error messages
+        if (errorMessage.includes('superuser') || errorMessage.includes('Only superusers')) {
+          alert(`Permission Error: Only superusers can delete programs. The delete permission for admin_users may not be configured correctly. Please run: node PocketBase/fix-program-permissions.js`)
+        } else if (errorMessage.includes('foreign key') || errorMessage.includes('constraint')) {
+          alert(`Cannot delete program. It may have related data that prevents deletion. Error: ${errorMessage}`)
+        } else if (errorMessage.includes('permission') || errorMessage.includes('unauthorized') || errorMessage.includes('403')) {
+          alert(`Permission Error: You do not have permission to delete programs. Please ensure your admin user has the correct permissions. Error: ${errorMessage}`)
+        } else {
+          alert(`Failed to delete program: ${errorMessage}`)
+        }
+      }
+    } catch (error: any) {
+      console.error('Error checking program days:', error)
+      // If we can't check program days, still try to delete but warn user
+      if (!confirm(`Warning: Could not verify related data. Are you sure you want to delete "${program.title}"? This action cannot be undone.`)) {
+        return
+      }
+      
       try {
         await deleteMutation.mutateAsync(program.id)
-      } catch (error) {
-        console.error('Failed to delete program:', error)
-        alert('Failed to delete program')
+      } catch (deleteError: any) {
+        console.error('Failed to delete program:', deleteError)
+        alert(`Failed to delete program: ${deleteError?.error || deleteError?.message || 'Unknown error'}`)
       }
     }
   }
@@ -259,7 +335,16 @@ export const Programs = () => {
                         )}
                       </button>
                     </td>
-                    <td className="px-6 py-4">{stats.enrolled}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{stats.enrolled}</span>
+                        <span className="text-xs text-neutral-500">
+                          {stats.active > 0 && `${stats.active} active`}
+                          {stats.active > 0 && stats.completed > 0 && ' • '}
+                          {stats.completed > 0 && `${stats.completed} completed`}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-neutral-200 rounded-full h-2 max-w-[100px]">
@@ -268,7 +353,7 @@ export const Programs = () => {
                             style={{ width: `${stats.completionRate}%` }}
                           />
                         </div>
-                        <span className="text-sm">{stats.completionRate}%</span>
+                        <span className="text-sm font-medium">{stats.completionRate}%</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-500">
@@ -278,13 +363,14 @@ export const Programs = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(`/content/programs/${program.id}/days`)}
-                          className="p-2 hover:bg-neutral-100 rounded-lg"
-                          title="View Days"
+                          className="btn-secondary text-sm flex items-center gap-2"
+                          title="Manage Program Days"
                         >
-                          <Eye className="w-4 h-4 text-secondary" />
+                          <Eye className="w-4 h-4" />
+                          Manage Days
                         </button>
                         <button
-                          onClick={() => navigate(`/content/programs/${program.id}/edit`)}
+                          onClick={() => setEditingProgram(program)}
                           className="p-2 hover:bg-neutral-100 rounded-lg"
                           title="Edit"
                         >
@@ -351,6 +437,14 @@ export const Programs = () => {
                     <span className="font-medium">{stats.enrolled} users</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Active</span>
+                    <span className="font-medium text-primary">{stats.active} users</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-neutral-500">Completed</span>
+                    <span className="font-medium text-success">{stats.completed} users</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-neutral-500">Completion Rate</span>
                     <span className="font-medium">{stats.completionRate}%</span>
                   </div>
@@ -369,7 +463,7 @@ export const Programs = () => {
                     View Days
                   </button>
                   <button
-                    onClick={() => navigate(`/content/programs/${program.id}/edit`)}
+                    onClick={() => setEditingProgram(program)}
                     className="btn-primary flex-1 text-sm"
                   >
                     Edit
@@ -381,12 +475,17 @@ export const Programs = () => {
         </div>
       )}
 
-      {/* Create Program Modal */}
-      {showCreateModal && (
-        <CreateProgramModal
-          onClose={() => setShowCreateModal(false)}
+      {/* Create/Edit Program Modal */}
+      {(showCreateModal || editingProgram) && (
+        <CreateEditProgramModal
+          program={editingProgram}
+          onClose={() => {
+            setShowCreateModal(false)
+            setEditingProgram(null)
+          }}
           onSuccess={() => {
             setShowCreateModal(false)
+            setEditingProgram(null)
             queryClient.invalidateQueries({ queryKey: ['programs'] })
           }}
         />
@@ -395,20 +494,22 @@ export const Programs = () => {
   )
 }
 
-// Create Program Modal Component
-interface CreateProgramModalProps {
+// Create/Edit Program Modal Component
+interface CreateEditProgramModalProps {
+  program?: Program | null
   onClose: () => void
   onSuccess: () => void
 }
 
-const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onSuccess }) => {
+const CreateEditProgramModal: React.FC<CreateEditProgramModalProps> = ({ program, onClose, onSuccess }) => {
+  const isEditing = !!program
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    language: 'en',
-    duration_days: 10,
-    is_active: true,
-    order: 0,
+    title: program?.title || '',
+    description: program?.description || '',
+    language: program?.language || 'en',
+    duration_days: program?.duration_days || 10,
+    is_active: program?.is_active ?? true,
+    order: program?.order || 0,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -428,6 +529,13 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onSucc
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!program) throw new Error('No program to update')
+      return adminCollectionHelpers.update('programs', program.id, data)
+    },
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title.trim()) {
@@ -437,11 +545,15 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onSucc
 
     setIsSubmitting(true)
     try {
-      await createMutation.mutateAsync(formData)
+      if (isEditing) {
+        await updateMutation.mutateAsync(formData)
+      } else {
+        await createMutation.mutateAsync(formData)
+      }
       onSuccess()
     } catch (error: any) {
-      console.error('Failed to create program:', error)
-      alert(error?.error || 'Failed to create program')
+      console.error(`Failed to ${isEditing ? 'update' : 'create'} program:`, error)
+      alert(error?.error || `Failed to ${isEditing ? 'update' : 'create'} program`)
     } finally {
       setIsSubmitting(false)
     }
@@ -451,7 +563,7 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onSucc
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b border-neutral-200 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Create New Program</h2>
+          <h2 className="text-xl font-semibold">{isEditing ? 'Edit Program' : 'Create New Program'}</h2>
           <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
             ✕
           </button>
@@ -537,7 +649,9 @@ const CreateProgramModal: React.FC<CreateProgramModalProps> = ({ onClose, onSucc
               className="btn-primary"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating...' : 'Create Program'}
+              {isSubmitting 
+                ? (isEditing ? 'Updating...' : 'Creating...') 
+                : (isEditing ? 'Update Program' : 'Create Program')}
             </button>
           </div>
         </form>

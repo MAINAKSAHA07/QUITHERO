@@ -33,7 +33,12 @@ import { Help } from './pages/Help'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <AdminAuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />

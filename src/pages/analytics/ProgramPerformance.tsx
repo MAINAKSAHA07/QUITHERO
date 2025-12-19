@@ -77,11 +77,34 @@ export const ProgramPerformance = () => {
     const dayProgress = progress.filter((p: any) => p.program_day === day.id)
     const completed = dayProgress.filter((p: any) => p.status === 'completed').length
     const completionRate = dayProgress.length > 0 ? Math.round((completed / dayProgress.length) * 100) : 0
+    
+    // Calculate average time spent from progress records
+    let avgTimeSpent = 0
+    if (dayProgress.length > 0) {
+      const timesWithData = dayProgress
+        .filter((p: any) => p.time_spent || (p.started_at && p.completed_at))
+        .map((p: any) => {
+          // If time_spent field exists, use it (in minutes)
+          if (p.time_spent) return p.time_spent
+          // Otherwise calculate from timestamps
+          if (p.started_at && p.completed_at) {
+            const diffMs = new Date(p.completed_at).getTime() - new Date(p.started_at).getTime()
+            return Math.round(diffMs / (1000 * 60)) // Convert to minutes
+          }
+          return 0
+        })
+        .filter((t: number) => t > 0)
+      
+      if (timesWithData.length > 0) {
+        avgTimeSpent = Math.round(timesWithData.reduce((sum: number, t: number) => sum + t, 0) / timesWithData.length)
+      }
+    }
+    
     return {
       day: `Day ${day.day_number}`,
       title: day.title,
       completionRate,
-      timeSpent: 15, // Mock - would calculate from actual data
+      timeSpent: avgTimeSpent || 0,
     }
   })
 

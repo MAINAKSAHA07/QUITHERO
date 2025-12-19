@@ -3,6 +3,23 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import { ArrowLeft, Plus, Edit, Trash2, GripVertical, Lock, Unlock, Copy } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 export const ProgramDays = () => {
   const { programId } = useParams<{ programId: string }>()
@@ -44,8 +61,44 @@ export const ProgramDays = () => {
     },
   })
 
+  const reorderMutation = useMutation({
+    mutationFn: async (reorderedDays: any[]) => {
+      // Update day numbers for all days in the new order
+      const updates = reorderedDays.map((day, index) =>
+        adminCollectionHelpers.update('program_days', day.id, {
+          day_number: index + 1,
+        })
+      )
+      await Promise.all(updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['program_days', programId] })
+    },
+  })
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
   const program = programData?.data
   const days = daysData?.data || []
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id && days.length > 0) {
+      const oldIndex = days.findIndex((d: any) => d.id === active.id)
+      const newIndex = days.findIndex((d: any) => d.id === over.id)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedDays = arrayMove(days, oldIndex, newIndex)
+        reorderMutation.mutate(reorderedDays)
+      }
+    }
+  }
 
   const handleDelete = async (day: any) => {
     if (confirm(`Are you sure you want to delete Day ${day.day_number}?`)) {
@@ -166,88 +219,28 @@ export const ProgramDays = () => {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {days.map((day: any, index: number) => (
-            <div
-              key={day.id}
-              className="bg-white rounded-lg shadow-card p-6 hover:shadow-card-lg transition-shadow"
-            >
-              <div className="flex items-start gap-4">
-                <div className="flex items-center gap-2 pt-1">
-                  <GripVertical className="w-5 h-5 text-neutral-400 cursor-move" />
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
-                    {day.day_number}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="text-lg font-semibold text-neutral-dark">{day.title}</h3>
-                      {day.subtitle && (
-                        <p className="text-sm text-neutral-500 mt-1">{day.subtitle}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleLock(day)}
-                        className="p-2 hover:bg-neutral-100 rounded-lg"
-                        title={day.is_locked ? 'Unlock' : 'Lock'}
-                      >
-                        {day.is_locked ? (
-                          <Lock className="w-4 h-4 text-warning" />
-                        ) : (
-                          <Unlock className="w-4 h-4 text-success" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-neutral-500 mb-4">
-                    {day.estimated_duration_min && (
-                      <span>⏱ {day.estimated_duration_min} min</span>
-                    )}
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      day.is_locked
-                        ? 'bg-warning/10 text-warning'
-                        : 'bg-success/10 text-success'
-                    }`}>
-                      {day.is_locked ? 'Locked' : 'Unlocked'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 pt-4 border-t border-neutral-200">
-                    <button
-                      onClick={() => navigate(`/content/programs/${programId}/days/${day.id}/steps`)}
-                      className="btn-secondary text-sm flex items-center gap-2"
-                    >
-                      Manage Steps
-                    </button>
-                    <button
-                      onClick={() => setEditingDay(day)}
-                      className="btn-secondary text-sm flex items-center gap-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDuplicate(day)}
-                      className="btn-secondary text-sm flex items-center gap-2"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Duplicate
-                    </button>
-                    <button
-                      onClick={() => handleDelete(day)}
-                      className="btn-danger text-sm flex items-center gap-2"
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={days.map((d: any) => d.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {days.map((day: any, index: number) => (
+                <SortableDayItem
+                  key={day.id}
+                  day={day}
+                  programId={programId!}
+                  onEdit={() => setEditingDay(day)}
+                  onDelete={() => handleDelete(day)}
+                  onToggleLock={() => handleToggleLock(day)}
+                  onDuplicate={() => handleDuplicate(day)}
+                  navigate={navigate}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Add/Edit Day Modal */}
@@ -266,6 +259,128 @@ export const ProgramDays = () => {
           }}
         />
       )}
+    </div>
+  )
+}
+
+interface SortableDayItemProps {
+  day: any
+  programId: string
+  onEdit: () => void
+  onDelete: () => void
+  onToggleLock: () => void
+  onDuplicate: () => void
+  navigate: (path: string) => void
+}
+
+const SortableDayItem: React.FC<SortableDayItemProps> = ({
+  day,
+  programId,
+  onEdit,
+  onDelete,
+  onToggleLock,
+  onDuplicate,
+  navigate,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: day.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-white rounded-lg shadow-card p-6 hover:shadow-card-lg transition-shadow"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex items-center gap-2 pt-1">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing"
+          >
+            <GripVertical className="w-5 h-5 text-neutral-400" />
+          </div>
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
+            {day.day_number}
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-dark">{day.title}</h3>
+              {day.subtitle && (
+                <p className="text-sm text-neutral-500 mt-1">{day.subtitle}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onToggleLock}
+                className="p-2 hover:bg-neutral-100 rounded-lg"
+                title={day.is_locked ? 'Unlock' : 'Lock'}
+              >
+                {day.is_locked ? (
+                  <Lock className="w-4 h-4 text-warning" />
+                ) : (
+                  <Unlock className="w-4 h-4 text-success" />
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-neutral-500 mb-4">
+            {day.estimated_duration_min && (
+              <span>⏱ {day.estimated_duration_min} min</span>
+            )}
+            <span className={`px-2 py-1 rounded text-xs ${
+              day.is_locked
+                ? 'bg-warning/10 text-warning'
+                : 'bg-success/10 text-success'
+            }`}>
+              {day.is_locked ? 'Locked' : 'Unlocked'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 pt-4 border-t border-neutral-200">
+            <button
+              onClick={() => navigate(`/content/programs/${programId}/days/${day.id}/steps`)}
+              className="btn-secondary text-sm flex items-center gap-2"
+            >
+              Manage Steps
+            </button>
+            <button
+              onClick={onEdit}
+              className="btn-secondary text-sm flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
+            <button
+              onClick={onDuplicate}
+              className="btn-secondary text-sm flex items-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Duplicate
+            </button>
+            <button
+              onClick={onDelete}
+              className="btn-danger text-sm flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

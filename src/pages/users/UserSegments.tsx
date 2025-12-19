@@ -72,26 +72,27 @@ export const UserSegments = () => {
     queryFn: () => adminCollectionHelpers.getFullList('cravings'),
   })
 
-  const calculateSegmentCount = (segmentId: string): number => {
+  const calculateSegmentCount = (segmentId: string, periodDays?: number): number => {
     if (!usersData?.data) return 0
     const users = usersData.data
     const sessions = sessionsData?.data || []
     const cravings = cravingsData?.data || []
     const now = new Date()
+    const period = periodDays || (segmentId === 'active' ? 7 : segmentId === 'inactive' ? 30 : segmentId === 'new-users' ? 7 : segmentId === 'churned' ? 90 : 0)
 
     switch (segmentId) {
       case 'active':
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const daysAgo = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
           if (!u.lastActive) return false
-          return new Date(u.lastActive) > sevenDaysAgo
+          return new Date(u.lastActive) > daysAgo
         }).length
 
       case 'inactive':
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        const daysAgoInactive = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
           if (!u.lastActive) return true
-          return new Date(u.lastActive) < thirtyDaysAgo
+          return new Date(u.lastActive) < daysAgoInactive
         }).length
 
       case 'high-risk':
@@ -113,17 +114,17 @@ export const UserSegments = () => {
         }).length
 
       case 'new-users':
-        const sevenDaysAgoNew = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const daysAgoNew = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
           if (!u.created) return false
-          return new Date(u.created) > sevenDaysAgoNew
+          return new Date(u.created) > daysAgoNew
         }).length
 
       case 'churned':
-        const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        const daysAgoChurned = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
           if (!u.lastActive) return true
-          return new Date(u.lastActive) < ninetyDaysAgo
+          return new Date(u.lastActive) < daysAgoChurned
         }).length
 
       default:
@@ -131,10 +132,56 @@ export const UserSegments = () => {
     }
   }
 
+  // Calculate trend: compare current period with previous period
+  const calculateTrend = (segmentId: string): number => {
+    const currentCount = calculateSegmentCount(segmentId)
+    
+    // For time-based segments, compare with previous period
+    if (['active', 'inactive', 'new-users', 'churned'].includes(segmentId)) {
+      const periodDays = segmentId === 'active' ? 7 : segmentId === 'inactive' ? 30 : segmentId === 'new-users' ? 7 : 90
+      const previousPeriodStart = new Date()
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays * 2)
+      const previousPeriodEnd = new Date()
+      previousPeriodEnd.setDate(previousPeriodEnd.getDate() - periodDays)
+      
+      let previousCount = 0
+      if (segmentId === 'active' || segmentId === 'inactive') {
+        // For active/inactive, count users active in previous period
+        previousCount = usersData?.data?.filter((u: any) => {
+          if (!u.lastActive) return segmentId === 'inactive'
+          const lastActive = new Date(u.lastActive)
+          if (segmentId === 'active') {
+            return lastActive > previousPeriodEnd && lastActive <= previousPeriodStart
+          } else {
+            return lastActive < previousPeriodEnd && lastActive >= previousPeriodStart
+          }
+        }).length || 0
+      } else if (segmentId === 'new-users') {
+        previousCount = usersData?.data?.filter((u: any) => {
+          if (!u.created) return false
+          const created = new Date(u.created)
+          return created > previousPeriodStart && created <= previousPeriodEnd
+        }).length || 0
+      } else if (segmentId === 'churned') {
+        previousCount = usersData?.data?.filter((u: any) => {
+          if (!u.lastActive) return true
+          const lastActive = new Date(u.lastActive)
+          return lastActive < previousPeriodEnd && lastActive >= previousPeriodStart
+        }).length || 0
+      }
+      
+      if (previousCount === 0) return currentCount > 0 ? 100 : 0
+      return Math.round(((currentCount - previousCount) / previousCount) * 100)
+    }
+    
+    // For non-time-based segments, return 0 (no trend available)
+    return 0
+  }
+
   const segments: Segment[] = predefinedSegments.map(seg => ({
     ...seg,
     userCount: calculateSegmentCount(seg.id),
-    trend: Math.floor(Math.random() * 20) - 10, // Mock trend
+    trend: calculateTrend(seg.id),
   }))
 
   const handleViewUsers = (segmentId: string) => {

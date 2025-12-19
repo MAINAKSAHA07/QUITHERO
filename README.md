@@ -38,10 +38,11 @@ cd backoffice
 npm install
 ```
 
-2. Create a `.env` file (optional, defaults to `http://localhost:8095`):
+2. Create a `.env` file (optional, defaults to `http://localhost:8096` to match the main app):
 ```env
-VITE_POCKETBASE_URL=http://localhost:8095
+VITE_POCKETBASE_URL=http://localhost:8096
 ```
+> If you keep your PocketBase on a different host/port, set `VITE_POCKETBASE_URL` (or `VITE_BACKOFFICE_PB_URL`) to match; the dashboard needs the same endpoint the mobile/web app uses.
 
 3. Start the development server:
 ```bash
@@ -144,7 +145,5 @@ npm run dev
 - Advanced filtering and search capabilities
 - Export functionality (CSV, PDF, Excel)
 - Audit logging for all admin actions
-
-
 
 

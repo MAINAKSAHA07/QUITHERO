@@ -36,24 +36,37 @@ export const EngagementMetrics = () => {
   const journalEntries = journalData?.data || []
   const achievements = achievementsData?.data || []
 
-  // Feature Usage Data
-  const featureUsageData = [
-    { name: 'Sessions/Program', value: sessions.length, percentage: 40 },
-    { name: 'Craving Logs', value: cravings.length, percentage: 25 },
-    { name: 'Journal Entries', value: journalEntries.length, percentage: 20 },
-    { name: 'Progress View', value: Math.round(sessions.length * 0.1), percentage: 10 },
-    { name: 'Other', value: Math.round(sessions.length * 0.05), percentage: 5 },
-  ]
+  // Feature Usage Data - calculate real percentages
+  const { data: progressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  })
 
-  // Session Completion by Day
+  const progressViews = progressData?.data?.length || 0
+  const totalFeatureUsage = sessions.length + cravings.length + journalEntries.length + progressViews
+  
+  const featureUsageData = [
+    { name: 'Sessions/Program', value: sessions.length, percentage: totalFeatureUsage > 0 ? Math.round((sessions.length / totalFeatureUsage) * 100) : 0 },
+    { name: 'Craving Logs', value: cravings.length, percentage: totalFeatureUsage > 0 ? Math.round((cravings.length / totalFeatureUsage) * 100) : 0 },
+    { name: 'Journal Entries', value: journalEntries.length, percentage: totalFeatureUsage > 0 ? Math.round((journalEntries.length / totalFeatureUsage) * 100) : 0 },
+    { name: 'Progress View', value: progressViews, percentage: totalFeatureUsage > 0 ? Math.round((progressViews / totalFeatureUsage) * 100) : 0 },
+  ].filter(item => item.value > 0) // Only show features with actual usage
+
+  // Session Completion by Day - calculate real completion rates
   const sessionCompletionData = Array.from({ length: 10 }, (_, i) => {
     const dayNumber = i + 1
-    const daySessions = sessions.filter((s: any) => s.current_day >= dayNumber)
-    const completed = sessions.filter((s: any) => s.current_day > dayNumber || s.status === 'completed')
+    const daySessions = sessions.filter((s: any) => {
+      const currentDay = s.current_day || 0
+      return currentDay >= dayNumber
+    })
+    const completed = daySessions.filter((s: any) => {
+      const currentDay = s.current_day || 0
+      return currentDay > dayNumber || s.status === 'completed'
+    })
     const completionRate = daySessions.length > 0 ? Math.round((completed.length / daySessions.length) * 100) : 0
     return {
       day: `Day ${dayNumber}`,
-      completionRate: Math.max(completionRate, 100 - (dayNumber * 5)), // Mock decreasing rate
+      completionRate,
     }
   })
 
