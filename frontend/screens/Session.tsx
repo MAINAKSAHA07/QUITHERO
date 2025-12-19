@@ -114,6 +114,44 @@ export default function Session() {
       // Set start time immediately to ensure it's available
       setSessionStartTime(startTime)
       
+      // If this is Day 1, automatically set quit_date to 10 days from today
+      // This replaces the manual quit date selection in KYC flow
+      if (dayNumber === 1) {
+        try {
+          const { profileService } = await import('../services/profile.service')
+          const profileResult = await profileService.getByUserId(user.id)
+          
+          if (profileResult.success && profileResult.data) {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const quitDate = new Date(today)
+            quitDate.setDate(quitDate.getDate() + 10) // 10 days from today
+            const quitDateString = quitDate.toISOString().split('T')[0]
+            
+            // Check if quit_date is missing, or if it's today or earlier (temporary value)
+            const existingQuitDate = profileResult.data.quit_date
+            const shouldUpdate = !existingQuitDate || 
+              (existingQuitDate && new Date(existingQuitDate) <= today)
+            
+            if (shouldUpdate) {
+              // Update profile with quit_date (10 days from first lesson start)
+              await profileService.upsert(user.id, {
+                quit_date: quitDateString,
+              })
+              
+              console.log(`Quit date automatically set to ${quitDateString} (10 days from first lesson start)`)
+              
+              // Initialize progress stats with the new quit_date
+              const { progressService } = await import('../services/progress.service')
+              await progressService.calculateProgress(user.id)
+            }
+          }
+        } catch (quitDateError) {
+          console.error('Failed to set quit date automatically:', quitDateError)
+          // Don't block session start if quit_date setting fails
+        }
+      }
+      
       const result = await sessionService.upsertSessionProgress(user.id, dayId, {
         status: SessionStatus.IN_PROGRESS,
         last_step_index: currentStepIndex,

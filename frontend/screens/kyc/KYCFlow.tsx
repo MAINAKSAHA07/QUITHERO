@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PersonalInfo from './PersonalInfo'
 import AddictionDetails from './AddictionDetails'
-import QuitDateSelection from './QuitDateSelection'
+// QuitDateSelection removed - quit_date is now set automatically 10 days from first lesson start
 import Motivation from './Motivation'
 import ReminderSettings from './ReminderSettings'
 
@@ -13,7 +13,7 @@ export default function KYCFlow() {
   const steps = [
     { component: PersonalInfo, title: 'Personal Information' },
     { component: AddictionDetails, title: 'Addiction Details' },
-    { component: QuitDateSelection, title: 'Quit Date' },
+    // QuitDateSelection removed - quit_date will be set automatically 10 days from first lesson start
     { component: Motivation, title: 'Motivation' },
     { component: ReminderSettings, title: 'Reminders' },
   ]
