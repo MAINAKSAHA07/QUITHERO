@@ -4,6 +4,8 @@ import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
+import { useApp } from '../../context/AppContext'
+import { profileService } from '../../services/profile.service'
 
 interface AddictionDetailsProps {
   step: number
@@ -20,14 +22,74 @@ const products = [
 ]
 
 export default function AddictionDetails({ step, totalSteps, onNext, onBack }: AddictionDetailsProps) {
+  const { user, updateUserProfile } = useApp()
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [duration, setDuration] = useState('')
   const [amount, setAmount] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const toggleProduct = (id: string) => {
     setSelectedProducts((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     )
+  }
+
+  const handleContinue = async () => {
+    if (selectedProducts.length === 0) {
+      setError('Please select at least one product')
+      return
+    }
+
+    if (!user?.id) {
+      setError('User not found. Please login again.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      // Parse duration (e.g., "5 years" -> 60 months, "2 years" -> 24 months)
+      let howLongUsing = 0
+      if (duration) {
+        const durationMatch = duration.match(/(\d+)\s*(year|years|month|months)/i)
+        if (durationMatch) {
+          const value = parseInt(durationMatch[1])
+          const unit = durationMatch[2].toLowerCase()
+          howLongUsing = unit.startsWith('year') ? value * 12 : value
+        }
+      }
+
+      // Parse daily consumption (e.g., "10 cigarettes" -> 10)
+      let dailyConsumption = 0
+      if (amount) {
+        const amountMatch = amount.match(/(\d+)/)
+        if (amountMatch) {
+          dailyConsumption = parseInt(amountMatch[1])
+        }
+      }
+
+      const result = await profileService.upsert(user.id, {
+        nicotine_forms: selectedProducts,
+        ...(howLongUsing > 0 && { how_long_using: howLongUsing }),
+        ...(dailyConsumption > 0 && { daily_consumption: dailyConsumption }),
+      })
+
+      if (result.success) {
+        // Update context
+        if (updateUserProfile) {
+          await updateUserProfile(result.data!)
+        }
+        onNext()
+      } else {
+        setError(result.error || 'Failed to save. Please try again.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
