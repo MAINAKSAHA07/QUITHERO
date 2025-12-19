@@ -1,0 +1,2912 @@
+# Quit Hero - Back-Office/Admin Dashboard
+## Complete Specification for Administrative Portal
+
+---
+
+## Executive Summary
+
+Build a comprehensive admin dashboard (back-office) for Quit Hero using React + TypeScript + D3.js that connects to the same PocketBase backend. This dashboard allows administrators, content managers, and support staff to manage users, content, programs, analytics, and support operations.
+
+**Technology Stack (Fixed)**:
+- Frontend: React + TypeScript + Vite
+- Styling: Tailwind CSS (same design system as main app)
+- Charts: D3.js + Recharts
+- Backend: PocketBase (shared with main app)
+- Routing: React Router v6
+- State Management: Context API + React Query
+- Tables: TanStack Table (React Table v8)
+- Forms: React Hook Form + Zod validation
+
+**Core Purpose**: 
+Provide administrators with complete control over the Quit Hero ecosystem without requiring technical knowledge or direct database access.
+
+---
+
+## Design Philosophy
+
+### Visual Design
+**Style**: Professional admin dashboard with glassmorphism accents
+- Clean, data-dense layouts
+- Warm color palette from main app (Orange #F58634 as accent)
+- Light mode primary, dark mode optional
+- Responsive for desktop and tablets (mobile: read-only view)
+
+### UX Principles
+1. **Efficiency First**: Minimize clicks to complete tasks
+2. **Data Transparency**: Show all relevant information at a glance
+3. **Bulk Operations**: Enable managing multiple items simultaneously
+4. **Safety Rails**: Confirm destructive actions, prevent accidents
+5. **Audit Trail**: Log all administrative actions
+
+### Color Scheme (Admin-specific)
+```
+Primary Action: #F58634 (Orange) - from main app
+Secondary: #2A72B5 (Calm Blue)
+Success: #4CAF50 (Green)
+Warning: #FFD08A (Flame Yellow)
+Danger: #E63946 (Red)
+Neutral Dark: #2B2B2B (Charcoal)
+Neutral Light: #F5F5F5 (Light Gray)
+Background: #FAFAFA (Off-White)
+Sidebar: #2B2B2B (Dark) or #FFFFFF (Light)
+Card Background: #FFFFFF with subtle shadow
+```
+
+---
+
+## Overall Layout & Navigation
+
+### Main Layout Structure
+
+**Desktop Layout (1440px+)**:
+```
+┌─────────────────────────────────────────────┐
+│  Top Bar (64px height)                      │
+│  [Logo] [Search] [Notifications] [Profile]  │
+├────────┬────────────────────────────────────┤
+│        │                                     │
+│ Side   │  Main Content Area                 │
+│ Nav    │  [Breadcrumbs]                     │
+│ 240px  │  [Page Title + Actions]            │
+│        │  [Content Cards/Tables/Charts]     │
+│        │                                     │
+│        │                                     │
+│        │                                     │
+└────────┴────────────────────────────────────┘
+```
+
+**Tablet Layout (768px - 1439px)**:
+- Collapsible sidebar (icon-only when collapsed)
+- Full content area
+- Same functionality, denser spacing
+
+**Mobile Layout (< 768px)**:
+- Bottom sheet navigation
+- Read-only view primarily
+- Critical actions only (approve/reject, respond to support)
+
+### Top Navigation Bar
+
+**Left Section**:
+- Logo/Brand: "Quit Hero Admin" with small logo icon
+- Clickable to return to dashboard home
+
+**Center Section**:
+- Global search bar:
+  - Placeholder: "Search users, content, programs..."
+  - Search icon (left)
+  - Keyboard shortcut hint: "⌘K" or "Ctrl+K"
+  - Dropdown results overlay:
+    - Recent searches
+    - Suggested: Users, Content, Programs, Support tickets
+    - "View all results" link
+
+**Right Section**:
+- Notification bell icon:
+  - Badge count for unread
+  - Dropdown shows:
+    - New user registrations
+    - Support tickets requiring attention
+    - System alerts
+    - "View all notifications" link
+- Profile dropdown:
+  - Admin name + role badge
+  - "My Profile"
+  - "Settings"
+  - "Logout"
+
+**Styling**:
+- Height: 64px
+- Background: White with subtle bottom shadow
+- Sticky position (always visible on scroll)
+
+### Sidebar Navigation
+
+**Structure** (Top to Bottom):
+
+**1. Dashboard Section**
+- Icon: 📊 Dashboard
+  - Overview/Home
+
+**2. User Management**
+- Icon: 👥 Users
+  - All Users
+  - Active Users
+  - Inactive Users
+  - User Segments
+  - Bulk Operations
+
+**3. Content Management**
+- Icon: 📝 Content
+  - Programs
+  - Program Days
+  - Steps/Lessons
+  - Articles
+  - Quotes & Tips
+  - Media Library
+
+**4. Support & Engagement**
+- Icon: 💬 Support
+  - Support Tickets
+  - Craving Reports (flagged)
+  - Journal Entries (flagged for review)
+  - Community Moderation (if applicable)
+
+**5. Analytics & Reports**
+- Icon: 📈 Analytics
+  - User Analytics
+  - Engagement Metrics
+  - Retention Reports
+  - Program Performance
+  - Craving Patterns
+  - Custom Reports
+
+**6. Achievements & Gamification**
+- Icon: 🏆 Achievements
+  - All Achievements
+  - Create Achievement
+  - User Achievement Logs
+
+**7. System & Settings**
+- Icon: ⚙️ Settings
+  - App Settings
+  - Notification Templates
+  - Admin Users
+  - Roles & Permissions
+  - Audit Logs
+  - API Keys
+
+**8. Help & Resources**
+- Icon: ❓ Help
+  - Documentation
+  - Admin Guide
+  - Support Contact
+
+**Styling**:
+- Width: 240px (expanded), 64px (collapsed)
+- Background: Dark (#2B2B2B) or Light (#FFFFFF)
+- Active item: Orange accent bar (left side) + background tint
+- Hover: Subtle background change
+- Icon size: 20px
+- Text: 14px, medium weight
+- Collapse toggle button at bottom
+
+---
+
+## Page-by-Page Specifications
+
+### 1. Dashboard / Overview Page
+
+**Purpose**: High-level snapshot of platform health and key metrics
+
+**Layout**:
+
+**Section 1: Key Metrics (Top Row)**
+4 metric cards in a row:
+
+**Card 1: Total Users**
+- Large number: Total registered users
+- Subtitle: "Total Users"
+- Trend indicator: "+15% this month" (green up arrow)
+- Icon: User icon
+- Background: Gradient white to light orange
+
+**Card 2: Active Users (7 days)**
+- Large number: Active in last 7 days
+- Subtitle: "Active Users (7d)"
+- Percentage of total: "68% of total"
+- Icon: Active users icon
+- Background: Gradient white to light blue
+
+**Card 3: Program Completions**
+- Large number: Users who completed 10-day program
+- Subtitle: "Completed Programs"
+- Completion rate: "45% completion rate"
+- Icon: Trophy/checkmark icon
+- Background: Gradient white to light green
+
+**Card 4: Support Tickets**
+- Large number: Open support tickets
+- Subtitle: "Pending Tickets"
+- Color coding: Red if > 10, yellow if 5-10, green if < 5
+- Icon: Message/support icon
+- Background: Gradient white to light yellow
+
+**Section 2: Charts (Middle Row)**
+
+**Left Chart (60% width): User Growth**
+- Line chart showing user registrations over time
+- X-axis: Last 30/90/365 days (toggle)
+- Y-axis: Number of new users
+- Filters: Date range picker
+- Gradient fill under line (Orange)
+- Data points on hover
+- Legend: New users, Active users, Churned users
+
+**Right Chart (40% width): Program Progress Distribution**
+- Pie chart or donut chart
+- Segments:
+  - Not Started (Gray)
+  - Days 1-3 (Light Orange)
+  - Days 4-7 (Orange)
+  - Days 8-10 (Dark Orange)
+  - Completed (Green)
+- Center: Total users in program
+- Percentage labels on segments
+
+**Section 3: Activity Feed (Bottom Left, 50%)**
+- Title: "Recent Activity"
+- Real-time feed of:
+  - New user registrations (with name, time)
+  - Program completions (with name, celebration icon)
+  - New support tickets (with preview)
+  - Achievement unlocks (with achievement name)
+  - Flagged content (with reason)
+- Each item:
+  - Icon (colored based on type)
+  - Description text
+  - Timestamp (relative: "2 min ago")
+  - Action button (if applicable)
+- Max 10 items, "View all activity" link
+- Auto-refresh every 30 seconds
+
+**Section 4: Quick Actions (Bottom Right, 50%)**
+- Title: "Quick Actions"
+- Large buttons:
+  - "Create New Program" (Orange button, + icon)
+  - "Add Content" (Blue button, document icon)
+  - "View Support Queue" (Red badge if pending, message icon)
+  - "Generate Report" (Green button, chart icon)
+  - "Manage Admins" (Gray button, settings icon)
+- Each button:
+  - Icon on left
+  - Action text
+  - Subtitle hint (small gray text)
+
+**Section 5: Alerts & Warnings (if any)**
+- Banner-style alerts at top of page:
+  - System health issues (Red)
+  - Database backup reminders (Yellow)
+  - Scheduled maintenance notices (Blue)
+- Dismissible (X button)
+- Icon on left, message, action button on right
+
+---
+
+### 2. User Management Pages
+
+#### 2.1 All Users Page
+
+**Purpose**: View, search, filter, and manage all registered users
+
+**Top Section: Filters & Actions**
+
+**Left Side**:
+- Search bar: "Search by name, email, ID..."
+- Filter dropdowns:
+  - Status: All / Active / Inactive / Banned
+  - Program Status: All / Not Started / In Progress / Completed
+  - Quit Date Range: Date picker (from - to)
+  - Registration Date: Date picker
+  - Language: All / English / Spanish / etc.
+- "Reset Filters" link
+
+**Right Side**:
+- "Export to CSV" button (download icon)
+- "Bulk Actions" dropdown (if rows selected):
+  - Send Notification
+  - Change Program
+  - Deactivate Users
+  - Delete Users (requires confirmation)
+- "Add User" button (primary, + icon)
+
+**Main Content: Users Table**
+
+**Table Columns**:
+1. Checkbox (for bulk selection)
+2. Avatar + Name
+   - Small circular avatar (initials if no photo)
+   - Name (bold)
+   - Email (small, gray, below name)
+3. User ID (monospace font, copyable)
+4. Status Badge
+   - Active (Green)
+   - Inactive (Gray)
+   - Banned (Red)
+5. Program Progress
+   - Progress bar: "Day 5/10"
+   - Color: Green if on track, orange if stalled
+6. Quit Date (formatted: "Jan 15, 2024")
+7. Last Active (relative: "2 hours ago")
+8. Total Cravings Logged (number)
+9. Achievements (count + icon)
+10. Actions Dropdown
+    - View Profile
+    - Edit User
+    - Send Message
+    - Reset Password
+    - Deactivate / Activate
+    - Delete (red, requires confirmation)
+
+**Table Features**:
+- Sortable columns (click header to sort)
+- Pagination:
+  - 10 / 25 / 50 / 100 per page
+  - "Showing 1-25 of 1,234 users"
+  - Previous / Next buttons
+  - Jump to page input
+- Row hover: Subtle background change
+- Selected rows: Orange tint
+- Sticky header (when scrolling)
+- Empty state: Illustration + "No users found" + "Add User" button
+
+**Responsive**:
+- Desktop: Full table
+- Tablet: Hide less critical columns (Achievements, Cravings)
+- Mobile: Card view instead of table
+
+#### 2.2 User Detail Page
+
+**Purpose**: View comprehensive information about a single user
+
+**Route**: `/users/:userId`
+
+**Layout**:
+
+**Header Section**:
+- Back button: "← Back to Users"
+- User avatar (large, left)
+- User name (H1)
+- User ID (small, monospace, copyable)
+- Status badge (Active/Inactive/Banned)
+- Action buttons (right-aligned):
+  - "Edit User" (primary)
+  - "Send Message"
+  - "Deactivate" or "Activate"
+  - "Delete User" (danger, requires confirmation)
+
+**Tab Navigation** (below header):
+1. Overview
+2. Program Progress
+3. Craving History
+4. Journal Entries
+5. Achievements
+6. Analytics
+7. Activity Log
+
+**Tab 1: Overview**
+
+**Left Column (60%)**:
+
+**Personal Information Card**:
+- Age: 32
+- Gender: Male
+- Language: English
+- Quit Date: Jan 15, 2024
+- Days Smoke-Free: 47 (calculated, bold, green)
+- Edit button (top-right of card)
+
+**Addiction Details Card**:
+- Nicotine Forms: Cigarettes, Vaping
+- Daily Consumption: 20 cigarettes
+- Cost per Unit: ₹10
+- Years Using: 12 years
+- Motivations: Health, Family, Money
+- Edit button
+
+**Settings Card**:
+- Email: user@example.com (verified badge)
+- Phone: +91 XXXXX XXXXX (verified badge)
+- Notifications Enabled: Yes/No
+- Daily Reminder Time: 9:00 AM
+- Edit button
+
+**Right Column (40%)**:
+
+**Quick Stats Card**:
+- Total Sessions Completed: 7/10
+- Total Cravings Logged: 23
+- Cravings Resisted: 20
+- Slips Recorded: 3
+- Journal Entries: 15
+- Achievements Unlocked: 5/12
+- Each stat with icon and color
+
+**Progress Stats Card**:
+- Days Smoke-Free: 47 (large, bold)
+- Cigarettes NOT Smoked: 940
+- Money Saved: ₹9,400
+- Life Regained: 173 hours
+- Nicotine NOT Consumed: 1,128 mg
+- Last Calculated: "2 hours ago" + Recalculate button
+
+**Recent Activity Card**:
+- Timeline of recent events:
+  - Completed Day 7 (2 days ago)
+  - Logged craving - Stress trigger (3 days ago)
+  - Created journal entry (5 days ago)
+  - Unlocked "Week Warrior" achievement (7 days ago)
+- "View all activity" link
+
+**Tab 2: Program Progress**
+
+**Current Program Card**:
+- Program Name: "10-Day Transformation"
+- Status: In Progress
+- Current Day: 7/10
+- Started: Jan 15, 2024
+- Last Activity: 2 days ago
+- Next Session Due: Tomorrow
+
+**Program Days List**:
+- Each day as a card:
+  - Day number badge
+  - Title: "Understanding Triggers"
+  - Status: Not Started / In Progress / Completed (with checkmark)
+  - Completion Date (if completed)
+  - Time Spent: 15 minutes
+  - Steps Completed: 5/5
+  - Expand button to view step details
+
+**Expandable Step Details** (when day card expanded):
+- List of steps:
+  - Step 1: Introduction (Text) ✓
+  - Step 2: Quiz on Triggers (MCQ) ✓
+  - Step 3: Identify Your Triggers (Open Question) ✓
+    - User response: [show response text]
+  - Step 4: Breathing Exercise (Exercise) ✓
+  - Step 5: Summary (Text) ✓
+
+**Actions**:
+- "Reset Progress" button (requires confirmation)
+- "Export Progress Report" button (PDF download)
+
+**Tab 3: Craving History**
+
+**Filters**:
+- Date range picker
+- Type: All / Cravings / Slips
+- Trigger: All / Stress / Boredom / Social / Habit / Other
+- Intensity: All / 1 / 2 / 3 / 4 / 5
+
+**Craving List**:
+- Each craving as a card:
+  - Type badge: Craving (Orange) or Slip (Red)
+  - Timestamp: "Jan 20, 2024 at 3:45 PM"
+  - Intensity: ⭐⭐⭐⭐☆ (4/5)
+  - Trigger: Stress (with icon)
+  - Notes: [user's notes if any]
+  - Flag button (if inappropriate content detected)
+
+**Chart: Craving Trend**:
+- Line chart showing cravings over time
+- X-axis: Dates
+- Y-axis: Number of cravings
+- Separate lines for cravings vs slips
+
+**Chart: Trigger Breakdown**:
+- Pie chart showing distribution of triggers
+- Clickable segments to filter list
+
+**Export**: CSV download of all cravings
+
+**Tab 4: Journal Entries**
+
+**Filters**:
+- Date range
+- Mood: All / Very Happy / Happy / Neutral / Sad / Very Sad
+- Search in content
+
+**Journal Entries List**:
+- Each entry as a card:
+  - Date: Jan 20, 2024
+  - Mood emoji: 😊 (Happy)
+  - Title: "Great day today" (if provided)
+  - Content preview: First 150 characters...
+  - "Read more" to expand
+  - Flag button (for inappropriate content)
+  - Delete button (admin can delete if flagged)
+
+**Expanded Entry View** (when "Read more" clicked):
+- Full content in modal or inline expansion
+- Full text with formatting preserved
+- Close/Collapse button
+
+**Flagged Entries**:
+- Special section or filter for flagged entries
+- Review status: Pending / Reviewed / Actioned
+- Admin notes field
+- Mark as Safe / Delete options
+
+**Tab 5: Achievements**
+
+**Unlocked Achievements**:
+- Grid of achievement badges
+- Each badge card:
+  - Achievement icon (large)
+  - Title: "Week Warrior"
+  - Description: "Stayed smoke-free for 7 days"
+  - Tier badge: Bronze / Silver / Gold / Platinum
+  - Unlocked Date: "Jan 22, 2024"
+  - Celebration animation on hover
+
+**Locked Achievements**:
+- Grayed out badges
+- Progress bar if applicable: "3/10 sessions completed"
+- "X days/actions to unlock" hint
+
+**Manually Grant Achievement**:
+- Admin action: "Grant Achievement" button
+- Modal to select achievement from dropdown
+- Reason field (why granting manually)
+- Confirm button
+- Sends notification to user
+
+**Tab 6: Analytics**
+
+**Engagement Chart**:
+- Calendar heatmap (like GitHub contributions)
+- Each day colored based on activity:
+  - Green: Session completed
+  - Orange: Craving logged
+  - Red: Slip occurred
+  - Gray: No activity
+- Hover shows details for that day
+
+**Time-Based Charts**:
+
+**Daily Active Times**:
+- Bar chart showing most active hours
+- X-axis: Hour of day (0-23)
+- Y-axis: Number of actions
+- Helps understand user behavior patterns
+
+**Retention Curve**:
+- Line chart showing retention over time
+- Day 0, 1, 7, 14, 30, etc.
+- Compare to platform average
+
+**Feature Usage**:
+- Pie chart or bar chart:
+  - Sessions: 40%
+  - Craving logs: 30%
+  - Journal entries: 20%
+  - Other: 10%
+
+**Export**: All analytics data as PDF report
+
+**Tab 7: Activity Log**
+
+**Purpose**: Audit trail of all user actions and admin actions on this user
+
+**Filters**:
+- Date range
+- Event type: All / User Action / Admin Action / System Event
+- Admin: All / Select admin
+
+**Activity Timeline**:
+- Reverse chronological list
+- Each event:
+  - Timestamp: "Jan 20, 2024 at 3:45 PM"
+  - Event type icon
+  - Description: "User completed Day 7 session"
+  - Actor: User or Admin name
+  - IP Address (if security event)
+  - User Agent (if login/logout)
+  - Details (expandable JSON or formatted)
+
+**Example Events**:
+- User registered
+- Email verified
+- Completed KYC
+- Started program
+- Completed session
+- Logged craving
+- Created journal entry
+- Unlocked achievement
+- Admin updated profile (with what changed)
+- Admin reset password
+- Admin sent message
+- User deleted (if applicable)
+
+**Export**: CSV or JSON export of activity log
+
+#### 2.3 Add/Edit User Modal
+
+**Trigger**: "Add User" button or "Edit User" button
+
+**Modal Layout**:
+- Title: "Add New User" or "Edit User: [Name]"
+- Close button (X, top-right)
+
+**Form Sections** (Tabbed or Accordion):
+
+**Section 1: Basic Information**
+- Name (required)
+- Email (required, validated)
+- Phone (optional)
+- Password (required for new, optional for edit)
+- Confirm Password
+- Generate Random Password button + email to user checkbox
+
+**Section 2: Personal Details**
+- Age (number input)
+- Gender (dropdown)
+- Language (dropdown)
+- Quit Date (date picker)
+
+**Section 3: Addiction Details**
+- Nicotine Forms (multi-select checkboxes)
+- Daily Consumption (number)
+- Consumption Unit (dropdown)
+- Years Using (number)
+- Motivations (multi-select)
+
+**Section 4: Settings**
+- Enable Reminders (toggle)
+- Daily Reminder Time (time picker)
+- Assign Program (dropdown - select from available programs)
+
+**Footer**:
+- "Cancel" button (secondary)
+- "Save User" button (primary, orange)
+
+**Validation**:
+- Email format
+- Password strength (min 8 chars, 1 number, 1 special char)
+- Required fields highlighted if missing
+- Real-time validation feedback
+
+**On Submit**:
+- Show loading spinner
+- If success:
+  - Show success toast: "User created/updated successfully"
+  - Close modal
+  - Refresh user list or redirect to user detail page
+- If error:
+  - Show error message in modal
+  - Keep modal open for correction
+
+#### 2.4 User Segments Page
+
+**Purpose**: Create and manage user cohorts for targeted actions
+
+**Segment List**:
+- Predefined segments (cards):
+  - Active Users (logged in last 7 days)
+  - Inactive Users (not logged in 30+ days)
+  - High Risk (many slips, low session completion)
+  - Star Performers (completed program, no slips)
+  - New Users (registered < 7 days ago)
+  - Churned (not active 90+ days)
+
+**Each Segment Card**:
+- Segment name
+- Description
+- User count (large, bold)
+- Trend: +/- percentage vs last period
+- "View Users" button (opens filtered user list)
+- Edit segment criteria button
+- Delete segment button (custom segments only)
+
+**Create Custom Segment**:
+- "Create Segment" button
+- Modal with criteria builder:
+  - Name segment
+  - Description
+  - Conditions (multiple, AND/OR logic):
+    - User status (Active/Inactive/Banned)
+    - Program status (Not Started/In Progress/Completed)
+    - Days smoke-free (range)
+    - Registration date (range)
+    - Quit date (range)
+    - Language
+    - Age range
+    - Gender
+    - Craving count (range)
+    - Slip count (range)
+    - Session completion count (range)
+    - Achievement count (range)
+    - Last active (range in days)
+  - Preview count: "248 users match these criteria"
+  - Save button
+
+**Segment Actions**:
+- When viewing a segment:
+  - Send bulk notification/email
+  - Export user list
+  - Assign to program
+  - Generate report
+
+---
+
+### 3. Content Management Pages
+
+#### 3.1 Programs Page
+
+**Purpose**: Manage all programs (10-day, 30-day, relapse recovery, etc.)
+
+**Programs List**:
+- Table or card view toggle
+
+**Table Columns**:
+1. Program Name
+2. Language
+3. Duration (days)
+4. Status (Active/Inactive toggle)
+5. Enrolled Users (count)
+6. Completion Rate (percentage)
+7. Created Date
+8. Actions:
+   - Edit
+   - Duplicate
+   - View Days
+   - Deactivate/Activate
+   - Delete (if no users enrolled)
+
+**Card View** (alternative):
+- Each program as a card:
+  - Title
+  - Description (truncated)
+  - Language flag
+  - Duration badge
+  - Status toggle
+  - Enrolled users count
+  - Completion rate progress bar
+  - "Edit" and "View Days" buttons
+
+**Top Actions**:
+- "Create Program" button (primary, + icon)
+- Filter by Language
+- Filter by Status
+- Search programs
+
+**Create/Edit Program Modal**:
+
+**Form Fields**:
+- Title (required)
+- Description (textarea)
+- Language (dropdown)
+- Duration in Days (number, default 10)
+- Status (Active/Inactive toggle)
+- Order (number, for display ordering)
+- Thumbnail Image (upload or URL)
+
+**Footer**:
+- Cancel
+- Save Program
+
+**On Save**:
+- If new program: Create program record
+- Redirect to Program Days page to add content
+- If edit: Update and show success
+
+#### 3.2 Program Days Page
+
+**Purpose**: Manage days within a program
+
+**Route**: `/content/programs/:programId/days`
+
+**Header**:
+- Breadcrumb: Content > Programs > [Program Name] > Days
+- Program title and info card at top
+- "Add Day" button (primary)
+
+**Days List**:
+- Ordered list (drag to reorder)
+- Each day card:
+  - Day number badge
+  - Title
+  - Subtitle
+  - Estimated duration
+  - Number of steps: "5 steps"
+  - Is Locked toggle
+  - Actions:
+    - Edit Day
+    - Manage Steps
+    - Duplicate
+    - Delete (if no completions)
+  - Drag handle icon (for reordering)
+
+**Reordering**:
+- Drag and drop to change day order
+- Auto-saves on drop
+- Visual feedback during drag
+
+**Add/Edit Day Modal**:
+
+**Form**:
+- Day Number (auto-filled based on position)
+- Title (required)
+- Subtitle (optional)
+- Estimated Duration (minutes)
+- Is Locked (toggle) - prevents users from accessing until previous day done
+- Save button
+
+#### 3.3 Steps Management Page
+
+**Purpose**: Manage individual steps within a day
+
+**Route**: `/content/programs/:programId/days/:dayId/steps`
+
+**Header**:
+- Breadcrumb: Content > Programs > [Program] > [Day] > Steps
+- Day title and info
+- "Add Step" button
+
+**Steps List**:
+- Ordered, drag-and-drop reorderable
+- Each step card:
+  - Step order number
+  - Step type badge (Text / MCQ / Open Question / Exercise / Video / Audio)
+  - Content preview (first 50 chars)
+  - Edit button
+  - Duplicate button
+  - Delete button
+  - Drag handle
+
+**Add/Edit Step Modal**:
+
+**Form (Dynamic based on type)**:
+
+**1. Select Step Type** (dropdown):
+- Text Content
+- Multiple Choice Question
+- Open-Ended Question
+- Exercise/Activity
+- Video
+- Audio
+
+**2. Based on Type, Show Relevant Fields**:
+
+**If Text Content**:
+- Rich Text Editor (WYSIWYG):
+  - Bold, italic, underline
+  - Headings
+  - Lists (bulleted, numbered)
+  - Links
+  - Image upload/embed
+- Content (required)
+- Image URL (optional, for main image)
+
+**If Multiple Choice Question**:
+- Question Text (required)
+- Option 1 (required)
+- Option 2 (required)
+- Option 3 (optional)
+- Option 4 (optional)
+- + Add Option button (up to 6 options)
+- Correct Answer (dropdown, select from options)
+- Explanation (optional, shown after user answers)
+
+**If Open-Ended Question**:
+- Question Text (required)
+- Placeholder Text (optional, e.g., "Write your thoughts here...")
+- Minimum Words (optional, number)
+- Maximum Words (optional, number)
+
+**If Exercise/Activity**:
+- Exercise Name (required)
+- Instructions (rich text)
+- Exercise Type (dropdown):
+  - Breathing Exercise
+  - Meditation
+  - Physical Activity
+  - Reflection
+  - Custom
+- Duration (minutes)
+- Completion Criteria (text description)
+
+**If Video**:
+- Video Title (required)
+- Video URL (YouTube, Vimeo, or direct MP4 link)
+- Or: Upload Video (file upload, max 100MB)
+- Thumbnail Image (optional)
+- Duration (auto-detected if possible)
+- Description (optional)
+
+**If Audio**:
+- Audio Title (required)
+- Audio URL (MP3, WAV, etc.)
+- Or: Upload Audio (file upload)
+- Duration (auto-detected)
+- Description (optional)
+
+**Save Button**:
+- Validates based on type
+- Saves content_json with appropriate structure
+- Shows success, closes modal, refreshes list
+
+#### 3.4 Articles Page
+
+**Purpose**: Manage standalone articles (Article of the Day, educational content)
+
+**Articles List**:
+- Table view
+- Columns:
+  1. Title
+  2. Type (Article / Blog Post / Guide)
+  3. Language
+  4. Status (Active/Draft/Archived)
+  5. Created Date
+  6. Last Modified
+  7. Views (if tracking)
+  8. Actions (Edit, Duplicate, Delete)
+
+**Top Actions**:
+- "Create Article" button
+- Filter by Type, Language, Status
+- Search articles
+
+**Create/Edit Article Page** (full page, not modal):
+
+**Header**:
+- "Create New Article" or "Edit Article: [Title]"
+- Save Draft button
+- Publish button
+- Preview button
+- Back to Articles
+
+**Form**:
+
+**Sidebar (Right, 30%)**:
+- Status (Draft/Published toggle)
+- Language (dropdown)
+- Type (dropdown)
+- Featured Image (upload)
+- SEO/Meta:
+  - Meta Description
+  - Tags (for search/categorization)
+- Published Date (date picker)
+- Author (dropdown, select admin)
+
+**Main Area (Left, 70%)**:
+- Title (large input)
+- Slug (auto-generated from title, editable)
+- Content (Rich Text WYSIWYG Editor):
+  - Full formatting toolbar
+  - Insert images
+  - Insert videos
+  - Code blocks
+  - Quotes
+  - Tables
+  - Headers (H1-H6)
+
+**Footer**:
+- Save Draft (gray)
+- Publish (orange, primary)
+
+**On Publish**:
+- Validates title and content
+- If new: Creates content_items record
+- Shows success: "Article published!"
+- Option to view published article (preview modal)
+
+#### 3.5 Quotes & Tips Page
+
+**Purpose**: Manage motivational quotes and quick tips
+
+**Quotes/Tips List**:
+- Card view (more visual)
+- Each card:
+  - Quote text (large, featured)
+  - Type badge (Quote / Tip)
+  - Language
+  - Status toggle (Active/Inactive)
+  - Edit button
+  - Delete button
+
+**Add/Edit Quote Modal**:
+- Type (Quote or Tip radio buttons)
+- Content (textarea, max 280 characters for quotes, 500 for tips)
+- Author (optional, for quotes)
+- Language (dropdown)
+- Is Active (toggle)
+- Save button
+
+**Bulk Import**:
+- "Import Quotes" button
+- Upload CSV file (format: type, content, author, language)
+- Preview imported data
+- Confirm import
+
+#### 3.6 Media Library Page
+
+**Purpose**: Centralized storage for images, videos, audio
+
+**Layout**:
+
+**Toolbar**:
+- Upload Files button (opens file picker, multiple select)
+- Create Folder button
+- Search bar
+- Filter by Type (All / Images / Videos / Audio / Documents)
+- Sort by (Name / Date / Size)
+- View toggle (Grid / List)
+
+**Folder Tree** (Left Sidebar, 20%):
+- Root: Media Library
+  - Images
+    - Programs
+    - Articles
+    - Achievements
+    - General
+  - Videos
+  - Audio
+  - Documents
+- Click folder to filter main view
+
+**Main Media Grid** (80%):
+
+**Grid View**:
+- Thumbnails (images show preview, videos show first frame, audio/docs show icon)
+- File name below thumbnail
+- File size and type
+- Checkbox for selection
+- Hover: Overlay with actions:
+  - Preview (eye icon)
+  - Copy URL
+  - Edit
+  - Delete
+
+**List View**:
+- Table with columns:
+  - Thumbnail (small)
+  - Name
+  - Type
+  - Size
+  - Dimensions (for images/videos)
+  - Uploaded Date
+  - Actions
+
+**Selected Files Actions** (appears when files selected):
+- Move to Folder
+- Delete (bulk)
+- Download (bulk, as ZIP)
+
+**Upload Modal**:
+- Drag and drop zone
+- Or click to browse
+- Multiple file support
+- Progress bars for each file
+- Select destination folder
+- Auto-organize by type option
+- On complete: Show success, refresh library
+
+**File Detail Modal** (when clicking file):
+- Large preview (if image/video)
+- File info:
+  - Name (editable)
+  - URL (copyable)
+  - Type
+  - Size
+  - Dimensions
+  - Uploaded by
+  - Uploaded date
+- Actions:
+  - Download
+  - Copy URL
+  - Replace File
+  - Delete
+- Close button
+
+---
+
+### 4. Support & Engagement Pages
+
+#### 4.1 Support Tickets Page
+
+**Purpose**: Manage user support requests
+
+**Note**: Support tickets aren't in original schema, so this assumes a new collection:
+
+**Collection**: `support_tickets`
+- user (relation)
+- subject (text)
+- message (text)
+- status (select: open, in_progress, resolved, closed)
+- priority (select: low, medium, high, urgent)
+- category (select: technical, content, billing, other)
+- assigned_to (relation to admin users)
+- created_at (auto)
+- updated_at (auto)
+
+**Page Layout**:
+
+**Sidebar Filter** (Left, 20%):
+- Status:
+  - Open (count badge)
+  - In Progress (count)
+  - Resolved (count)
+  - Closed (count)
+- Priority:
+  - Urgent (count)
+  - High (count)
+  - Medium (count)
+  - Low (count)
+- Category:
+  - Technical
+  - Content
+  - Billing
+  - Other
+- Assigned to:
+  - Me
+  - Unassigned
+  - All Admins
+- Date range
+
+**Main Ticket List** (Right, 80%):
+
+**Toolbar**:
+- Search tickets
+- Sort by (Date / Priority / Status)
+- "Create Ticket" button (for creating on behalf of user)
+
+**Ticket Cards** (list view):
+- Each ticket:
+  - Priority badge (Urgent=Red, High=Orange, Medium=Yellow, Low=Green)
+  - Subject (bold)
+  - User info: Avatar + Name
+  - Message preview (first 100 chars)
+  - Category badge
+  - Status badge
+  - Assigned to: Admin avatar + name (or "Unassigned")
+  - Last updated: "2 hours ago"
+  - Click to open ticket detail
+
+**Ticket Detail Modal/Page**:
+
+**Header**:
+- Subject (large)
+- Priority badge
+- Status dropdown (change status)
+- Assign to dropdown (assign admin)
+- Close ticket button
+
+**User Info Card** (sidebar):
+- User avatar, name, email
+- "View Full Profile" link
+- User stats:
+  - Days smoke-free
+  - Program progress
+  - Previous tickets (count)
+
+**Conversation Thread**:
+- Chronological message thread
+- User messages (left-aligned, light background)
+- Admin responses (right-aligned, orange tint)
+- Each message:
+  - Avatar
+  - Name
+  - Timestamp
+  - Message content
+  - Attachments (if any)
+
+**Reply Box** (bottom):
+- Rich text editor (simple)
+- Attach file button
+- Internal note toggle (not visible to user)
+- "Send Reply" button
+
+**Actions** (top-right):
+- Mark as Resolved
+- Escalate (change priority)
+- Merge with another ticket
+- Delete ticket
+
+**On Send Reply**:
+- Saves message to ticket thread
+- Sends notification to user (email + in-app)
+- Updates ticket status (if changed)
+- Shows success
+
+#### 4.2 Flagged Cravings Page
+
+**Purpose**: Review cravings that users flagged or that contain concerning content
+
+**Note**: This assumes cravings can be flagged (either by user as "need help" or by system/admin)
+
+**Flagged Cravings List**:
+
+**Filters**:
+- Flag reason:
+  - User marked "Need immediate help"
+  - High intensity (4-5) and frequent
+  - Contains concerning keywords
+  - Admin flagged
+- Date range
+- User
+
+**Craving Cards**:
+- Priority indicator (Red if urgent)
+- User info: Avatar + Name + "View Profile" link
+- Craving details:
+  - Type: Craving / Slip
+  - Intensity: ⭐⭐⭐⭐⭐
+  - Trigger: Stress
+  - Notes: [user's notes, highlighted if keywords detected]
+  - Timestamp
+- Flag reason: "High intensity and frequency"
+- Admin notes (textarea, editable)
+- Actions:
+  - Contact User (opens support ticket)
+  - Mark as Reviewed
+  - Dismiss Flag
+  - Escalate to Clinical Team (if applicable)
+
+**Bulk Actions** (if multiple selected):
+- Mark as Reviewed
+- Assign to Support Admin
+- Send Bulk Check-in Message
+
+#### 4.3 Flagged Journal Entries Page
+
+**Purpose**: Review journal entries that contain concerning content
+
+**Similar to Flagged Cravings**:
+
+**Filters**:
+- Flag reason:
+  - Contains concerning keywords (self-harm, suicide, etc.)
+  - User reported
+  - Admin flagged
+- Date range
+- Review status
+
+**Entry Cards**:
+- User info
+- Entry date
+- Mood
+- Content (full or preview)
+- Keywords highlighted in red
+- Flag reason
+- Admin notes
+- Actions:
+  - Contact User
+  - Mark Safe
+  - Mark for Follow-up
+  - Involve Professional Support
+  - Delete Entry (if violates policy)
+
+**Important**: 
+- Privacy considerations
+- Only flag entries with explicit user consent or for safety reasons
+- Provide option to escalate to mental health professionals
+
+---
+
+### 5. Analytics & Reports Pages
+
+#### 5.1 User Analytics Dashboard
+
+**Purpose**: Deep dive into user behavior and engagement
+
+**Page Layout**:
+
+**Top Metrics** (4 cards):
+1. DAU (Daily Active Users) - count and trend
+2. WAU (Weekly Active Users) - count and trend
+3. MAU (Monthly Active Users) - count and trend
+4. Stickiness (DAU/MAU) - percentage
+
+**Charts**:
+
+**User Growth Chart**:
+- Line chart
+- X-axis: Time (last 30/90/180/365 days)
+- Y-axis: Cumulative users
+- Lines:
+  - Total Users (Green)
+  - Active Users (Orange)
+  - New Registrations (Blue)
+- Data points on hover
+
+**User Retention Cohort Chart**:
+- Cohort table
+- Rows: Registration week/month
+- Columns: Weeks/Months since registration
+- Cells: Retention percentage
+- Color gradient: Red (low) to Green (high)
+- Example:
+  ```
+  | Cohort    | Week 1 | Week 2 | Week 3 | Week 4 |
+  |-----------|--------|--------|--------|--------|
+  | Jan 2024  | 100%   | 68%    | 52%    | 45%    |
+  | Feb 2024  | 100%   | 72%    | 58%    | --     |
+  ```
+
+**User Segmentation Funnel**:
+- Funnel chart showing user journey:
+  - Registered: 1000
+  - Completed KYC: 850 (85%)
+  - Started Program: 720 (72%)
+  - Completed Day 1: 650 (65%)
+  - Completed Program: 450 (45%)
+- Click segment to view users in that stage
+
+**Geographic Distribution** (if location data available):
+- Map showing user concentration by region
+- Or bar chart of top cities/countries
+
+**Device & Platform**:
+- Pie charts:
+  - iOS vs Android vs Web
+  - Device types (phone/tablet/desktop)
+
+**Filters** (apply to all charts):
+- Date range
+- User segment
+- Language
+- Program
+
+#### 5.2 Engagement Metrics Dashboard
+
+**Purpose**: Understand how users interact with features
+
+**Feature Usage Chart**:
+- Bar chart or pie chart
+- Categories:
+  - Sessions/Program: 40%
+  - Craving Logs: 25%
+  - Journal: 20%
+  - Progress View: 10%
+  - Other: 5%
+
+**Session Completion Metrics**:
+- Completion rate by day:
+  - Day 1: 95%
+  - Day 2: 88%
+  - Day 3: 82%
+  - ...
+  - Day 10: 45%
+- Drop-off points analysis
+- Average time per session
+
+**Craving Patterns**:
+- Heatmap: Day of week vs Hour of day
+  - Shows when cravings peak
+  - Color intensity = craving frequency
+- Trigger distribution (pie chart)
+- Intensity distribution (bar chart)
+- Slip rate: X% of cravings result in slips
+
+**Journal Engagement**:
+- Entries per user (average)
+- Most common moods (pie chart)
+- Entry length distribution
+- Frequency of journaling (daily/weekly/monthly active journalers)
+
+**Achievement Unlocking**:
+- Table of achievements:
+  - Achievement name
+  - Total unlocks
+  - Unlock rate (% of eligible users)
+  - Average days to unlock
+- Most unlocked vs least unlocked
+
+**Push Notification Performance** (if implemented):
+- Sent vs Delivered vs Opened
+- Click-through rate
+- Unsubscribe rate
+
+#### 5.3 Program Performance Dashboard
+
+**Purpose**: Analyze effectiveness of programs and content
+
+**Program Comparison Table**:
+- Columns:
+  - Program Name
+  - Enrolled Users
+  - Active Users
+  - Completion Rate
+  - Average Days to Complete
+  - Dropout Rate
+  - Average Rating (if user feedback collected)
+- Sort by any column
+
+**Content Effectiveness**:
+- Table of program days:
+  - Day number + Title
+  - Completion rate
+  - Average time spent
+  - User satisfaction (if ratings collected)
+  - Drop-off rate (% who don't continue after this day)
+- Identify problematic days
+
+**Step Performance**:
+- Drill down into specific day
+- For each step:
+  - Step type
+  - Completion rate
+  - Time spent
+  - Skip rate
+- Identify steps users struggle with
+
+**User Feedback** (if collected):
+- Aggregate ratings and comments
+- Word cloud of common themes
+- Sentiment analysis (positive/neutral/negative)
+
+**A/B Test Results** (if running experiments):
+- Compare two versions of content
+- Metrics: Completion rate, time spent, user feedback
+- Statistical significance indicator
+
+#### 5.4 Retention Reports
+
+**Purpose**: Understand why users stay or leave
+
+**Retention Curve**:
+- Line chart: % of users still active over time
+- X-axis: Days since registration
+- Y-axis: % still active
+- Benchmark against industry standards
+
+**Churn Analysis**:
+- Churn rate by cohort
+- Reasons for churn (if exit surveys implemented):
+  - Pie chart of reasons
+  - Top reason: "Program too difficult" (35%)
+  - etc.
+
+**Win-Back Campaigns**:
+- List of churned users (not active 30+ days)
+- Last activity date
+- Program progress when left
+- Suggested win-back action:
+  - Send personalized email
+  - Offer discount/incentive
+  - Simplify program
+- Track reactivation rate
+
+**Predictive Churn Model** (advanced):
+- ML model predicting churn risk
+- List of high-risk users
+- Recommended interventions
+
+#### 5.5 Custom Reports Page
+
+**Purpose**: Let admins create ad-hoc reports
+
+**Report Builder Interface**:
+
+**Step 1: Select Data Source**
+- Dropdown:
+  - Users
+  - Sessions
+  - Cravings
+  - Journal Entries
+  - Achievements
+  - Support Tickets
+
+**Step 2: Choose Metrics** (based on data source)
+- Checkboxes:
+  - Count
+  - Average
+  - Sum
+  - Min/Max
+  - Percentage
+  - Trend (over time)
+
+**Step 3: Apply Filters**
+- Dynamic filter builder:
+  - Field (dropdown)
+  - Operator (equals, greater than, less than, contains, etc.)
+  - Value (input)
+  - Add condition (AND/OR)
+
+**Step 4: Group By** (optional)
+- Choose field to group results:
+  - Date (day/week/month/year)
+  - User segment
+  - Language
+  - Status
+  - etc.
+
+**Step 5: Visualization**
+- Chart type:
+  - Table
+  - Bar Chart
+  - Line Chart
+  - Pie Chart
+  - Heatmap
+- X-axis, Y-axis configuration
+
+**Step 6: Save & Export**
+- Report name
+- Description
+- Save for later
+- Schedule (daily/weekly/monthly email)
+- Export as:
+  - CSV
+  - Excel
+  - PDF
+
+**Saved Reports List**:
+- Table of previously saved reports
+- Columns: Name, Description, Created by, Last run, Actions
+- Actions: Run, Edit, Duplicate, Delete, Schedule
+
+---
+
+### 6. Achievements & Gamification Pages
+
+#### 6.1 All Achievements Page
+
+**Purpose**: Manage achievement definitions
+
+**Achievements List**:
+- Grid or table view
+- Each achievement card/row:
+  - Icon (image or emoji)
+  - Title
+  - Description
+  - Tier badge (Bronze/Silver/Gold/Platinum)
+  - Requirement: "Complete 7 days smoke-free"
+  - Total Unlocked: 245 users
+  - Unlock Rate: 18.5%
+  - Actions:
+    - Edit
+    - Duplicate
+    - Deactivate
+    - Delete (if no unlocks)
+
+**Create/Edit Achievement Modal**:
+
+**Form**:
+- Key (unique identifier, auto-generated, editable)
+- Title (required)
+- Description (required)
+- Icon (upload or select from library)
+- Tier (dropdown: Bronze/Silver/Gold/Platinum)
+- Requirement Type (dropdown):
+  - Days Streak
+  - Cravings Resisted
+  - Sessions Completed
+  - Slips Under Threshold
+  - Journal Entries
+  - Custom
+- Requirement Value (number)
+- Is Active (toggle)
+- Display Order (number)
+- Reward (optional):
+  - Points (if gamification system)
+  - Badge
+  - Unlock special content
+- Save button
+
+**Validation**:
+- Unique key
+- Positive requirement value
+- Icon required
+
+#### 6.2 User Achievement Logs
+
+**Purpose**: Audit trail of achievement unlocks
+
+**Filters**:
+- Date range
+- Achievement (dropdown)
+- User (search)
+- Unlock method (Automatic / Manual by Admin)
+
+**Logs Table**:
+- Columns:
+  - User (avatar + name)
+  - Achievement (icon + title)
+  - Unlocked Date & Time
+  - Unlock Method (Auto or "Manual by [Admin Name]")
+  - Reason (if manual)
+  - View User Profile link
+
+**Export**: CSV of all unlock logs
+
+**Manual Grant** (from user detail page, covered earlier):
+- Logs appear here with "Manual" tag
+
+---
+
+### 7. System & Settings Pages
+
+#### 7.1 App Settings
+
+**Purpose**: Configure global application settings
+
+**Settings Organized in Tabs or Accordion**:
+
+**Tab 1: General Settings**
+- App Name (text input)
+- Tagline (text input)
+- Default Language (dropdown)
+- Supported Languages (multi-select)
+- Time Zone (dropdown)
+- Date Format (dropdown: MM/DD/YYYY, DD/MM/YYYY, etc.)
+- Currency (dropdown with symbol)
+- Save button
+
+**Tab 2: User Defaults**
+- Default Program (dropdown) - assigned to new users
+- Default Reminder Time (time picker)
+- Email Verification Required (toggle)
+- Phone Verification Required (toggle)
+- Minimum Age (number)
+- Save button
+
+**Tab 3: Content Settings**
+- Article of the Day Enabled (toggle)
+- Random Quote Enabled (toggle)
+- Quote Rotation Frequency (dropdown: Daily/Weekly)
+- Content Approval Required (toggle) - if true, new content goes to draft
+- Save button
+
+**Tab 4: Notification Settings**
+- Email Notifications Enabled (toggle)
+- SMS Notifications Enabled (toggle)
+- Push Notifications Enabled (toggle)
+- Daily Reminder Default (toggle)
+- Achievement Notifications (toggle)
+- Save button
+
+**Tab 5: Security Settings**
+- Session Timeout (minutes)
+- Password Requirements:
+  - Minimum Length (number)
+  - Require Uppercase (toggle)
+  - Require Number (toggle)
+  - Require Special Character (toggle)
+  - Password Expiry (days, 0 = never)
+- Two-Factor Authentication (toggle)
+- IP Whitelist (textarea, one IP per line)
+- Save button
+
+**Tab 6: Integrations**
+- Email Service:
+  - Provider (SendGrid/Mailgun/AWS SES)
+  - API Key (password input)
+  - From Email
+  - From Name
+  - Test Email button
+- SMS Service:
+  - Provider (Twilio/Nexmo)
+  - API Key
+  - From Number
+  - Test SMS button
+- Analytics:
+  - Google Analytics ID
+  - Facebook Pixel ID
+- Payment Gateway (if applicable):
+  - Stripe/PayPal credentials
+- Save button
+
+**Tab 7: Data & Privacy**
+- Data Retention Policy:
+  - User data kept for X days after deletion
+  - Anonymize after X days
+- GDPR Compliance (toggle)
+- Terms of Service URL
+- Privacy Policy URL
+- Cookie Policy URL
+- Data Export Format (JSON/CSV)
+- Save button
+
+**All settings**:
+- Save button for each tab
+- On save: Show success toast, log change in audit log
+
+#### 7.2 Notification Templates
+
+**Purpose**: Manage email and push notification templates
+
+**Templates List**:
+- Table view
+- Columns:
+  - Template Name
+  - Type (Email / Push / SMS)
+  - Trigger Event
+  - Language
+  - Status (Active/Inactive)
+  - Last Modified
+  - Actions (Edit, Duplicate, Preview, Delete)
+
+**Template Types** (predefined):
+- Welcome Email (on registration)
+- Email Verification
+- Password Reset
+- Daily Reminder
+- Session Completed Congratulations
+- Achievement Unlocked
+- Support Ticket Response
+- Craving Support
+- Inactivity Nudge (re-engagement)
+- Program Completion Celebration
+
+**Create/Edit Template Page**:
+
+**Form**:
+- Template Name (required)
+- Event Trigger (dropdown)
+- Type (Email/Push/SMS radio buttons)
+- Language (dropdown)
+- Is Active (toggle)
+
+**If Email**:
+- Subject Line (required, supports variables)
+- Preheader Text (optional)
+- Email Body (rich text WYSIWYG editor):
+  - Drag-and-drop email builder or HTML
+  - Supports variables: {{user.name}}, {{days_smoke_free}}, etc.
+  - Preview button
+- From Name
+- From Email
+- Reply-To Email
+
+**If Push Notification**:
+- Title (required, max 50 chars)
+- Body (required, max 150 chars)
+- Icon URL
+- Click Action URL
+- Supports variables
+
+**If SMS**:
+- Message (required, max 160 chars)
+- Supports variables
+
+**Variables Reference Panel**:
+- Shows available variables:
+  - {{user.name}}
+  - {{user.email}}
+  - {{days_smoke_free}}
+  - {{program.title}}
+  - {{achievement.title}}
+  - etc.
+- Click to insert into template
+
+**Preview**:
+- Shows how template will look with sample data
+- Test send button (sends to admin's email/phone for testing)
+
+**Save Button**:
+- Saves template
+- On save, updates all scheduled sends using this template
+
+#### 7.3 Admin Users Management
+
+**Purpose**: Manage admin accounts and permissions
+
+**Admin Users List**:
+- Table view
+- Columns:
+  - Avatar + Name
+  - Email
+  - Role (Super Admin / Content Manager / Support Agent / Analyst)
+  - Status (Active/Inactive)
+  - Last Login
+  - Actions (Edit, Deactivate, Delete)
+
+**Add Admin User Modal**:
+
+**Form**:
+- Name (required)
+- Email (required)
+- Password (required, or "Send invite email" option)
+- Role (dropdown):
+  - Super Admin (full access)
+  - Content Manager (manage programs, articles, media)
+  - Support Agent (manage tickets, view users)
+  - Analyst (view-only analytics, export reports)
+- Status (Active/Inactive)
+- Send Welcome Email (checkbox)
+- Save button
+
+**Edit Admin User**:
+- Same form, pre-filled
+- Can change role
+- Can reset password
+- Can deactivate
+
+#### 7.4 Roles & Permissions
+
+**Purpose**: Define granular permissions for each role
+
+**Roles List**:
+- Table of roles:
+  - Role Name
+  - Description
+  - Number of Admins
+  - Actions (Edit, Duplicate, Delete if no admins assigned)
+
+**Edit Role Modal/Page**:
+
+**Permissions Checklist** (organized by module):
+
+**Dashboard**:
+- View Dashboard ✓
+
+**Users**:
+- View Users ✓
+- Create Users ✓
+- Edit Users ✓
+- Delete Users ✓
+- Export Users ✓
+- View User Details ✓
+- Send Messages to Users ✓
+
+**Content**:
+- View Programs ✓
+- Create Programs ✓
+- Edit Programs ✓
+- Delete Programs ✓
+- Publish Content ✓
+- View Media Library ✓
+- Upload to Media Library ✓
+
+**Support**:
+- View Support Tickets ✓
+- Respond to Tickets ✓
+- Close Tickets ✓
+- Delete Tickets ✓
+
+**Analytics**:
+- View Analytics ✓
+- Export Reports ✓
+- Create Custom Reports ✓
+
+**Settings**:
+- View Settings ✓
+- Edit Settings ✓
+- Manage Admins ✓
+- View Audit Logs ✓
+
+**Save Permissions**:
+- Updates role
+- All admins with this role immediately reflect changes
+
+**Predefined Roles** (can be edited but not deleted):
+- Super Admin: All permissions
+- Content Manager: Content + Media permissions
+- Support Agent: Users (view/message) + Support permissions
+- Analyst: View-only Analytics + Export permissions
+
+#### 7.5 Audit Logs
+
+**Purpose**: Track all administrative actions for security and compliance
+
+**Filters**:
+- Date range
+- Admin user
+- Action type:
+  - User Management
+  - Content Management
+  - Settings Changes
+  - Support Actions
+  - Deletions
+  - Login/Logout
+  - Permission Changes
+- Entity (User, Program, Article, etc.)
+
+**Logs Table**:
+- Columns:
+  - Timestamp
+  - Admin User (avatar + name)
+  - Action (e.g., "Updated user profile")
+  - Entity Type (User)
+  - Entity ID (with link to entity)
+  - Details (expandable JSON or formatted text):
+    - What changed: "Email changed from X to Y"
+  - IP Address
+  - User Agent
+
+**Detail View** (click to expand):
+- Full JSON of request/response
+- Before and after states (for updates)
+
+**Export**:
+- CSV export with all filters applied
+- For compliance audits
+
+**Retention**:
+- Logs kept for configurable period (e.g., 2 years)
+- Archive old logs option
+
+**Real-time Updates**:
+- New logs appear automatically (WebSocket or polling)
+
+#### 7.6 API Keys & Webhooks
+
+**Purpose**: Manage integrations with external services
+
+**API Keys Section**:
+
+**Keys List**:
+- Table:
+  - Key Name
+  - Key (masked, click to reveal)
+  - Created Date
+  - Last Used
+  - Status (Active/Revoked)
+  - Actions (Regenerate, Revoke, Delete)
+
+**Create API Key**:
+- Key Name (required)
+- Permissions (checkboxes for allowed endpoints)
+- Expiry Date (optional)
+- Generate button
+- Shows key once (must copy, can't be viewed again)
+
+**Webhooks Section**:
+
+**Webhooks List**:
+- URL
+- Events (which events trigger this webhook)
+- Status (Active/Inactive)
+- Actions (Edit, Test, Delete)
+
+**Add Webhook**:
+- Webhook URL (required)
+- Select Events (checkboxes):
+  - User Registered
+  - User Completed Program
+  - Achievement Unlocked
+  - Support Ticket Created
+  - etc.
+- Secret (for signature verification)
+- Test Webhook button (sends test payload)
+- Save button
+
+---
+
+### 8. Help & Resources Page
+
+**Purpose**: Provide guidance to admin users
+
+**Sections**:
+
+**1. Getting Started Guide**:
+- Video tutorial or step-by-step guide
+- Topics:
+  - Dashboard Overview
+  - Creating Your First Program
+  - Managing Users
+  - Responding to Support Tickets
+  - Understanding Analytics
+
+**2. Feature Documentation**:
+- Searchable knowledge base
+- Articles organized by module:
+  - User Management
+  - Content Creation
+  - Analytics
+  - Settings
+- Each article:
+  - Title
+  - Description
+  - Step-by-step instructions
+  - Screenshots
+  - Video (if applicable)
+
+**3. FAQ**:
+- Accordion list of common questions
+- e.g.:
+  - "How do I reset a user's password?"
+  - "How do I bulk export user data?"
+  - "What does the retention curve mean?"
+- Click to expand answer
+
+**4. Keyboard Shortcuts**:
+- Table of shortcuts:
+  - `⌘K` / `Ctrl+K` - Global search
+  - `⌘N` / `Ctrl+N` - New item (context-dependent)
+  - `⌘S` / `Ctrl+S` - Save
+  - `Esc` - Close modal
+  - etc.
+
+**5. Contact Support**:
+- Form to contact Quit Hero admin support team
+- Fields: Subject, Message, Urgency
+- Submit button
+- Or email/chat link
+
+**6. Release Notes / Changelog**:
+- List of recent updates to admin dashboard
+- Version numbers
+- What's new
+- Bug fixes
+
+---
+
+## Global Features & Components
+
+### Global Search (⌘K / Ctrl+K)
+
+**Trigger**: Click search bar in top nav, or keyboard shortcut
+
+**Search Modal**:
+- Large search input at top
+- As user types, show results below in categories:
+
+**Categories**:
+1. **Users**: Avatar + Name + Email
+2. **Programs**: Title + Description snippet
+3. **Articles**: Title + Content snippet
+4. **Support Tickets**: Subject + User name
+5. **Settings**: Setting name + description
+
+- Click result to navigate to detail page
+- "View all results" for each category
+- Recent searches shown when input is empty
+- Keyboard navigation (arrow keys, enter to select)
+
+### Notifications System
+
+**Notification Bell** (in top nav):
+- Badge count of unread notifications
+
+**Dropdown**:
+- Tabs:
+  - All
+  - Unread
+  - System Alerts
+
+**Notification Types**:
+1. New User Registration
+   - "John Doe just registered"
+   - Time: "2 min ago"
+   - Click to view user profile
+
+2. Support Ticket Created
+   - "New ticket from Jane Smith: 'Login issue'"
+   - Click to view ticket
+
+3. System Alert
+   - "Database backup completed successfully"
+   - Or: "High server load detected" (warning icon)
+
+4. Content Pending Review
+   - "New article submitted by [content manager]"
+   - Click to review
+
+5. Achievement Milestone
+   - "100 users unlocked 'Week Warrior' achievement"
+   - Click to view achievement details
+
+**Notification Item**:
+- Icon (type-specific)
+- Title + description
+- Timestamp
+- Mark as read button (checkbox)
+- Click to navigate to relevant page
+
+**Actions**:
+- Mark all as read
+- Notification settings (which types to receive)
+
+**Real-time**:
+- WebSocket or Server-Sent Events for instant updates
+- Browser notification API for desktop notifications (with permission)
+
+### Profile Dropdown
+
+**Dropdown Items**:
+1. My Profile
+   - View/edit own admin profile
+   - Name, email, avatar
+   - Change password
+   - Notification preferences
+
+2. Settings
+   - Quick link to App Settings
+
+3. Help
+   - Link to Help & Resources
+
+4. Logout
+   - Logs out admin
+   - Redirects to login page
+
+### Breadcrumbs
+
+**Location**: Below top nav, above page title
+
+**Format**: Home > Users > John Doe > Edit
+
+**Behavior**:
+- Each segment is clickable (except current page)
+- Auto-generated based on route
+- Mobile: Show only last 2 segments + "..." for earlier
+
+### Page Title & Actions
+
+**Structure**:
+- Left: Page Title (H1)
+- Right: Primary action button(s)
+
+**Example**:
+- Page: Users
+- Title: "All Users" (left)
+- Actions: "Export CSV", "Add User" (right, orange button)
+
+### Data Tables
+
+**Standard Features** (for all tables):
+1. **Column Sorting**:
+   - Click header to sort ascending
+   - Click again for descending
+   - Arrow icon indicates sort direction
+
+2. **Column Filtering**:
+   - Filter icon in header
+   - Opens popover with filter controls:
+     - Text search (for text columns)
+     - Date range (for date columns)
+     - Checkboxes (for enum columns)
+   - Apply/Clear buttons
+
+3. **Pagination**:
+   - Rows per page: 10 / 25 / 50 / 100 (dropdown)
+   - "Showing 1-25 of 1,234"
+   - Previous / Next buttons
+   - Page number input (jump to page)
+
+4. **Row Selection**:
+   - Checkbox in first column
+   - Select all checkbox in header
+   - Selected row count: "3 selected"
+   - Bulk actions appear when rows selected
+
+5. **Sticky Header**:
+   - Header stays visible when scrolling table
+
+6. **Responsive**:
+   - Desktop: Full table
+   - Tablet: Hide less important columns
+   - Mobile: Card view (stack rows as cards)
+
+7. **Empty State**:
+   - Illustration
+   - "No results found"
+   - Suggestion (clear filters, add item)
+
+8. **Loading State**:
+   - Skeleton rows while loading
+   - Spinner overlay for updates
+
+**Table Styling**:
+- Zebra striping (alternate row colors)
+- Row hover: Subtle background change
+- Selected row: Orange tint
+- Header: Bold, gray background
+- Borders: Subtle gray
+
+### Forms & Validation
+
+**Form Components**:
+
+**Text Input**:
+- Label above input
+- Placeholder text (hint)
+- Helper text below (optional)
+- Error message below (if validation fails)
+- Required indicator (red asterisk)
+- Disabled state (grayed out)
+
+**Textarea**:
+- Same as text input
+- Resizable or auto-expanding
+- Character count (if max length)
+
+**Dropdown/Select**:
+- Label above
+- Placeholder: "Select an option"
+- Searchable (type to filter options)
+- Clear button (if value selected)
+- Multi-select variant (with tags)
+
+**Checkbox**:
+- Label to the right
+- Checkmark when selected
+- Indeterminate state (for "select all" with partial selection)
+
+**Radio Buttons**:
+- Group of options
+- Only one selectable
+- Label to the right of each
+
+**Toggle Switch**:
+- For boolean settings
+- Label to the left
+- On/Off states (color coded: green/gray)
+
+**Date Picker**:
+- Input field with calendar icon
+- Click to open calendar popover
+- Navigate months/years
+- Select date
+- Date format based on app settings
+
+**Time Picker**:
+- Input field with clock icon
+- Click to open time selector
+- Hour/minute dropdowns
+- AM/PM toggle (if 12-hour format)
+
+**File Upload**:
+- Drag-and-drop zone
+- "Choose file" button
+- File preview (if image)
+- File name + size display
+- Remove file button (X)
+- Progress bar (during upload)
+- Error state (if upload fails)
+
+**Rich Text Editor** (WYSIWYG):
+- Toolbar:
+  - Bold, Italic, Underline
+  - Headings (H1-H6)
+  - Lists (bulleted, numbered)
+  - Link
+  - Image
+  - Code block
+  - Quote
+  - Alignment
+  - Clear formatting
+- Content area (editable)
+- Source view toggle (HTML)
+
+**Validation**:
+- Real-time validation (on blur or submit)
+- Error styling:
+  - Red border on input
+  - Red text error message below
+  - Error icon
+- Success styling:
+  - Green border
+  - Green checkmark icon
+- Required field validation
+- Format validation (email, URL, phone)
+- Custom validation (unique username, password strength)
+
+**Form Layout**:
+- Single column (simple forms)
+- Two columns (complex forms)
+- Grouped sections (with headers)
+- Responsive (stack on mobile)
+
+**Form Actions**:
+- Primary button (Submit, Save): Orange, right-aligned
+- Secondary button (Cancel, Back): Gray, left of primary
+- Destructive button (Delete): Red, confirmation required
+- Loading state: Spinner in button, disabled
+
+### Modals & Dialogs
+
+**Modal Structure**:
+- Overlay: Semi-transparent black background (blurs page behind)
+- Modal container: White card, centered
+- Header:
+  - Title (H2, left)
+  - Close button (X, right)
+- Content area: Form or information
+- Footer:
+  - Cancel button (left or right, gray)
+  - Primary action button (right, orange)
+
+**Modal Sizes**:
+- Small (400px): Simple confirmations
+- Medium (600px): Standard forms
+- Large (800px): Complex forms or data
+- Full-screen: Rich content editors
+
+**Modal Types**:
+
+1. **Confirmation Dialog**:
+   - Warning icon
+   - Message: "Are you sure you want to delete this user?"
+   - Actions: "Cancel", "Delete" (red)
+
+2. **Form Modal**:
+   - Form fields
+   - Validation
+   - Save/Cancel buttons
+
+3. **Information Modal**:
+   - Display information
+   - Close button only
+
+4. **Multi-Step Modal** (Wizard):
+   - Progress indicator at top (steps)
+   - Back/Next buttons
+   - Finish button on last step
+
+**Modal Behavior**:
+- Click overlay to close (unless unsaved changes)
+- Press Esc to close
+- Scroll within modal if content overflows
+- Backdrop blur for glassmorphism effect
+- Focus trap (tab navigation stays in modal)
+- Animate in/out (fade + scale)
+
+### Tooltips
+
+**Usage**: Provide context on hover
+
+**Trigger**: Hover over icon, text, or element
+
+**Tooltip**:
+- Small dark box
+- White text
+- Arrow pointing to trigger element
+- Max width: 200px
+- Position: Above, below, left, or right (auto-adjusts for screen edge)
+- Delay: 500ms to appear
+- Disappears on mouse leave
+
+**Use Cases**:
+- Icon explanations
+- Field hints
+- Truncated text (show full on hover)
+- Keyboard shortcuts
+
+### Toast Notifications
+
+**Purpose**: Temporary feedback messages
+
+**Types**:
+1. Success (Green):
+   - Icon: Checkmark
+   - Message: "User created successfully"
+   - Auto-dismiss: 3s
+
+2. Error (Red):
+   - Icon: X or warning
+   - Message: "Failed to save changes"
+   - Auto-dismiss: 5s or manual dismiss
+
+3. Warning (Yellow):
+   - Icon: Warning triangle
+   - Message: "Some data may be lost"
+   - Auto-dismiss: 4s
+
+4. Info (Blue):
+   - Icon: Info i
+   - Message: "Report will be ready in a few minutes"
+   - Auto-dismiss: 3s
+
+**Position**: Top-right corner
+
+**Behavior**:
+- Slide in from right
+- Stack if multiple (max 3 visible)
+- Click X to dismiss
+- Swipe right to dismiss (mobile)
+
+**Content**:
+- Icon (type-specific color)
+- Title (optional, bold)
+- Message (concise)
+- Action button (optional, e.g., "Undo", "View")
+- Close button (X)
+
+### Loading States
+
+**Types**:
+
+1. **Spinner**:
+   - Circular, rotating
+   - Orange color
+   - Sizes: Small (16px), Medium (32px), Large (64px)
+   - Usage: Buttons, inline, centered
+
+2. **Skeleton Screens**:
+   - Gray placeholder rectangles
+   - Pulse animation
+   - Mimics content layout
+   - Usage: Tables, cards, lists while loading
+
+3. **Progress Bar**:
+   - Linear bar, fills left to right
+   - Percentage indicator
+   - Usage: File uploads, batch operations
+
+4. **Full-Page Loader**:
+   - Overlay with spinner
+   - Message: "Loading..." or specific text
+   - Usage: Initial app load, large operations
+
+**Best Practices**:
+- Show loading immediately on action
+- Minimum display time: 200ms (avoid flicker)
+- Disable interactive elements during load
+- Provide feedback for long operations (progress %)
+
+### Empty States
+
+**Components**:
+- Illustration or icon (large, centered)
+- Heading: "No users found" or similar
+- Description: "Try adjusting your filters" or helpful hint
+- Primary action: "Add User" button (if applicable)
+
+**Examples**:
+- Empty table: "No results match your filters"
+- No data yet: "You haven't created any programs yet. Get started!"
+- Error state: "Something went wrong. Please try again."
+
+### Error States
+
+**Types**:
+
+1. **Inline Errors** (form fields):
+   - Red border on input
+   - Red text message below
+   - Error icon
+
+2. **Page-Level Errors**:
+   - Error illustration
+   - Error code (if applicable): "404 Not Found"
+   - Message: "The page you're looking for doesn't exist"
+   - Action: "Go to Dashboard" button
+
+3. **API Errors**:
+   - Toast notification with error message
+   - Retry button (if applicable)
+   - Contact support link (for persistent errors)
+
+4. **Network Errors**:
+   - Banner at top of page: "You're offline. Some features may not work."
+   - Retry button
+   - Auto-retry when connection restored
+
+**Error Messages**:
+- User-friendly (avoid technical jargon)
+- Specific ("Email is required" vs "Invalid input")
+- Actionable ("Please enter a valid email address")
+
+### Charts & Visualizations (D3.js + Recharts)
+
+**Chart Types**:
+
+1. **Line Chart**:
+   - For trends over time
+   - Multiple lines (different metrics)
+   - Gradient fill option
+   - Data points on hover
+   - Gridlines (subtle)
+   - Axis labels
+
+2. **Bar Chart**:
+   - For comparisons
+   - Vertical or horizontal
+   - Grouped bars (multiple series)
+   - Color coded
+   - Value labels on bars
+
+3. **Pie/Donut Chart**:
+   - For proportions
+   - Percentage labels on segments
+   - Legend
+   - Interactive (click segment to filter)
+
+4. **Area Chart**:
+   - For cumulative data
+   - Stacked or overlapping areas
+   - Gradient fill
+
+5. **Heatmap**:
+   - For two-dimensional data (e.g., day vs hour)
+   - Color intensity = value
+   - Hover shows exact value
+   - Color scale legend
+
+6. **Funnel Chart**:
+   - For conversion flows
+   - Segments with percentages
+   - Click to drill down
+
+7. **Scatter Plot**:
+   - For correlations
+   - Two variables
+   - Trend line option
+
+8. **Cohort Table**:
+   - Grid with color coding
+   - Rows: Cohorts
+   - Columns: Time periods
+   - Cells: Retention percentages
+
+**Chart Features**:
+- Responsive (resize to container)
+- Tooltip on hover (show values)
+- Legend (toggle series visibility)
+- Zoom/pan (for large datasets)
+- Export as image (PNG, SVG)
+- Export data (CSV)
+
+**Styling**:
+- Colors from defined palette
+- Smooth animations
+- Clear labels
+- Accessible (color blind friendly options)
+
+### Permissions & Access Control
+
+**Implementation**:
+- Every page/action checks user's role and permissions
+- Unauthorized access:
+  - Redirect to dashboard
+  - Show toast: "You don't have permission to access this page"
+  - Or show 403 error page
+
+**UI Indicators**:
+- Disabled buttons (if no permission)
+- Hidden menu items (if no permission)
+- Read-only views (for view-only permissions)
+
+**Example**:
+- Support Agent role:
+  - Can view Users page (list only)
+  - Can view Support Tickets (full access)
+  - Cannot access Settings page (hidden from menu)
+  - Cannot delete users (delete button disabled/hidden)
+
+---
+
+## Technical Implementation Notes
+
+### State Management
+
+**Global State** (Context API):
+- Current admin user
+- User permissions
+- App settings
+- Notification state
+
+**Server State** (React Query):
+- Users data
+- Programs data
+- Analytics data
+- Caching strategy
+- Automatic refetching
+- Optimistic updates
+
+**Local State** (useState):
+- Form inputs
+- Modal visibility
+- Filter values
+- Sort order
+
+### Routing (React Router v6)
+
+**Routes Structure**:
+```
+/login
+/dashboard
+/users
+  /users/:id
+  /users/add
+  /users/segments
+/content
+  /content/programs
+  /content/programs/:programId/days
+  /content/programs/:programId/days/:dayId/steps
+  /content/articles
+  /content/articles/add
+  /content/articles/:id/edit
+  /content/quotes
+  /content/media
+/support
+  /support/tickets
+  /support/tickets/:id
+  /support/flagged-cravings
+  /support/flagged-journals
+/analytics
+  /analytics/users
+  /analytics/engagement
+  /analytics/programs
+  /analytics/retention
+  /analytics/custom
+/achievements
+  /achievements
+  /achievements/add
+  /achievements/logs
+/settings
+  /settings/app
+  /settings/templates
+  /settings/admins
+  /settings/roles
+  /settings/audit
+  /settings/api
+/help
+```
+
+**Route Guards**:
+- Redirect to login if not authenticated
+- Check permissions before rendering protected routes
+
+### PocketBase Integration
+
+**Authentication**:
+- Admin users collection in PocketBase
+- Email/password login
+- Store auth token in localStorage or cookie
+- Include token in all API requests (Authorization header)
+
+**API Calls**:
+- Use PocketBase SDK for CRUD operations
+- Real-time subscriptions for live updates (notifications, activity feed)
+- File uploads for media library
+- Batch operations where possible (bulk updates)
+
+**Error Handling**:
+- Catch API errors
+- Display user-friendly messages
+- Log errors for debugging
+- Retry failed requests (with exponential backoff)
+
+### Performance Optimization
+
+**Code Splitting**:
+- Lazy load routes
+- Split by feature module
+- Reduce initial bundle size
+
+**Caching**:
+- Cache API responses (React Query)
+- Invalidate cache on mutations
+- Stale-while-revalidate strategy
+
+**Virtualization**:
+- For long lists (users, logs)
+- Render only visible rows
+- Use react-window or react-virtualized
+
+**Debouncing**:
+- Search inputs
+- Filter changes
+- Auto-save forms
+
+**Image Optimization**:
+- Lazy load images
+- Use CDN
+- Responsive images (srcset)
+- WebP format
+
+### Accessibility
+
+**Keyboard Navigation**:
+- All interactive elements focusable
+- Tab order logical
+- Keyboard shortcuts
+- Focus indicators visible
+
+**Screen Readers**:
+- Semantic HTML
+- ARIA labels and roles
+- Alt text for images
+- Skip navigation links
+
+**Color Contrast**:
+- WCAG AA compliance
+- Sufficient contrast ratios
+- Don't rely on color alone
+
+**Responsive Text**:
+- Font sizes scale with viewport
+- Minimum font size: 14px
+- Line height: 1.5
+
+### Security
+
+**Authentication**:
+- Secure password hashing
+- Session management
+- Auto-logout on inactivity
+- Two-factor authentication (optional)
+
+**Authorization**:
+- Role-based access control
+- Check permissions on every request (server-side)
+- Never trust client-side checks
+
+**Data Protection**:
+- HTTPS only
+- Sanitize user inputs (prevent XSS)
+- Parameterized queries (prevent SQL injection)
+- CSRF tokens
+
+**Audit Logging**:
+- Log all admin actions
+- Store IP addresses
+- Track failed login attempts
+- Alert on suspicious activity
+
+### Testing
+
+**Unit Tests**:
+- Test utility functions
+- Test form validation
+- Test data transformations
+
+**Component Tests**:
+- Test UI components in isolation
+- Test user interactions
+- Test rendering logic
+
+**Integration Tests**:
+- Test page flows
+- Test API integration
+- Test state management
+
+**E2E Tests** (Cypress or Playwright):
+- Test critical user journeys
+- Test across browsers
+- Test responsive layouts
+
+---
+
+## Deployment
+
+### Build
+
+```bash
+npm run build
+```
+
+- Outputs to `dist/` folder
+- Minified JavaScript
+- Optimized CSS
+- Source maps (for debugging)
+
+### Hosting
+
+**Options**:
+1. Vercel / Netlify (recommended for React)
+   - Auto-deploy on git push
+   - CDN distribution
+   - HTTPS by default
+
+2. AWS S3 + CloudFront
+   - Static site hosting
+   - Global CDN
+   - Custom domain
+
+3. Same EC2 as PocketBase
+   - Serve from Nginx
+   - Separate subdomain (admin.quithero.com)
+
+### Environment Variables
+
+**Required**:
+- `VITE_POCKETBASE_URL` - PocketBase API URL
+- `VITE_APP_NAME` - "Quit Hero Admin"
+- `VITE_ENV` - production/staging/development
+
+**Optional**:
+- Analytics IDs
+- Sentry DSN (error tracking)
+- Feature flags
+
+### Monitoring
+
+**Error Tracking**:
+- Sentry or similar
+- Capture unhandled errors
+- Track error rates
+- Alert on critical errors
+
+**Analytics**:
+- Google Analytics
+- Track page views
+- Track user actions
+- Monitor performance
+
+**Uptime Monitoring**:
+- Pingdom or UptimeRobot
+- Alert if admin dashboard down
+- Check from multiple locations
+
+---
+
+## Launch Checklist
+
+### Pre-Launch
+- [ ] All features implemented and tested
+- [ ] Permissions configured correctly
+- [ ] Sample data populated (programs, achievements)
+- [ ] All admin users created
+- [ ] Email templates configured
+- [ ] App settings configured
+- [ ] Audit logging enabled
+- [ ] Backup strategy in place
+- [ ] SSL certificate installed
+- [ ] Custom domain configured
+- [ ] Admin onboarding guide created
+- [ ] Support contact set up
+
+### Launch Day
+- [ ] Deploy to production
+- [ ] Verify all pages load
+- [ ] Test critical flows:
+  - [ ] Login
+  - [ ] Create user
+  - [ ] Create program
+  - [ ] View analytics
+  - [ ] Respond to ticket
+- [ ] Monitor error logs
+- [ ] Monitor performance
+- [ ] Announce to team
+
+### Post-Launch
+- [ ] Gather feedback from admins
+- [ ] Monitor usage patterns
+- [ ] Fix critical bugs
+- [ ] Plan feature updates
+- [ ] Schedule regular reviews
+
+---
+
+## Future Enhancements
+
+**Phase 1** (Post-MVP):
+- Advanced reporting (custom dashboards)
+- Scheduled reports (email daily/weekly)
+- Data export/import (bulk operations)
+- Content versioning (track changes)
+- Workflow approvals (content review process)
+
+**Phase 2**:
+- A/B testing framework (test program variations)
+- Predictive analytics (ML for churn, engagement)
+- White-labeling support (multi-tenant)
+- API documentation (for developers)
+- Zapier integration (automate workflows)
+
+**Phase 3**:
+- Mobile admin app (iOS/Android)
+- Advanced permissions (field-level)
+- Multi-language admin interface
+- Custom branding per client
+- Real-time collaboration (multiple admins editing simultaneously)
+
+---
+
+## Summary
+
+This back-office specification provides a complete blueprint for building a professional, feature-rich admin dashboard for Quit Hero. It covers:
+
+✅ **Complete UI/UX design** for all pages and components
+✅ **Detailed feature specifications** for user management, content management, support, analytics, and settings
+✅ **Technical architecture** including state management, routing, and PocketBase integration
+✅ **Design system** with colors, typography, components
+✅ **Accessibility and security** best practices
+✅ **Deployment and monitoring** guidelines
+✅ **Launch checklist** and future roadmap
+
+The back-office empowers administrators to:
+- Manage users and their journeys
+- Create and organize programs and content
+- Support users through tickets and flagged content
+- Analyze engagement and retention
+- Configure system settings
+- Monitor platform health
+
+All while maintaining a clean, efficient, and professional interface that matches the main app's design language.

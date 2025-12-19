@@ -1,0 +1,815 @@
+# Quit Hero - Complete Implementation Plan
+## Step-by-Step Guide to Finish the Application
+
+**Last Updated**: Based on current implementation status
+**Overall Progress**: ~70% Foundation Complete, ~40% Integration Complete
+
+---
+
+## Phase 0: Foundation & Setup (1-2 days)
+
+### Step 0.1: PocketBase Collections Setup [⏳ PENDING - Manual Setup Required]
+**Objective**: Create all necessary database collections and configure schema
+
+**Status**: ⚠️ **MANUAL SETUP REQUIRED** - Access PocketBase admin panel (http://localhost:8095/_/) and create collections
+
+**Tasks**:
+1. Access PocketBase admin panel (http://localhost:8095/_/)
+2. Create the following collections with exact schema:
+
+**Collection: `user_profiles`** (extends users collection)
+- Fields:
+  - `user` (Relation to auth users, required, single)
+  - `age` (Number, optional)
+  - `gender` (Select: male, female, other, prefer_not_to_say)
+  - `language` (Select: en, es, fr, hi, etc.)
+  - `quit_date` (Date, required)
+  - `daily_reminder_time` (Text, format: "HH:MM")
+  - `nicotine_forms` (JSON, array of strings)
+  - `how_long_using` (Number, in months)
+  - `daily_consumption` (Number)
+  - `consumption_unit` (Select: cigarettes, ml, grams)
+  - `motivations` (JSON, array of strings)
+  - `enable_reminders` (Boolean, default: true)
+
+**Collection: `programs`**
+- Fields:
+  - `title` (Text, required)
+  - `description` (Text)
+  - `is_active` (Boolean, default: true)
+  - `language` (Select: en, es, fr, hi)
+  - `duration_days` (Number, default: 10)
+  - `order` (Number)
+
+**Collection: `program_days`**
+- Fields:
+  - `program` (Relation to programs, required)
+  - `day_number` (Number, required, 1-10)
+  - `title` (Text, required)
+  - `subtitle` (Text)
+  - `estimated_duration_min` (Number)
+  - `is_locked` (Boolean, default: false)
+
+**Collection: `steps`**
+- Fields:
+  - `program_day` (Relation to program_days, required)
+  - `order` (Number, required)
+  - `type` (Select: text, question_mcq, question_open, exercise, video, audio)
+  - `content_json` (JSON, required)
+    - For text: `{ "text": "...", "image_url": "..." }`
+    - For MCQ: `{ "question": "...", "options": ["A", "B", "C"], "correct_answer": 0 }`
+    - For open: `{ "question": "...", "placeholder": "..." }`
+
+**Collection: `user_sessions`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `program` (Relation to programs, required)
+  - `current_day` (Number, default: 1)
+  - `status` (Select: not_started, in_progress, completed)
+  - `started_at` (Date)
+  - `completed_at` (Date, optional)
+
+**Collection: `session_progress`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `program_day` (Relation to program_days, required)
+  - `status` (Select: not_started, in_progress, completed)
+  - `last_step_index` (Number, default: 0)
+  - `completed_at` (Date, optional)
+  - `time_spent_minutes` (Number, default: 0)
+
+**Collection: `step_responses`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `step` (Relation to steps, required)
+  - `response_json` (JSON)
+    - For MCQ: `{ "selected_option": 1 }`
+    - For open: `{ "answer": "text response" }`
+
+**Collection: `cravings`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `type` (Select: craving, slip)
+  - `intensity` (Number, 1-5)
+  - `trigger` (Select: stress, boredom, social, habit, other)
+  - `trigger_custom` (Text, optional)
+  - `notes` (Text, optional)
+  - `created` (Auto-generated)
+
+**Collection: `journal_entries`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `date` (Date, required)
+  - `title` (Text, optional)
+  - `content` (Text, required)
+  - `mood` (Select: very_happy, happy, neutral, sad, very_sad)
+
+**Collection: `progress_stats`**
+- Fields:
+  - `user` (Relation to users, required, unique)
+  - `days_smoke_free` (Number, default: 0)
+  - `cigarettes_not_smoked` (Number, default: 0)
+  - `money_saved` (Number, default: 0)
+  - `life_regained_hours` (Number, default: 0)
+  - `last_calculated` (DateTime)
+
+**Collection: `achievements`**
+- Fields:
+  - `key` (Text, unique, e.g., "first_day", "week_warrior")
+  - `title` (Text, required)
+  - `description` (Text)
+  - `icon` (Text, icon name or URL)
+  - `tier` (Select: bronze, silver, gold, platinum)
+  - `requirement_type` (Select: days_streak, cravings_resisted, sessions_completed)
+  - `requirement_value` (Number)
+
+**Collection: `user_achievements`**
+- Fields:
+  - `user` (Relation to users, required)
+  - `achievement` (Relation to achievements, required)
+  - `unlocked_at` (DateTime, auto)
+
+**Collection: `analytics_events`**
+- Fields:
+  - `user` (Relation to users, nullable for anonymous)
+  - `event_type` (Text, required)
+  - `meta` (JSON, optional)
+  - `created` (Auto-generated)
+
+3. Set up collection rules (API Rules in PocketBase):
+   - All collections: Users can only CRUD their own records
+   - Rule formula: `@request.auth.id = user.id`
+
+4. Create indexes for performance:
+   - `user_profiles`: Index on `user`
+   - `cravings`: Compound index on (`user`, `created`)
+   - `journal_entries`: Compound index on (`user`, `date`)
+   - `session_progress`: Compound index on (`user`, `program_day`)
+
+### Step 0.2: TypeScript Type Definitions [✓ COMPLETED]
+**Objective**: Create type-safe interfaces for all data models
+
+**Status**: ✅ **COMPLETED**
+
+**Tasks**:
+1. ✅ Create `/src/types/models.ts` with interfaces for:
+   - UserProfile
+   - Program, ProgramDay, Step
+   - UserSession, SessionProgress, StepResponse
+   - Craving
+   - JournalEntry
+   - ProgressStats
+   - Achievement, UserAchievement
+   - AnalyticsEvent
+
+2. ✅ Create `/src/types/enums.ts` with enums for:
+   - Gender, Language
+   - StepType
+   - SessionStatus
+   - CravingTrigger, CravingType
+   - Mood
+   - AchievementTier
+
+3. ✅ Create `/src/types/api.ts` for API response types
+
+### Step 0.3: Service Layer Architecture [✓ COMPLETED]
+**Objective**: Create reusable service classes for PocketBase operations
+
+**Status**: ✅ **COMPLETED**
+
+**Tasks**:
+1. ✅ Create `/src/services/base.service.ts`:
+   - BaseService class with common CRUD methods
+   - Error handling wrapper
+   - Response normalization
+
+2. ✅ Create specific services:
+   - ✅ `/src/services/profile.service.ts`
+   - ✅ `/src/services/program.service.ts`
+   - ✅ `/src/services/session.service.ts`
+   - ✅ `/src/services/craving.service.ts`
+   - ✅ `/src/services/journal.service.ts`
+   - ✅ `/src/services/progress.service.ts`
+   - ✅ `/src/services/achievement.service.ts`
+   - ✅ `/src/services/analytics.service.ts`
+
+3. ✅ Each service has:
+   - TypeScript interfaces
+   - Error handling
+   - Loading states
+   - Success/error callbacks
+
+### Step 0.4: Custom React Hooks [✓ COMPLETED]
+**Objective**: Create reusable hooks for data fetching and state management
+
+**Status**: ✅ **COMPLETED** (Core hooks done, utility hooks pending)
+
+**Tasks**:
+1. ✅ Create `/src/hooks/useAsync.ts` - Generic hook for async operations
+
+2. ✅ Create data hooks:
+   - ✅ `/src/hooks/useProfile.ts` - Fetch/update user profile
+   - ✅ `/src/hooks/useSessions.ts` - Session management
+   - ✅ `/src/hooks/useCravings.ts` - Craving operations
+   - ✅ `/src/hooks/useJournal.ts` - Journal CRUD
+   - ✅ `/src/hooks/useProgress.ts` - Progress calculations
+   - ✅ `/src/hooks/useAchievements.ts` - Achievement tracking
+
+3. ⏳ Create utility hooks (Optional):
+   - `/src/hooks/useDebounce.ts`
+   - `/src/hooks/useLocalStorage.ts`
+   - `/src/hooks/useMediaQuery.ts`
+
+### Step 0.5: Global State Enhancement [✓ COMPLETED]
+**Objective**: Enhance AppContext with proper state management
+
+**Status**: ✅ **COMPLETED**
+
+**Tasks**:
+1. ✅ Update `/src/context/AppContext.tsx` to include:
+   - userProfile state
+   - currentSession state
+   - progressStats state
+   - Loading states for each
+   - Error states for each
+
+2. ⏳ Implement reducer pattern for cleaner state updates (Optional enhancement)
+
+3. ✅ Add context methods:
+   - ✅ `fetchUserProfile()`
+   - ✅ `updateUserProfile(data)`
+   - ✅ `fetchCurrentSession()`
+   - ✅ `refreshProgress()`
+   - ✅ `clearUserData()` (on logout)
+
+---
+
+## Phase 1: Core Data Integration (3-4 days)
+
+### Step 1.1: KYC Flow - Backend Integration [✓ COMPLETED]
+**Objective**: Save KYC data to PocketBase and create user profile
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. PersonalInfo Step**: ✅
+- ✅ On "Continue" click:
+  - ✅ Validate all fields (age, gender, language)
+  - ✅ Create or update `user_profiles` record
+  - ✅ Save: age, gender, language
+  - ✅ Store data in AppContext temporarily
+  - ✅ Navigate to AddictionDetails
+
+**2. AddictionDetails Step**: ✅
+- ✅ On "Continue" click:
+  - ✅ Update existing `user_profiles` record
+  - ✅ Save: nicotine_forms, how_long_using, daily_consumption, consumption_unit
+  - ✅ Merge with previous KYC data
+  - ✅ Navigate to QuitDate
+
+**3. QuitDate Step**: ✅
+- ✅ On "Continue" click:
+  - ✅ Update `user_profiles` record with quit_date
+  - ✅ Initialize `progress_stats` record:
+    - days_smoke_free = 0
+    - last_calculated = now
+  - ✅ Navigate to Motivation
+
+**4. Motivation Step**: ✅
+- ✅ On "Continue" click:
+  - ✅ Update `user_profiles` record
+  - ✅ Save: motivations (array)
+  - ✅ Navigate to ReminderSettings
+
+**5. ReminderSettings Step**: ✅
+- ✅ On "Finish Setup" click:
+  - ✅ Update `user_profiles` record
+  - ✅ Save: enable_reminders, daily_reminder_time
+  - ✅ Create initial `user_sessions` record:
+    - Link to default 10-day program
+    - Set status: not_started
+    - Set current_day: 1
+  - ✅ Trigger analytics event: "onboarding_completed"
+  - ✅ Navigate to Home
+
+**Error Handling**: ✅
+- ✅ Show error toast if save fails
+- ✅ Don't navigate until successful
+- ✅ Allow retry
+- ⏳ Log errors to analytics (service ready, needs integration)
+
+**Loading States**: ✅
+- ✅ Show spinner on button during save
+- ✅ Disable button to prevent double-click
+- ⏳ Show progress indicator in top bar (optional)
+
+### Step 1.2: Home Dashboard - Real Data [✓ COMPLETED]
+**Objective**: Replace mock data with real stats from PocketBase
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Create Progress Calculation Service**: ✅
+- ✅ Method: `calculateProgress(userId: string)` created in `/src/services/progress.service.ts`
+- ✅ Fetches user_profile to get quit_date
+- ✅ Calculates days_smoke_free: `today - quit_date`
+- ✅ Fetches craving logs
+- ✅ Counts cigarettes_not_smoked: `(days × daily_consumption) - slips`
+- ✅ Calculates money_saved: `cigarettes_not_smoked × price_per_unit`
+- ✅ Calculates life_regained_hours: `cigarettes_not_smoked × 11 minutes / 60`
+- ✅ Calculates nicotine_not_consumed
+- ✅ Updates `progress_stats` collection
+- ✅ Returns calculated stats
+
+**2. Update Home Component**: ✅
+- ✅ On mount:
+  - ✅ Call `refreshProgressData()` which calls `progressService.calculateProgress(user.id)`
+  - ✅ Fetch `progress_stats` record via `useProgress` hook
+  - ✅ Update state with real stats from `stats` and `calculation`
+- ✅ Display in "Since you joined" card:
+  - ✅ Days tracked → `days_smoke_free` from stats/calculation
+  - ✅ Cigarettes smoked → `slipsCount` from cravings service
+  - ✅ Money saved → `money_saved` calculated value (₹ formatted)
+  - ✅ Nicotine avoided → calculated from `cigarettes_not_smoked × 0.8mg`
+
+**3. Implement Quick Actions**: ✅
+- ✅ "Article of the Day": Placeholder with analytics tracking (ready for content service)
+- ✅ "5-5-5 Breathing": Navigates to `/breathing` route
+- ✅ Click handlers with analytics tracking
+- ✅ Hover effects and visual feedback
+
+**4. "Continue Program" Button**: ✅
+- ✅ Fetches current `user_sessions` via `useSessions` hook
+- ✅ Gets `current_day` value from `currentSession`
+- ✅ Fetches program day by number using `programService.getProgramDayByNumber()`
+- ✅ Navigates to `/sessions/${programDayId}` for current day
+- ✅ Falls back to `/sessions` list if no session exists
+- ✅ Tracks analytics event: "continue_program_clicked"
+
+**5. Motivational Content**: ✅
+- ✅ Fetches random quote/tip from predefined array (4 quotes)
+- ✅ Rotates daily based on `new Date().getDate() % quotes.length`
+- ✅ Displays in glass card with icon
+- ✅ Ready to be replaced with content service when available
+
+**Refresh Strategy**: ✅
+- ✅ Calculate on app open: `useEffect` on mount calls `loadData()`
+- ✅ Re-calculate after session completion: Via `refreshProgress()` in AppContext
+- ✅ Background refresh every 30 minutes: `setInterval` in `useEffect`
+- ✅ Manual refresh: Refresh button in top navigation with spinner
+- ✅ Loading states: Shows spinner during refresh operations
+
+### Step 1.3: Session Management - Full Flow [✓ COMPLETED]
+**Objective**: Implement complete session flow from list to completion
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Sessions List Page**: ✅
+- ✅ On Mount:
+  - ✅ Fetch user's current program from `user_sessions`
+  - ✅ Fetch all `program_days` for that program (ordered)
+  - ✅ For each day, fetch `session_progress` record
+  - ✅ Display locked/unlocked state:
+    - Day 1: Always unlocked
+    - Day N: Unlocked if Day N-1 completed
+- ✅ Card States:
+  - ✅ Not Started: Shows "Available now"
+  - ✅ In Progress: Shows "In Progress - Step X"
+  - ✅ Completed: Green checkmark, "Completed" status
+  - ✅ Locked: Disabled, lock icon
+- ✅ On Card Click:
+  - ✅ If locked: Shows alert "Complete previous day first"
+  - ✅ If not locked: Navigates to `/sessions/:dayId`
+
+**2. Session Detail Page**: ✅
+- ✅ On Mount:
+  - ✅ Fetch `program_day` by ID
+  - ✅ Fetch all `steps` (ordered)
+  - ✅ Fetch or create `session_progress`
+  - ✅ Load last_step_index to resume
+  - ✅ If not_started:
+    - ✅ Update status to in_progress
+    - ✅ Set started_at timestamp (via sessionStartTime)
+    - ✅ Track analytics: "session_started"
+
+**3. Step Components**: ✅
+- ✅ TextStepComponent - Created in `/src/components/steps/TextStepComponent.tsx`
+- ✅ MCQStepComponent - Created in `/src/components/steps/MCQStepComponent.tsx`
+- ✅ OpenQuestionComponent - Created in `/src/components/steps/OpenQuestionComponent.tsx`
+- ✅ ExerciseComponent - Created in `/src/components/steps/ExerciseComponent.tsx`
+- ✅ VideoPlayerComponent - Created in `/src/components/steps/VideoPlayerComponent.tsx`
+
+**4. Step Navigation Logic**: ✅
+- ✅ moveToNextStep() - Implemented with step response saving
+- ✅ completeSession() - Updates status, unlocks next day, checks achievements
+
+**5. Completion Modal**: ✅
+- ✅ Celebration animation (confetti effect with CheckCircle)
+- ✅ Show stats (time, steps completed)
+- ✅ Buttons: "Back to Home", "Next Day" (if available)
+
+### Step 1.4: Craving Log - Full Integration [✓ COMPLETED]
+**Objective**: Save craving logs and display patterns
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Quick Actions Implementation**: ✅
+- ✅ "Start 5-Minute Breathing": Navigates to `/breathing` with analytics tracking
+- ✅ "Read Motivational Message": Shows random motivational quote modal
+- ✅ "Call Support Buddy": Placeholder with analytics tracking (ready for future implementation)
+- ✅ "Log This Craving": Shows craving log form
+
+**2. Craving Log Form**: ✅
+- ✅ Fields: Intensity (1-5), Trigger (with custom option), Custom trigger input, Notes, Did you slip toggle
+- ✅ On "Save": Creates record in `cravings` collection via `useCravings` hook
+- ✅ Tracks analytics event: "craving_logged" with type and trigger
+- ✅ Recalculates progress via `refreshProgress()` in AppContext
+- ✅ Shows success + encouragement message overlay
+
+**3. Encouragement Display**: ✅
+- ✅ If craving (resisted): Shows "Great job! You've resisted X cravings this week!" with celebration emoji
+- ✅ If slip: Shows "It's okay. Tomorrow is a new day. You've come this far - keep going!" with encouragement
+- ✅ Auto-navigates to home after 3 seconds
+
+**4. Craving History**: ✅
+- ✅ "View History" button displayed when cravings exist
+- ✅ Modal displays list of past cravings with:
+  - Date/time formatted
+  - Type (Craving Resisted / Slip) with color indicator
+  - Trigger information
+  - Intensity level
+  - Notes (if provided)
+- ✅ Sorted by most recent first
+
+### Step 1.5: Journal - Full CRUD [✓ COMPLETED]
+**Objective**: Implement complete journal functionality
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Journal List Page**: ✅
+- ✅ On Mount: Fetches journal entries for user via `useJournal` hook
+- ✅ Date Filtering: "All", "This Week", "This Month" selector buttons
+- ✅ Empty State: Shows illustration and helpful message with CTA button
+- ✅ Loading State: Shows spinner during fetch
+- ✅ Entries sorted by date (most recent first)
+
+**2. Add Entry Modal**: ✅
+- ✅ Form: Title (optional), Mood selector (5 emoji options mapped to Mood enum), Content (required, min 10 chars)
+- ✅ On "Save Entry": Creates record in `journal_entries` collection via `journalService`
+- ✅ Updates local state immediately
+- ✅ Tracks analytics event: "journal_entry_created"
+- ✅ Validates content length before saving
+- ✅ Shows error messages for validation failures
+
+**3. Edit Entry**: ✅
+- ✅ On Entry Card Edit Button Click: Opens edit modal, pre-populates form with existing data
+- ✅ On "Update Entry": Updates record in PocketBase, updates local state
+- ✅ Tracks analytics event: "journal_entry_updated"
+- ✅ Modal title changes to "Edit Entry" when editing
+
+**4. Delete Entry**: ✅
+- ✅ On Delete Button Click: Shows confirmation modal with warning message
+- ✅ On Confirm: Deletes record from PocketBase, removes from local state
+- ✅ Tracks analytics event: "journal_entry_deleted"
+- ✅ Shows loading state during delete operation
+- ✅ Handles errors gracefully with error messages
+
+---
+
+## Phase 2: Progress & Analytics (2-3 days)
+
+### Step 2.1: Progress Stats Calculation [✓ COMPLETED]
+**Objective**: Implement real-time progress calculation
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Create Progress Calculator**: ✅
+- ✅ `/src/services/progress.service.ts` has `calculateProgress()` method
+- ✅ Calculates all required stats
+
+**2. Create Progress Service Method**: ✅
+- ✅ `updateProgressStats(userId)` method exists
+- ✅ Checks if progress_stats record exists
+- ✅ Updates or creates record
+- ✅ Returns updated stats
+
+**3. Update Home Dashboard**: ✅
+- ✅ On mount: Calls `refreshProgressData()` which calls `progressService.calculateProgress(userId)`
+- ✅ Fetches latest stats via `useProgress` hook
+- ✅ Updates state with real stats
+- ✅ Displays in UI with proper formatting
+
+**4. Refresh Strategy**: ✅
+- ✅ Auto-refresh on app open: Via `AppContext` useEffect
+- ✅ Refresh after session/craving: Via `refreshProgress()` in AppContext
+- ✅ Manual refresh: Refresh button in Progress page
+- ✅ Background every 30 min: Implemented in Home component
+
+### Step 2.2: Progress Page - Charts & Graphs [✓ COMPLETED]
+**Objective**: Display visual progress with real data
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Fetch Historical Data**: ✅
+- ✅ Aggregation Functions:
+  - ✅ `getCravingTrend(userId, days)` in `cravingService`
+  - ✅ `getTriggerBreakdown(userId)` in `cravingService`
+
+**2. Update Progress Page**: ✅
+- ✅ On Mount: Fetches progress stats, craving trend, trigger breakdown, achievements
+- ✅ Time filter: Week/Month/All Time selector
+- ✅ Manual refresh button with loading state
+- ✅ Loading states for all data fetching
+
+**3. Implement Charts**: ✅
+- ✅ Craving Patterns: BarChart for week view, LineChart for month/all time
+- ✅ Trigger Breakdown: PieChart with color-coded triggers
+- ✅ Responsive containers with proper tooltips
+- ✅ Empty states when no data available
+
+**4. Health Milestones**: ✅
+- ✅ Calculates milestones based on `days_smoke_free`
+- ✅ 8 milestones: 20 min, 12 hrs, 24 hrs, 2 days, 1 week, 2 weeks, 1 month, 3 months
+- ✅ Timeline view with completed/upcoming indicators
+- ✅ Dynamic completion status based on user progress
+
+**5. Calendar Heatmap**: ⏳
+- ⏳ Deferred to future enhancement (not critical for MVP)
+
+### Step 2.3: Achievement System [✓ COMPLETED]
+**Objective**: Implement achievement unlocking
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Seed Achievements**: ✅
+- ✅ `seedAchievements()` method in `achievementService`
+- ✅ Creates 5 default achievements: first_day, week_warrior, month_master, craving_crusher, perfect_ten
+- ✅ Utility function `/src/utils/seedAchievements.ts` for one-time seeding
+- ✅ Checks for existing achievements before creating
+
+**2. Achievement Checker**: ✅
+- ✅ `checkAndUnlock(userId)` method exists in service
+- ✅ Checks requirements (days_streak, cravings_resisted, sessions_completed)
+- ✅ Unlocks achievements and creates `user_achievements` records
+- ✅ Returns newly unlocked achievements
+
+**3. Trigger Checks**: ✅
+- ✅ After session completion: Called in `Session.tsx` after `completeSessionDay`
+- ✅ After logging craving: Called in `CravingSupport.tsx` after saving craving
+- ✅ On app open: Called in `AppContext` useEffect when user is authenticated
+- ✅ On Progress page load: Called when loading progress data
+
+**4. Display Achievements**: ✅
+- ✅ In Progress Page: Shows all achievements with unlock status
+- ✅ Color-coded by tier (bronze, silver, gold, platinum)
+- ✅ Shows requirement values for locked achievements
+- ✅ Trophy icons with tier colors
+- ✅ Loading state during fetch
+
+**5. Achievement Notification**: ✅
+- ✅ `AchievementNotification` component created
+- ✅ Toast-style notification at top of screen
+- ✅ Celebration emoji and animation
+- ✅ Shows achievement title, description, and tier
+- ✅ Auto-dismisses after 5 seconds
+- ✅ Manual close button
+
+---
+
+## Phase 3: Missing Features (2-3 days)
+
+### Step 3.1: Breathing Exercise Screen [✓ COMPLETED]
+**Objective**: Create interactive breathing exercise
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Full-screen layout with animated breathing circle
+- ✅ 5-5-5 breathing pattern: 5s inhale, 5s hold, 5s exhale
+- ✅ 5 rounds total with progress indicator
+- ✅ Pause/Resume/Stop controls
+- ✅ Completion screen with mood selector
+- ✅ Option to save to journal
+- ✅ Analytics tracking for start and completion
+
+### Step 3.2: Profile Settings - Persistence [✓ COMPLETED]
+**Objective**: Save user settings to PocketBase
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Fetch user profile on mount
+- ✅ Load notification preferences from PocketBase
+- ✅ Auto-save notification settings when toggled
+- ✅ Edit profile (name, email) with save/cancel
+- ✅ Display quit date from user profile
+- ✅ Analytics tracking for settings updates
+- ✅ Error and success messages
+
+### Step 3.3: Content Management [✓ COMPLETED]
+**Objective**: Dynamic content for articles and quotes
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Created `ContentService` for managing content items
+- ✅ `getRandomQuote()` - Fetches random motivational quote
+- ✅ `getArticleOfTheDay()` - Cached daily article (localStorage)
+- ✅ `getDailyTip()` - Daily tip based on day of year
+- ✅ Integrated in Home dashboard (Article of the Day)
+- ✅ Integrated in Craving Support (Motivational Messages)
+- ✅ Fallback quotes when content service unavailable
+
+---
+
+## Phase 4: Enhancements & Polish (2-3 days)
+
+### Step 4.1: Loading States & Error Handling [✓ COMPLETED]
+**Objective**: Add proper loading and error states
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Created `LoadingSpinner` component (sm/md/lg sizes, fullScreen option)
+- ✅ Created `ErrorBoundary` component for global error handling
+- ✅ Error tracking to analytics
+- ✅ Loading states throughout app (Progress, Sessions, Journal, etc.)
+- ✅ Error messages with retry options
+- ✅ Success/error toasts for user feedback
+
+### Step 4.2: Offline Support [✓ COMPLETED]
+**Objective**: Handle offline scenarios
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Created `OfflineBanner` component
+- ✅ Created `useOffline` hook for online/offline detection
+- ✅ Shows offline banner when connection lost
+- ✅ Shows "Back online" message when reconnected
+- ✅ Integrated in App.tsx (global banner)
+
+### Step 4.3: Analytics & Tracking [✓ COMPLETED]
+**Objective**: Track user behavior
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+
+**1. Create Analytics Service**: ✅
+- ✅ `/src/services/analytics.service.ts` created
+- ✅ All tracking methods implemented
+
+**2. Track Key Events**: ✅
+- ✅ user_registered - Tracked in SignUp.tsx
+- ✅ login - Tracked in Login.tsx
+- ✅ logout - Tracked in Profile.tsx
+- ✅ onboarding_completed - Tracked in KYC ReminderSettings
+- ✅ session_started / completed - Tracked in Session.tsx
+- ✅ craving_logged - Tracked in CravingSupport.tsx
+- ✅ achievement_unlocked - Tracked in Progress.tsx
+- ✅ profile_updated - Tracked in Profile.tsx
+- ✅ journal_entry_created/updated/deleted - Tracked in Journal.tsx
+- ✅ page_view - Tracked in Home, Progress, Profile, Breathing, etc.
+- ✅ quick_action_clicked - Tracked in Home and CravingSupport
+- ✅ breathing_exercise_started/completed - Tracked in Breathing.tsx
+
+### Step 4.4: Push Notifications [✓ COMPLETED]
+**Objective**: Daily reminders
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Created `NotificationService` utility class
+- ✅ Request notification permission
+- ✅ Schedule daily reminders based on user's reminder time
+- ✅ Auto-reschedule for next day after showing notification
+- ✅ Integrated in AppContext when user profile loads
+- ✅ Respects user's `enable_reminders` setting
+
+### Step 4.5: UI/UX Polish [✓ COMPLETED]
+**Objective**: Final touches
+
+**Status**: ✅ **COMPLETED**
+
+**Implementation Steps**:
+- ✅ Smooth page transitions: AnimatePresence in App.tsx for route changes
+- ✅ Created `EmptyState` component for empty lists
+- ✅ Created `SuccessToast` component for success messages
+- ✅ Loading spinners throughout app
+- ✅ Error boundaries for graceful error handling
+- ✅ Micro-interactions: Button hover effects, card animations
+- ✅ Success animations: Checkmark on completion, celebration on achievements
+
+---
+
+## Phase 5: Testing & Optimization (2 days)
+
+### Step 5.1: Unit Testing [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+### Step 5.2: Integration Testing [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+### Step 5.3: Performance Optimization [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+---
+
+## Phase 6: Deployment (1 day)
+
+### Step 6.1: Production Build [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+### Step 6.2: Deploy React App [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+### Step 6.3: PocketBase Production [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+### Step 6.4: Production Testing [⏳ PENDING]
+**Status**: ⏳ **PENDING**
+
+---
+
+## Summary Timeline
+
+| Phase | Duration | Status | Progress |
+|-------|----------|--------|----------|
+| 0: Foundation | 1-2 days | 🔄 90% Complete | Types ✓, Services ✓, Hooks ✓, Context ✓, Collections ⏳ |
+| 1: Core Integration | 3-4 days | ✅ 100% Complete | KYC ✓, Home ✓, Sessions ✓, Cravings ✓, Journal ✓ |
+| 2: Progress & Analytics | 2-3 days | ✅ 100% Complete | Stats Service ✓, Charts ✓, Achievements ✓ |
+| 3: Missing Features | 2-3 days | ✅ 100% Complete | Breathing ✓, Settings ✓, Content ✓ |
+| 4: Enhancements | 2-3 days | ✅ 100% Complete | Analytics ✓, Loading ✓, Errors ✓, Offline ✓, Notifications ✓, Polish ✓ |
+| 5: Testing | 2 days | ⏳ 0% Complete | Unit ⏳, Integration ⏳, Optimization ⏳ |
+| 6: Deployment | 1 day | ⏳ 0% Complete | Build ⏳, Deploy ⏳, Testing ⏳ |
+
+**Total Progress: ~85% Complete**
+
+---
+
+## Priority Order (MVP)
+
+**Must Have**:
+1. ✅ KYC data persistence
+2. ✅ Home dashboard real data
+3. ✅ Session management
+4. ✅ Craving logging
+5. ✅ Progress calculation
+6. ⏳ Error handling
+
+**Should Have**:
+7. ✅ Journal persistence
+8. ✅ Achievement system
+9. ✅ Profile settings
+10. ✅ Loading states
+11. ✅ Breathing exercise
+
+**Nice to Have**:
+12. ✅ Advanced analytics
+13. ✅ Offline support
+14. ✅ Push notifications
+15. ✅ Content management
+16. ⏳ Comprehensive testing
+
+---
+
+## Next Immediate Steps
+
+1. **CRITICAL**: Set up PocketBase collections (Step 0.1) - Manual setup required
+2. **HIGH**: Unit Testing (Step 5.1) - Test services and utilities
+3. **HIGH**: Integration Testing (Step 5.2) - Test complete user flows
+4. **MEDIUM**: Performance Optimization (Step 5.3) - Code splitting, image optimization
+5. **MEDIUM**: Production Deployment (Step 6) - Build, deploy, production testing
+
+---
+
+## Post-Launch Roadmap
+
+**Week 1-2**: Monitor, fix bugs, gather feedback
+
+**Month 1**: Community features, social sharing, multi-language
+
+**Month 2-3**: AI insights, predictive alerts, gamification, premium
+
+---
+
+**Legend**:
+- ✅ = Completed
+- 🔄 = In Progress / Partially Complete
+- ⏳ = Pending / Not Started
+- ⚠️ = Manual Action Required

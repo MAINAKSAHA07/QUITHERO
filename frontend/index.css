@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg-soft text-text-primary font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 20% 50%, rgba(245, 134, 52, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255, 208, 138, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, rgba(212, 90, 28, 0.05) 0%, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/10 backdrop-blur-[20px] border border-white/20 rounded-2xl shadow-glass;
+  }
+  
+  .glass-strong {
+    @apply bg-white/15 backdrop-blur-[30px] border border-white/30 rounded-2xl shadow-glass-lg;
+  }
+  
+  .glass-subtle {
+    @apply bg-white/5 backdrop-blur-[10px] border border-white/15 rounded-xl;
+  }
+  
+  .glass-button-primary {
+    @apply glass bg-gradient-to-r from-brand-primary to-brand-accent text-white font-semibold;
+    @apply hover:shadow-glow transition-all duration-200 active:scale-[0.98];
+  }
+  
+  .glass-button-secondary {
+    @apply glass bg-white/20 text-text-primary font-medium;
+    @apply hover:border-white/40 hover:shadow-glass transition-all duration-200 active:scale-[0.98];
+  }
+  
+  .glass-input {
+    @apply glass bg-white/15 border-white/25 px-4 py-3;
+    @apply focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:bg-white/20;
+    @apply placeholder:text-text-primary/50;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 134, 52, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 134, 52, 0.5);
+}
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for mobile */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Button group alignment */
+.button-group {
+  @apply flex gap-3 w-full;
+}
+
+.button-group > * {
+  @apply flex-1 min-w-0;
+}
+

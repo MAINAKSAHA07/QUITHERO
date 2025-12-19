@@ -1,0 +1,28 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: quit-hero-pb
+    restart: unless-stopped
+    command:
+      - serve
+      - --http=0.0.0.0:8096
+      - --encryptionEnv=PB_ENCRYPTION_KEY
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./PocketBase/pb_data:/pb/pb_data
+      - ./PocketBase/pb_migrations:/pb/pb_migrations
+    environment:
+      - PB_ENCRYPTION_KEY=${PB_ENCRYPTION_KEY:-01234567890123456789012345678901}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8096/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quit-hero-network
+
+networks:
+  quit-hero-network:
+    driver: bridge
+

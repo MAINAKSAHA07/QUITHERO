@@ -1,0 +1,9 @@
+node_modules
+dist
+.pb_data
+pb_data
+PocketBase/pb_data
+.git
+.env
+*.log
+
