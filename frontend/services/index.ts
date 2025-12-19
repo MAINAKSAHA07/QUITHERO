@@ -2,6 +2,7 @@
 export { BaseService } from './base.service'
 export { ProfileService, profileService } from './profile.service'
 export { ProgramService, programService } from './program.service'
+export { SupportService, supportService } from './support.service'
 export { SessionService, sessionService } from './session.service'
 export { CravingService, cravingService } from './craving.service'
 export { JournalService, journalService } from './journal.service'

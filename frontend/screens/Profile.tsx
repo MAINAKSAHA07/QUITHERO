@@ -28,6 +28,7 @@ import { authHelpers } from '../lib/pocketbase'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { useProfile } from '../hooks/useProfile'
+import SupportTicketModal from '../components/SupportTicketModal'
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -47,6 +48,7 @@ export default function Profile() {
     name: user?.name || '',
     email: user?.email || '',
   })
+  const [showSupportModal, setShowSupportModal] = useState(false)
   const [notifications, setNotifications] = useState({
     daily: userProfile?.enable_reminders ?? true,
     craving: true,
@@ -296,11 +298,7 @@ export default function Profile() {
   }
 
   const handleContactSupport = () => {
-    const email = 'support@quithero.com'
-    const subject = encodeURIComponent('Support Request from Quit Hero App')
-    const body = encodeURIComponent(`Hello,\n\nI need help with:\n\n[Please describe your issue here]\n\nUser: ${user?.email || 'N/A'}\nDate: ${new Date().toLocaleString()}`)
-    
-    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
+    setShowSupportModal(true)
     analyticsService.trackEvent('contact_support_clicked', {}, user?.id)
   }
 
@@ -711,6 +709,15 @@ export default function Profile() {
       </div>
 
       <BottomNavigation />
+
+      {/* Support Ticket Modal */}
+      {user?.id && (
+        <SupportTicketModal
+          isOpen={showSupportModal}
+          onClose={() => setShowSupportModal(false)}
+          userId={user.id}
+        />
+      )}
 
       {/* Password Change Modal */}
       {showPasswordModal && (
