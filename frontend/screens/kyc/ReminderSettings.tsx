@@ -17,7 +17,7 @@ interface ReminderSettingsProps {
 }
 
 export default function ReminderSettings({ step, totalSteps, onNext, onBack }: ReminderSettingsProps) {
-  const { user, upsertProfile } = useApp()
+  const { user, updateUserProfile } = useApp()
   const navigate = useNavigate()
   const [remindersEnabled, setRemindersEnabled] = useState(true)
   const [reminderTime, setReminderTime] = useState('09:00')
@@ -65,8 +65,9 @@ export default function ReminderSettings({ step, totalSteps, onNext, onBack }: R
       // Track analytics
       await analyticsService.trackOnboardingCompleted(user.id)
 
-      if (upsertProfile) {
-        await upsertProfile(profileResult.data!)
+      // Update context with profile data
+      if (updateUserProfile && profileResult.data) {
+        await updateUserProfile(profileResult.data)
       }
 
       // Navigate to home

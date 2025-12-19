@@ -82,14 +82,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Update user profile
-  const updateUserProfile = async (data: Partial<UserProfile>) => {
+  // Update user profile - accepts full profile or partial updates
+  const updateUserProfile = async (data: Partial<UserProfile> | UserProfile) => {
     if (!user?.id) return
     setProfileLoading(true)
     try {
-      const result = await profileService.updateProfile(user.id, data)
-      if (result.success && result.data) {
-        setUserProfile(result.data)
+      // If data has an id, it's a full profile object from upsert
+      // Otherwise, use updateProfile for partial updates
+      let result
+      if ('id' in data && data.id) {
+        // Full profile object - just update state
+        setUserProfile(data as UserProfile)
+        setProfileLoading(false)
+        return
+      } else {
+        // Partial update - call service
+        result = await profileService.updateProfile(user.id, data)
+        if (result.success && result.data) {
+          setUserProfile(result.data)
+        }
       }
     } catch (error) {
       console.error('Failed to update user profile:', error)

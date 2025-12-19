@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Calendar, Cigarette, DollarSign, Droplet, FileText, Wind, ArrowRight, Syringe, RefreshCw } from 'lucide-react'
@@ -37,12 +37,9 @@ const motivationalQuotes = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user, refreshProgress } = useApp()
+  const { user } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const { currentSession, programDays, loading: sessionLoading, fetchCurrentSession } = useSessions()
-  
-  // Memoize loadData to avoid recreating it on every render
-  const loadDataRef = useRef<() => Promise<void>>()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
   const [slipsCount, setSlipsCount] = useState(0)
@@ -53,44 +50,31 @@ export default function Home() {
 
     setIsRefreshing(true)
     try {
-      // Calculate and refresh progress (this updates both stats and calculation)
-      // This fetches from progress_stats collection and calculates based on quit_date
-      // Will return default values (0) if quit_date is not set
-      const progressResult = await refreshProgressData()
-      if (progressResult.success && progressResult.data) {
-        console.log('✅ Progress refreshed successfully:', {
-          days_smoke_free: progressResult.data.days_smoke_free,
-          money_saved: progressResult.data.money_saved,
-          cigarettes_not_smoked: progressResult.data.cigarettes_not_smoked,
-          cigarettes_smoked: progressResult.data.cigarettes_smoked,
-          nicotine_not_consumed: progressResult.data.nicotine_not_consumed
-        })
+      // Fetch slips count FIRST from cravings collection (type = 'slip')
+      // This is the actual count from DB
+      const slipsResult = await cravingService.getCountByType(user.id, 'slip')
+      if (slipsResult.success && slipsResult.data !== undefined) {
+        setSlipsCount(slipsResult.data)
       } else {
-        // Progress calculation failed, but we'll use fallback values from stats
-        console.warn('⚠️ Progress calculation returned defaults or failed:', progressResult.error)
+        setSlipsCount(0)
+      }
+
+      // Then calculate and refresh progress (this updates both stats and calculation)
+      // This fetches from progress_stats collection and calculates based on quit_date
+      const progressResult = await refreshProgressData()
+      if (!progressResult.success) {
+        console.warn('Progress calculation failed:', progressResult.error)
       }
       
       // Fetch current session from user_sessions collection
       await fetchCurrentSession()
-
-      // Fetch slips count from cravings collection (type = 'slip')
-      // Will return 0 if there's an error or no data
-      const slipsResult = await cravingService.getCountByType(user.id, 'slip')
-      if (slipsResult.success && slipsResult.data !== undefined) {
-        console.log('✅ Slips count fetched:', slipsResult.data)
-        setSlipsCount(slipsResult.data)
-      } else {
-        console.warn('⚠️ Failed to fetch slips count:', slipsResult.error)
-        // Fallback to 0 if fetch fails
-        setSlipsCount(0)
-      }
 
       // Set random motivational quote (rotate daily)
       const today = new Date().getDate()
       const quoteIndex = today % motivationalQuotes.length
       setMotivationalQuote(motivationalQuotes[quoteIndex])
     } catch (error) {
-      console.error('❌ Failed to load home data:', error)
+      console.error('Failed to load home data:', error)
       // Set defaults on error
       setSlipsCount(0)
     } finally {
@@ -98,12 +82,7 @@ export default function Home() {
     }
   }, [user?.id, refreshProgressData, fetchCurrentSession])
 
-  // Store loadData in ref for focus listener
-  useEffect(() => {
-    loadDataRef.current = loadData
-  }, [loadData])
-
-  // Fetch initial data on mount
+  // Fetch initial data on mount only
   useEffect(() => {
     if (user?.id) {
       loadData()
@@ -111,18 +90,6 @@ export default function Home() {
       analyticsService.trackPageView('home', user.id)
     }
   }, [user?.id, loadData])
-
-  // Refresh data when page comes into focus (user navigates back)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (user?.id && loadDataRef.current) {
-        loadDataRef.current()
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [user?.id])
 
   // Handle pull to refresh
   const handleRefresh = useCallback(async () => {
@@ -138,17 +105,6 @@ export default function Home() {
     const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
     const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
-    
-    // Debug logging
-    console.log('📊 Display stats calculated:', {
-      daysSmokeFree,
-      moneySaved,
-      cigarettesNotSmoked,
-      nicotineNotConsumed,
-      slipsCount,
-      hasCalculation: !!calculation,
-      hasStats: !!stats
-    })
     
     return [
       {
@@ -253,16 +209,8 @@ export default function Home() {
     }
   }
 
-  // Set up auto-refresh every 30 minutes
-  useEffect(() => {
-    if (!user?.id) return
-
-    const interval = setInterval(() => {
-      refreshProgressData()
-    }, 30 * 60 * 1000) // 30 minutes
-
-    return () => clearInterval(interval)
-  }, [user?.id, refreshProgressData])
+  // Auto-refresh removed to reduce API costs
+  // Data will only refresh on manual refresh or when user navigates back to page
 
   return (
     <div className="min-h-screen pb-24">
@@ -412,4 +360,3 @@ export default function Home() {
     </div>
   )
 }
-

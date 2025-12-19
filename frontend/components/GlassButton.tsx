@@ -33,8 +33,11 @@ export default function GlassButton({
       type={type}
       className={`${classes} flex items-center justify-center`}
       onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
+        // Don't prevent default for submit buttons - let form submission work
+        if (type !== 'submit') {
+          e.preventDefault()
+          e.stopPropagation()
+        }
         onClick?.(e)
       }}
       disabled={disabled}

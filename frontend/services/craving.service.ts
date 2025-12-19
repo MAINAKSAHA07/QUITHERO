@@ -108,29 +108,22 @@ export class CravingService extends BaseService {
    */
   async getCountByType(userId: string, type: 'craving' | 'slip'): Promise<ApiResponse<number>> {
     try {
-      const result = await this.getByUser(userId, {
-        filter: `type = "${type}"`,
+      // Use direct PocketBase query to ensure we get accurate count
+      const filter = `user = "${userId}" && type = "${type}"`
+      const records = await pb.collection(this.collectionName).getFullList({
+        filter,
       })
-      if (!result.success) {
-        // If it's a 404 or empty result, return 0 instead of error
-        const errorStr = result.error ? String(result.error) : ''
-        if (errorStr.includes('404') || errorStr.includes('not found') || errorStr.includes('No records')) {
-          return { success: true, data: 0 }
-        }
-        // For other errors, log but return 0 as fallback
-        if (errorStr) {
-          console.warn('Failed to fetch cravings count:', errorStr)
-        }
-        return { success: true, data: 0 }
-      }
-      return { success: true, data: result.data?.length || 0 }
+      const count = records?.length || 0
+      return { success: true, data: count }
     } catch (error: any) {
       // Handle errors gracefully - return 0 instead of failing
-      // Check if error is an object and extract meaningful message
-      const errorMessage = error?.message || error?.response?.data || error?.error || JSON.stringify(error) || 'Unknown error'
-      if (errorMessage !== '{}' && errorMessage !== 'Unknown error') {
-        console.warn('Error fetching cravings count:', errorMessage)
+      if (error.status === 404 || error.status === 400 || 
+          error.message?.includes('not found') || 
+          error.message?.includes('No records')) {
+        return { success: true, data: 0 }
       }
+      // Log error for debugging
+      console.warn('Error fetching cravings count:', error.message || error)
       return { success: true, data: 0 }
     }
   }

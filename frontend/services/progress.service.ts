@@ -15,12 +15,9 @@ export class ProgressService extends BaseService {
    */
   async calculateProgress(userId: string): Promise<ApiResponse<ProgressCalculation>> {
     try {
-      console.log('🔍 Calculating progress for user:', userId)
-      
       // Fetch user profile
       const profile = await profileService.getByUserId(userId)
       if (!profile.success || !profile.data) {
-        console.warn('⚠️ User profile not found for user:', userId)
         // Return default values if profile doesn't exist yet
         const defaultCalculation: ProgressCalculation = {
           days_smoke_free: 0,
@@ -34,14 +31,9 @@ export class ProgressService extends BaseService {
       }
 
       const userProfile = profile.data
-      console.log('👤 User profile:', {
-        quit_date: userProfile.quit_date,
-        daily_consumption: userProfile.daily_consumption
-      })
       
       // If quit_date is not set, return default values
       if (!userProfile.quit_date) {
-        console.warn('⚠️ User has no quit_date set. Progress will be 0.')
         const defaultCalculation: ProgressCalculation = {
           days_smoke_free: 0,
           cigarettes_not_smoked: 0,
@@ -61,23 +53,18 @@ export class ProgressService extends BaseService {
 
       // Calculate days smoke-free
       const daysSmokeFree = Math.max(0, Math.floor((today.getTime() - quitDate.getTime()) / (1000 * 60 * 60 * 24)))
-      console.log('📅 Days smoke-free calculated:', daysSmokeFree, 'from quit_date:', userProfile.quit_date)
 
       // Fetch slips (cravings with type = 'slip')
       const slipsResult = await cravingService.getCountByType(userId, 'slip')
       const cigarettesSmoked = slipsResult.success ? (slipsResult.data || 0) : 0
-      console.log('🚬 Cigarettes smoked (slips):', cigarettesSmoked)
 
       // Calculate cigarettes not smoked
       const dailyConsumption = userProfile.daily_consumption || 0
-      console.log('📊 Daily consumption:', dailyConsumption)
       const cigarettesNotSmoked = Math.max(0, daysSmokeFree * dailyConsumption - cigarettesSmoked)
-      console.log('💨 Cigarettes not smoked:', cigarettesNotSmoked, '(days:', daysSmokeFree, '× daily:', dailyConsumption, '- smoked:', cigarettesSmoked, ')')
 
       // Calculate money saved (assuming ₹8 per cigarette, can be configurable)
       const pricePerCigarette = 8
       const moneySaved = cigarettesNotSmoked * pricePerCigarette
-      console.log('💰 Money saved:', moneySaved)
 
       // Calculate life regained (11 minutes per cigarette)
       const lifeRegainedHours = (cigarettesNotSmoked * 11) / 60
@@ -85,7 +72,6 @@ export class ProgressService extends BaseService {
       // Calculate nicotine not consumed (assuming 0.8mg per cigarette)
       const nicotinePerCigarette = 0.8
       const nicotineNotConsumed = cigarettesNotSmoked * nicotinePerCigarette
-      console.log('💧 Nicotine not consumed:', nicotineNotConsumed, 'mg')
 
       const calculation: ProgressCalculation = {
         days_smoke_free: daysSmokeFree,
@@ -96,14 +82,12 @@ export class ProgressService extends BaseService {
         cigarettes_smoked: cigarettesSmoked,
       }
 
-      console.log('✅ Final calculation:', calculation)
-
       // Update or create progress_stats record
       await this.upsertProgressStats(userId, calculation)
 
       return { success: true, data: calculation }
     } catch (error: any) {
-      console.error('❌ Error calculating progress:', error)
+      console.error('Error calculating progress:', error)
       return { success: false, error: error.message }
     }
   }

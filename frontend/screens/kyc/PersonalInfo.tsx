@@ -16,7 +16,7 @@ interface PersonalInfoProps {
 }
 
 export default function PersonalInfo({ step, totalSteps, onNext, onBack }: PersonalInfoProps) {
-  const { user, upsertProfile } = useApp()
+  const { user, updateUserProfile } = useApp()
   const [age, setAge] = useState('')
   const [gender, setGender] = useState<Gender | ''>('')
   const [location, setLocation] = useState('')
@@ -45,10 +45,10 @@ export default function PersonalInfo({ step, totalSteps, onNext, onBack }: Perso
         ...(location && { location }),
       })
 
-      if (result.success) {
+      if (result.success && result.data) {
         // Update context
-        if (upsertProfile) {
-          await upsertProfile(result.data!)
+        if (updateUserProfile) {
+          await updateUserProfile(result.data)
         }
         onNext()
       } else {

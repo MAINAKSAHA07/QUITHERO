@@ -3,6 +3,9 @@ import { Calendar, Check } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import { useApp } from '../../context/AppContext'
+import { profileService } from '../../services/profile.service'
+import { progressService } from '../../services/progress.service'
 
 interface QuitDateSelectionProps {
   step: number
@@ -19,8 +22,92 @@ const options = [
 ]
 
 export default function QuitDateSelection({ step, totalSteps, onNext, onBack }: QuitDateSelectionProps) {
+  const { user, updateUserProfile } = useApp()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [customDate, setCustomDate] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const calculateQuitDate = (): string => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    switch (selectedOption) {
+      case 'today':
+        return today.toISOString().split('T')[0]
+      case 'tomorrow':
+        const tomorrow = new Date(today)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        return tomorrow.toISOString().split('T')[0]
+      case 'thisWeek':
+        // Set to end of week (Sunday)
+        const endOfWeek = new Date(today)
+        const dayOfWeek = endOfWeek.getDay()
+        const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek
+        endOfWeek.setDate(endOfWeek.getDate() + daysUntilSunday)
+        return endOfWeek.toISOString().split('T')[0]
+      case 'custom':
+        if (!customDate) {
+          throw new Error('Please select a custom date')
+        }
+        return customDate
+      default:
+        throw new Error('Please select a quit date')
+    }
+  }
+
+  const handleContinue = async () => {
+    if (!selectedOption) {
+      setError('Please select a quit date')
+      return
+    }
+
+    if (selectedOption === 'custom' && !customDate) {
+      setError('Please select a custom date')
+      return
+    }
+
+    if (!user?.id) {
+      setError('User not found. Please login again.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const quitDate = calculateQuitDate()
+      
+      // Ensure date is in correct format (YYYY-MM-DD)
+      const formattedDate = quitDate.split('T')[0]
+
+      // Update user profile with quit_date
+      const result = await profileService.upsert(user.id, {
+        quit_date: formattedDate,
+      })
+
+      if (result.success && result.data) {
+        // Initialize progress_stats record
+        await progressService.calculateProgress(user.id)
+
+        // Update context
+        if (updateUserProfile) {
+          await updateUserProfile(result.data)
+        }
+        onNext()
+      } else {
+        // Handle detailed error messages
+        const errorMsg = result.error || 'Failed to save quit date. Please try again.'
+        console.error('Failed to save quit date:', result.error, { quitDate: formattedDate, userId: user.id })
+        setError(errorMsg)
+      }
+    } catch (err: any) {
+      console.error('Error in handleContinue:', err)
+      setError(err.message || 'An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <>

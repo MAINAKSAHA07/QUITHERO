@@ -764,7 +764,7 @@ export default function Profile() {
                     Current Password
                   </label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -773,7 +773,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
                       }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-12 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
                       placeholder="Enter current password"
                     />
                   </div>
@@ -783,7 +783,7 @@ export default function Profile() {
                     New Password
                   </label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -792,7 +792,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, newPassword: e.target.value })
                       }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-12 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
                       placeholder="Enter new password"
                     />
                   </div>
@@ -802,7 +802,7 @@ export default function Profile() {
                     Confirm New Password
                   </label>
                   <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -811,7 +811,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
                       }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-12 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
                       placeholder="Confirm new password"
                     />
                   </div>

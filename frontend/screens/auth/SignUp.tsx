@@ -184,13 +184,18 @@ export default function SignUp() {
                 <button
                   type="button"
                   onClick={() => setAcceptedTerms(!acceptedTerms)}
-                  className={`mt-1 w-6 h-6 rounded glass flex items-center justify-center flex-shrink-0 ${
-                    acceptedTerms ? 'bg-brand-primary' : ''
+                  className={`mt-1 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all ${
+                    acceptedTerms 
+                      ? 'bg-brand-primary border-2 border-brand-primary shadow-lg' 
+                      : 'bg-white border-2 border-gray-300 hover:border-brand-primary/50'
                   }`}
                 >
-                  {acceptedTerms && <Check className="w-4 h-4 text-white" />}
+                  {acceptedTerms && <Check className="w-4 h-4 text-white font-bold" strokeWidth={3} />}
                 </button>
-                <label className="text-sm text-text-primary/70">
+                <label 
+                  className="text-sm text-text-primary/70 cursor-pointer"
+                  onClick={() => setAcceptedTerms(!acceptedTerms)}
+                >
                   I agree to the{' '}
                   <Link to="/terms" className="text-brand-primary hover:underline">
                     Terms & Conditions

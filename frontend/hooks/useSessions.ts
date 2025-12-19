@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { sessionService, programService } from '../services'
 import { UserSession, ProgramDay, Step, SessionProgress } from '../types/models'
 import { useApp } from '../context/AppContext'
@@ -10,7 +10,7 @@ export function useSessions() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchCurrentSession = async () => {
+  const fetchCurrentSession = useCallback(async () => {
     if (!user?.id) return
 
     setLoading(true)
@@ -35,9 +35,9 @@ export function useSessions() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
 
-  const getSessionProgress = async (programDayId: string) => {
+  const getSessionProgress = useCallback(async (programDayId: string) => {
     if (!user?.id) return { success: false, error: 'User not found' }
 
     try {
@@ -45,9 +45,9 @@ export function useSessions() {
     } catch (err: any) {
       return { success: false, error: err.message }
     }
-  }
+  }, [user?.id])
 
-  const updateSessionProgress = async (
+  const updateSessionProgress = useCallback(async (
     programDayId: string,
     data: Partial<SessionProgress>
   ) => {
@@ -62,9 +62,9 @@ export function useSessions() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
 
-  const saveStepResponse = async (stepId: string, response: any) => {
+  const saveStepResponse = useCallback(async (stepId: string, response: any) => {
     if (!user?.id) return { success: false, error: 'User not found' }
 
     try {
@@ -72,9 +72,9 @@ export function useSessions() {
     } catch (err: any) {
       return { success: false, error: err.message }
     }
-  }
+  }, [user?.id])
 
-  const completeSession = async (programDayId: string, timeSpentMinutes: number) => {
+  const completeSession = useCallback(async (programDayId: string, timeSpentMinutes: number) => {
     if (!user?.id) return { success: false, error: 'User not found' }
 
     setLoading(true)
@@ -90,7 +90,7 @@ export function useSessions() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, fetchCurrentSession])
 
   useEffect(() => {
     if (user?.id) {
@@ -110,4 +110,3 @@ export function useSessions() {
     completeSession,
   }
 }
-

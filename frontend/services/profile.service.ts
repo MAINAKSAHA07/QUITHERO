@@ -30,14 +30,50 @@ export class ProfileService extends BaseService {
       const existing = await this.getByUserId(userId)
 
       if (existing.success && existing.data) {
-        // Update existing
-        return await this.update(existing.data.id!, { ...data, user: userId })
+        // Update existing - ensure user field is included
+        const updateData = { ...data }
+        // Don't overwrite user field if it's already set
+        if (!updateData.user) {
+          updateData.user = userId
+        }
+        return await this.update(existing.data.id!, updateData)
       } else {
-        // Create new
-        return await this.create({ ...data, user: userId })
+        // Create new - ensure all required fields are present
+        // Note: quit_date is required but may not be set in early KYC steps
+        // We'll set a temporary date (today) if not provided, user can update later
+        const today = new Date().toISOString().split('T')[0]
+        const createData: any = {
+          ...data,
+          user: userId,
+          // Set default language if not provided (required field)
+          language: data.language || 'en',
+          // Set default quit_date if not provided (required field)
+          // This will be updated in QuitDateSelection step
+          quit_date: data.quit_date || today,
+        }
+        return await this.create(createData)
       }
     } catch (error: any) {
-      return this.handleError(error)
+      // Extract detailed error information
+      const errorData = error.response?.data || error.data || {}
+      
+      // Handle quit_date validation error specifically
+      if (errorData.quit_date) {
+        const quitDateError = errorData.quit_date.message || JSON.stringify(errorData.quit_date)
+        console.error('Quit date validation error:', quitDateError, { userId, data })
+        return { 
+          success: false, 
+          error: `Quit date is required: ${quitDateError}` 
+        }
+      }
+      
+      // Handle other validation errors
+      const errorMessage = errorData.message || error.message || 'An error occurred'
+      console.error('Profile upsert error:', errorData, { userId, data })
+      return { 
+        success: false, 
+        error: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage) 
+      }
     }
   }
 

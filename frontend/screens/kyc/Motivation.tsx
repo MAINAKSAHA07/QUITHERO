@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Heart, DollarSign, Users, TrendingUp, Check } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassButton from '../../components/GlassButton'
+import { useApp } from '../../context/AppContext'
+import { profileService } from '../../services/profile.service'
 
 interface MotivationProps {
   step: number
@@ -18,12 +20,50 @@ const motivations = [
 ]
 
 export default function Motivation({ step, totalSteps, onNext, onBack }: MotivationProps) {
+  const { user, updateUserProfile } = useApp()
   const [selectedMotivations, setSelectedMotivations] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const toggleMotivation = (id: string) => {
     setSelectedMotivations((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     )
+  }
+
+  const handleContinue = async () => {
+    if (selectedMotivations.length === 0) {
+      setError('Please select at least one motivation')
+      return
+    }
+
+    if (!user?.id) {
+      setError('User not found. Please login again.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const result = await profileService.upsert(user.id, {
+        motivations: selectedMotivations,
+      })
+
+      if (result.success && result.data) {
+        // Update context
+        if (updateUserProfile) {
+          await updateUserProfile(result.data)
+        }
+        onNext()
+      } else {
+        setError(result.error || 'Failed to save. Please try again.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
