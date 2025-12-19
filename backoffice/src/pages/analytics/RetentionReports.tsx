@@ -56,14 +56,71 @@ export const RetentionReports = () => {
 
   const churnRate = users.length > 0 ? Math.round((churnedUsers.length / users.length) * 100) : 0
 
-  // Churn Reasons (mock data - would come from exit surveys)
-  const churnReasonsData = [
-    { name: 'Program too difficult', value: 35 },
-    { name: 'Lack of time', value: 25 },
-    { name: 'Not seeing results', value: 20 },
-    { name: 'Technical issues', value: 10 },
-    { name: 'Other', value: 10 },
-  ]
+  // Calculate churn rate by cohort
+  const calculateChurnByCohort = () => {
+    const now = new Date()
+    const cohorts = [
+      { label: 'Last 30 days', days: 30 },
+      { label: 'Last 60 days', days: 60 },
+      { label: 'Last 90 days', days: 90 },
+    ]
+    
+    return cohorts.map(({ label, days }) => {
+      const cohortStart = new Date(now)
+      cohortStart.setDate(cohortStart.getDate() - days)
+      
+      const cohortUsers = users.filter((u: any) => {
+        if (!u.created) return false
+        const created = new Date(u.created)
+        return created >= cohortStart
+      })
+      
+      const churnedInCohort = cohortUsers.filter((u: any) => {
+        if (!u.lastActive) return true
+        const lastActive = new Date(u.lastActive)
+        const daysSinceActive = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
+        return daysSinceActive > 30
+      }).length
+      
+      const churnRate = cohortUsers.length > 0 
+        ? Math.round((churnedInCohort / cohortUsers.length) * 100)
+        : 0
+      
+      return { label, churnRate, total: cohortUsers.length }
+    })
+  }
+
+  const cohortChurnData = calculateChurnByCohort()
+
+  // Try to fetch churn reasons from exit surveys if collection exists
+  const { data: exitSurveysData } = useQuery({
+    queryKey: ['exit_surveys'],
+    queryFn: () => adminCollectionHelpers.getFullList('exit_surveys'),
+    retry: false,
+  })
+
+  // Calculate churn reasons from exit surveys if available
+  const calculateChurnReasons = () => {
+    if (!exitSurveysData?.data || exitSurveysData.data.length === 0) {
+      return null // No data available
+    }
+    
+    const reasons: Record<string, number> = {}
+    exitSurveysData.data.forEach((survey: any) => {
+      const reason = survey.reason || survey.churn_reason || 'Other'
+      reasons[reason] = (reasons[reason] || 0) + 1
+    })
+    
+    const total = Object.values(reasons).reduce((sum, count) => sum + count, 0)
+    if (total === 0) return null
+    
+    return Object.entries(reasons).map(([name, count]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '),
+      value: Math.round((count / total) * 100),
+    })).sort((a, b) => b.value - a.value)
+  }
+
+  const churnReasonsData = calculateChurnReasons()
 
   // Win-back Campaign List
   const winBackUsers = churnedUsers.map((user: any) => {
@@ -172,6 +229,7 @@ export const RetentionReports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow-card p-6">
           <h2 className="text-lg font-semibold mb-4">Churn Reasons</h2>
+          {churnReasonsData ? (
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -191,38 +249,32 @@ export const RetentionReports = () => {
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-neutral-500">
+              <p className="text-sm">No exit survey data available. Churn reasons will appear here once users complete exit surveys.</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow-card p-6">
           <h2 className="text-lg font-semibold mb-4">Churn Rate by Cohort</h2>
           <div className="space-y-3">
-            <div className="p-3 bg-neutral-50 rounded-lg">
+            {cohortChurnData.map((cohort, index) => {
+              const colorClass = cohort.churnRate > 50 ? 'text-danger' : cohort.churnRate > 30 ? 'text-warning' : 'text-success'
+              const bgColor = cohort.churnRate > 50 ? 'bg-danger' : cohort.churnRate > 30 ? 'bg-warning' : 'bg-success'
+              return (
+                <div key={index} className="p-3 bg-neutral-50 rounded-lg">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">Last 30 days</span>
-                <span className="text-sm text-danger font-medium">45%</span>
+                    <span className="text-sm font-medium">{cohort.label}</span>
+                    <span className={`text-sm font-medium ${colorClass}`}>{cohort.churnRate}%</span>
               </div>
               <div className="flex-1 bg-neutral-200 rounded-full h-2">
-                <div className="bg-danger h-2 rounded-full" style={{ width: '45%' }} />
+                    <div className={`${bgColor} h-2 rounded-full`} style={{ width: `${cohort.churnRate}%` }} />
               </div>
+                  <p className="text-xs text-neutral-500 mt-1">{cohort.total} users in cohort</p>
             </div>
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">Last 60 days</span>
-                <span className="text-sm text-warning font-medium">38%</span>
-              </div>
-              <div className="flex-1 bg-neutral-200 rounded-full h-2">
-                <div className="bg-warning h-2 rounded-full" style={{ width: '38%' }} />
-              </div>
-            </div>
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">Last 90 days</span>
-                <span className="text-sm text-success font-medium">32%</span>
-              </div>
-              <div className="flex-1 bg-neutral-200 rounded-full h-2">
-                <div className="bg-success h-2 rounded-full" style={{ width: '32%' }} />
-              </div>
-            </div>
+              )
+            })}
           </div>
         </div>
       </div>

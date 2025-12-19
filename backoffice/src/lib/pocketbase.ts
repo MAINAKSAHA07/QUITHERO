@@ -1,8 +1,17 @@
 import PocketBase from 'pocketbase'
 
-const PB_URL = import.meta.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
+// Prefer an explicit env, otherwise fall back to the main app's default PocketBase port
+const PB_URL =
+  import.meta.env.VITE_POCKETBASE_URL ||
+  import.meta.env.VITE_BACKOFFICE_PB_URL ||
+  'http://localhost:8096'
 
 export const pb = new PocketBase(PB_URL)
+
+// Help surface misconfiguration during local development
+if (import.meta.env.DEV) {
+  console.log('[Backoffice] PocketBase URL:', PB_URL)
+}
 
 // Enable auto cancellation for all pending requests
 pb.autoCancellation(false)
@@ -132,7 +141,14 @@ export const adminCollectionHelpers = {
       return { success: true }
     } catch (error: any) {
       console.error(`Error deleting ${collectionName}/${id}:`, error)
-      return { success: false, error: error.message }
+      // Extract more detailed error information
+      const errorMessage = error?.response?.message || error?.message || error?.data?.message || 'Unknown error'
+      const errorStatus = error?.status || error?.response?.status
+      return { 
+        success: false, 
+        error: errorMessage,
+        status: errorStatus,
+      }
     }
   },
 
@@ -157,4 +173,3 @@ export const adminCollectionHelpers = {
 }
 
 export default pb
-

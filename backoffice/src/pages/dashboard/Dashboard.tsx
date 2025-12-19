@@ -29,6 +29,29 @@ export const Dashboard = () => {
     }),
   })
 
+  const { data: allSessionsData } = useQuery({
+    queryKey: ['sessions', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('user_sessions'),
+  })
+
+  const { data: supportTicketsData } = useQuery({
+    queryKey: ['support_tickets', 'pending'],
+    queryFn: async () => {
+      try {
+        return await adminCollectionHelpers.getFullList('support_tickets', {
+          filter: 'status = "pending" || status = "open"',
+        })
+      } catch (error: any) {
+        // If collection doesn't exist or has errors, return empty
+        if (error?.status === 404 || error?.status === 400) {
+          return { success: true, data: [] }
+        }
+        throw error
+      }
+    },
+    retry: false, // Don't retry if collection doesn't exist
+  })
+
   const { data: recentUsers } = useQuery({
     queryKey: ['users', 'recent'],
     queryFn: () => adminCollectionHelpers.getList('users', 1, 10, {
@@ -111,8 +134,8 @@ export const Dashboard = () => {
   const completedPrograms = sessionsData?.data?.length || 0
   const completionRate = totalUsers > 0 ? Math.round((completedPrograms / totalUsers) * 100) : 0
   
-  // Calculate pending tickets (would need support_tickets collection)
-  const pendingTickets = 0
+  // Calculate pending tickets
+  const pendingTickets = supportTicketsData?.data?.length || 0
 
   // Calculate month-over-month growth
   const thisMonth = new Date()
@@ -132,6 +155,103 @@ export const Dashboard = () => {
   const growthPercent = lastMonthUsers > 0 
     ? Math.round(((thisMonthUsers - lastMonthUsers) / lastMonthUsers) * 100)
     : thisMonthUsers > 0 ? 100 : 0
+
+  // Calculate user growth data for the last 6 months
+  const calculateUserGrowthData = () => {
+    const months = []
+    const now = new Date()
+    
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
+      const monthName = month.toLocaleDateString('en-US', { month: 'short' })
+      
+      // New users registered this month
+      const newUsers = usersData?.data?.filter((u: any) => {
+        if (!u.created) return false
+        const created = new Date(u.created)
+        return created >= month && created < nextMonth
+      }).length || 0
+      
+      // Active users in this month (users who were active at least once)
+      const activeUsers = usersData?.data?.filter((u: any) => {
+        if (!u.lastActive) return false
+        const lastActive = new Date(u.lastActive)
+        return lastActive >= month && lastActive < nextMonth
+      }).length || 0
+      
+      // Churned users (users who were active before but not in this month)
+      const churned = usersData?.data?.filter((u: any) => {
+        if (!u.lastActive || !u.created) return false
+        const created = new Date(u.created)
+        const lastActive = new Date(u.lastActive)
+        // User was created before this month but not active in this month
+        return created < month && lastActive < month && lastActive >= new Date(month.getTime() - 30 * 24 * 60 * 60 * 1000)
+      }).length || 0
+      
+      months.push({
+        date: monthName,
+        newUsers,
+        activeUsers,
+        churned,
+      })
+    }
+    
+    return months
+  }
+
+  // Calculate program progress distribution
+  const calculateProgramProgressData = () => {
+    const allSessions = allSessionsData?.data || []
+    const users = usersData?.data || []
+    
+    // Users who haven't started
+    const notStarted = users.filter((u: any) => {
+      return !allSessions.some((s: any) => s.user === u.id)
+    }).length
+    
+    // Users by day progress
+    const days1to3 = allSessions.filter((s: any) => {
+      const day = s.current_day || 0
+      return day >= 1 && day <= 3 && s.status !== 'completed'
+    }).length
+    
+    const days4to7 = allSessions.filter((s: any) => {
+      const day = s.current_day || 0
+      return day >= 4 && day <= 7 && s.status !== 'completed'
+    }).length
+    
+    const days8to10 = allSessions.filter((s: any) => {
+      const day = s.current_day || 0
+      return day >= 8 && day <= 10 && s.status !== 'completed'
+    }).length
+    
+    // Completed programs
+    const completed = allSessions.filter((s: any) => s.status === 'completed').length
+    
+    const total = notStarted + days1to3 + days4to7 + days8to10 + completed
+    
+    if (total === 0) {
+      return [
+        { name: 'Not Started', value: 0, color: '#9ca3af' },
+        { name: 'Days 1-3', value: 0, color: '#FFD08A' },
+        { name: 'Days 4-7', value: 0, color: '#F58634' },
+        { name: 'Days 8-10', value: 0, color: '#D45A1C' },
+        { name: 'Completed', value: 0, color: '#4CAF50' },
+      ]
+    }
+    
+    return [
+      { name: 'Not Started', value: notStarted, color: '#9ca3af' },
+      { name: 'Days 1-3', value: days1to3, color: '#FFD08A' },
+      { name: 'Days 4-7', value: days4to7, color: '#F58634' },
+      { name: 'Days 8-10', value: days8to10, color: '#D45A1C' },
+      { name: 'Completed', value: completed, color: '#4CAF50' },
+    ]
+  }
+
+  const userGrowthData = calculateUserGrowthData()
+  const programProgressData = calculateProgramProgressData()
 
   return (
     <div className="space-y-6">
@@ -179,13 +299,13 @@ export const Dashboard = () => {
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-card p-6">
             <h2 className="text-lg font-semibold mb-4">User Growth</h2>
-            <UserGrowthChart />
+            <UserGrowthChart data={userGrowthData} />
           </div>
         </div>
         <div>
           <div className="bg-white rounded-lg shadow-card p-6">
             <h2 className="text-lg font-semibold mb-4">Program Progress</h2>
-            <ProgramProgressChart />
+            <ProgramProgressChart data={programProgressData} />
           </div>
         </div>
       </div>

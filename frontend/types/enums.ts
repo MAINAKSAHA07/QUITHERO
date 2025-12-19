@@ -77,3 +77,24 @@ export enum ConsumptionUnit {
   GRAMS = 'grams',
 }
 
+export enum SupportTicketStatus {
+  OPEN = 'open',
+  IN_PROGRESS = 'in_progress',
+  RESOLVED = 'resolved',
+  CLOSED = 'closed',
+}
+
+export enum SupportTicketPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  URGENT = 'urgent',
+}
+
+export enum SupportTicketCategory {
+  TECHNICAL = 'technical',
+  CONTENT = 'content',
+  BILLING = 'billing',
+  OTHER = 'other',
+}
+

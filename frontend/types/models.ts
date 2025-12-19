@@ -12,6 +12,9 @@ import {
   RequirementType,
   ContentType,
   ConsumptionUnit,
+  SupportTicketStatus,
+  SupportTicketPriority,
+  SupportTicketCategory,
 } from './enums'
 
 // User Profile (extends PocketBase users collection)
@@ -244,5 +247,20 @@ export interface ProgressCalculation {
   life_regained_hours: number
   nicotine_not_consumed: number
   cigarettes_smoked: number
+}
+
+// Support Ticket
+export interface SupportTicket {
+  id?: string
+  user: string // Relation to users
+  subject: string
+  message?: string
+  description?: string
+  status: SupportTicketStatus
+  priority?: SupportTicketPriority
+  category?: SupportTicketCategory
+  assigned_to?: string // Relation to admin_users
+  created?: string
+  updated?: string
 }
 

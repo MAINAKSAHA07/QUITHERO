@@ -1,8 +1,8 @@
 import PocketBase from 'pocketbase'
 
 const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || 'mainaksaha0807@gmail.com'
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || '8104760831'
+const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL
+const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD
 
 const pb = new PocketBase(PB_URL)
 
@@ -12,7 +12,26 @@ const adminRule = '@request.auth.collectionName = "admin_users"'
 const ownerRule = (field) => `@request.auth.id = ${field}`
 const ownerOrNullRule = (field) => `(${field} = null) || (@request.auth.id = ${field})`
 
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('❌ PB_ADMIN_EMAIL and PB_ADMIN_PASSWORD must be set in the environment to run set-rules.js')
+  process.exit(1)
+}
+
 const configs = [
+  // built-in auth users collection
+  {
+    name: 'users',
+    // Only admin_users can list/search all users
+    list: adminRule,
+    // Admins can view any user; a logged-in user can view their own record
+    view: `${adminRule} || @request.auth.id = id`,
+    // User creation is handled via auth endpoints, so keep create rule open
+    create: '',
+    // Admins can update any user; a user can update their own record
+    update: `${adminRule} || @request.auth.id = id`,
+    // Only admin_users can delete users
+    delete: adminRule,
+  },
   // user-owned collections
   { name: 'user_profiles', rule: ownerRule('user') },
   { name: 'user_sessions', rule: ownerRule('user') },

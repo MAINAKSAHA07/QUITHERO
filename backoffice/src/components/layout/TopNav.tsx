@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Search, Bell, User, LogOut, X, Command, FileText, Users, BarChart3, Settings, HelpCircle, ArrowRight } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { useNavigate } from 'react-router-dom'
+import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { formatDistanceToNow } from 'date-fns'
 
 interface SearchResult {
   type: 'user' | 'program' | 'article' | 'page'
@@ -19,6 +22,53 @@ export const TopNav = () => {
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [notifications, setNotifications] = useState<any[]>([])
+
+  // Fetch latest data to power notifications
+  const { data: recentUsers } = useQuery({
+    queryKey: ['nav', 'recent_users'],
+    queryFn: () =>
+      adminCollectionHelpers.getList('users', 1, 5, {
+        sort: '-created',
+      }),
+  })
+
+  const { data: recentTickets } = useQuery({
+    queryKey: ['nav', 'recent_support_tickets'],
+    queryFn: async () => {
+      try {
+        // Try to fetch support tickets with proper error handling
+        const result = await adminCollectionHelpers.getList('support_tickets', 1, 5, {
+          filter: '(status = "open" || status = "in_progress")',
+          sort: '-created',
+          // Don't expand user if it might cause issues - we can access it later if needed
+        })
+        
+        // Check if the result is successful
+        if (result.success && result.data) {
+          return result
+        }
+        
+        // If not successful, return empty
+        return { success: true, data: { items: [], totalItems: 0, totalPages: 0 } }
+      } catch (error: any) {
+        // If collection doesn't exist or has errors, return empty
+        console.warn('Error fetching support_tickets for notifications:', error)
+        return { success: true, data: { items: [], totalItems: 0, totalPages: 0 } }
+      }
+    },
+    retry: false, // collection might not exist yet
+    staleTime: 30000, // Cache for 30 seconds
+  })
+
+  const { data: recentAchievements } = useQuery({
+    queryKey: ['nav', 'recent_achievements'],
+    queryFn: () =>
+      adminCollectionHelpers.getList('user_achievements', 1, 5, {
+        sort: '-unlocked_at',
+        expand: 'user,achievement',
+      }),
+    retry: false,
+  })
 
   useEffect(() => {
     // Listen for ⌘K or Ctrl+K to open search
@@ -38,38 +88,64 @@ export const TopNav = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Mock notifications - in real app, fetch from API
+  // Build notifications from live PocketBase data
   useEffect(() => {
-    setNotifications([
-      {
-        id: '1',
-        type: 'user_registered',
-        title: 'New user registered',
-        message: 'John Doe just signed up',
-        time: '2 minutes ago',
-        read: false,
-        path: '/users',
-      },
-      {
-        id: '2',
-        type: 'support_ticket',
-        title: 'New support ticket',
-        message: 'Ticket #1234 requires attention',
-        time: '15 minutes ago',
-        read: false,
-        path: '/support/tickets',
-      },
-      {
-        id: '3',
-        type: 'achievement',
-        title: 'Achievement unlocked',
-        message: '50 users unlocked "First Week" achievement',
-        time: '1 hour ago',
-        read: true,
-        path: '/achievements',
-      },
-    ])
-  }, [])
+    const next: any[] = []
+
+    // Recent user registrations
+    if (recentUsers?.data && 'items' in recentUsers.data && Array.isArray(recentUsers.data.items)) {
+      recentUsers.data.items.forEach((u: any) => {
+        next.push({
+          id: `user_${u.id}`,
+          type: 'user_registered',
+          title: 'New user registered',
+          message: `${u.name || u.email || 'User'} just signed up`,
+          time: formatDistanceToNow(new Date(u.created), { addSuffix: true }),
+          read: false,
+          path: '/users',
+        })
+      })
+    }
+
+    // Recent open / in‑progress support tickets
+    if (recentTickets?.data && 'items' in recentTickets.data && Array.isArray(recentTickets.data.items)) {
+      recentTickets.data.items.forEach((t: any) => {
+        next.push({
+          id: `ticket_${t.id}`,
+          type: 'support_ticket',
+          title: `Support ticket: ${t.subject || 'New ticket'}`,
+          message: t.message?.slice(0, 80) || 'New support ticket requires attention',
+          time: formatDistanceToNow(new Date(t.created), { addSuffix: true }),
+          read: false,
+          path: '/support/tickets',
+        })
+      })
+    }
+
+    // Recent achievement unlocks
+    if (recentAchievements?.data && 'items' in recentAchievements.data && Array.isArray(recentAchievements.data.items)) {
+      recentAchievements.data.items.forEach((ua: any) => {
+        next.push({
+          id: `achievement_${ua.id}`,
+          type: 'achievement',
+          title: 'Achievement unlocked',
+          message: `${ua.expand?.user?.name || 'User'} unlocked "${ua.expand?.achievement?.title || 'Achievement'}"`,
+          time: formatDistanceToNow(new Date(ua.unlocked_at || ua.created), { addSuffix: true }),
+          read: true,
+          path: '/achievements/logs',
+        })
+      })
+    }
+
+    // Sort newest first and limit to last 15
+    next.sort((a, b) => {
+      const ta = a.timeSort || 0
+      const tb = b.timeSort || 0
+      return tb - ta
+    })
+
+    setNotifications(next.slice(0, 15))
+  }, [recentUsers, recentTickets, recentAchievements])
 
   const unreadCount = notifications.filter(n => !n.read).length
 
@@ -93,21 +169,21 @@ export const TopNav = () => {
 
   // Search results based on query
   const searchResults: SearchResult[] = searchQuery
-    ? [
-        { type: 'user', title: 'All Users', description: 'View and manage all users', path: '/users', icon: Users },
-        { type: 'program', title: 'Programs', description: 'Manage programs and content', path: '/content/programs', icon: FileText },
-        { type: 'page', title: 'User Analytics', description: 'View user analytics and metrics', path: '/analytics/users', icon: BarChart3 },
-        { type: 'page', title: 'Settings', description: 'App settings and configuration', path: '/settings/app', icon: Settings },
-        { type: 'page', title: 'Help', description: 'Help documentation and FAQs', path: '/help', icon: HelpCircle },
-      ].filter(result => 
+    ? ([
+        { type: 'user' as const, title: 'All Users', description: 'View and manage all users', path: '/users', icon: Users },
+        { type: 'program' as const, title: 'Programs', description: 'Manage programs and content', path: '/content/programs', icon: FileText },
+        { type: 'page' as const, title: 'User Analytics', description: 'View user analytics and metrics', path: '/analytics/users', icon: BarChart3 },
+        { type: 'page' as const, title: 'Settings', description: 'App settings and configuration', path: '/settings/app', icon: Settings },
+        { type: 'page' as const, title: 'Help', description: 'Help documentation and FAQs', path: '/help', icon: HelpCircle },
+      ] as SearchResult[]).filter(result => 
         result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         result.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [
-        { type: 'page', title: 'Dashboard', description: 'Go to dashboard', path: '/dashboard', icon: BarChart3 },
-        { type: 'user', title: 'All Users', description: 'View and manage all users', path: '/users', icon: Users },
-        { type: 'program', title: 'Programs', description: 'Manage programs and content', path: '/content/programs', icon: FileText },
-      ]
+        { type: 'page' as const, title: 'Dashboard', description: 'Go to dashboard', path: '/dashboard', icon: BarChart3 },
+        { type: 'user' as const, title: 'All Users', description: 'View and manage all users', path: '/users', icon: Users },
+        { type: 'program' as const, title: 'Programs', description: 'Manage programs and content', path: '/content/programs', icon: FileText },
+      ] as SearchResult[]
 
   return (
     <>
@@ -195,7 +271,13 @@ export const TopNav = () => {
               </div>
                   {notifications.length > 0 && (
                     <div className="px-4 py-2 border-t border-neutral-200">
-                      <button className="text-xs text-primary hover:underline w-full text-center">
+                      <button 
+                        onClick={() => {
+                          setShowNotifications(false)
+                          navigate('/support/tickets')
+                        }}
+                        className="text-xs text-primary hover:underline w-full text-center"
+                      >
                         View all notifications
                       </button>
             </div>
