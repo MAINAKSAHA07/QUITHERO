@@ -254,6 +254,100 @@ export const UserDetail = () => {
                 </div>
               </div>
 
+              {/* Personalization & Archetype */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Personalization & Archetype</h2>
+                  <button className="text-primary text-sm hover:underline">Edit</button>
+                </div>
+                <div className="space-y-4">
+                  {/* Quit Archetype */}
+                  {profile?.quit_archetype && (
+                    <div className="p-4 bg-primary/5 rounded-lg border-2 border-primary/20">
+                      <label className="text-sm text-neutral-500 block mb-1">Quit Archetype</label>
+                      <p className="font-bold text-lg text-primary capitalize">
+                        {profile.quit_archetype.replace('_', ' ')}
+                      </p>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        {profile.quit_archetype === 'escapist' && 'Tends to smoke when bored or seeking distraction'}
+                        {profile.quit_archetype === 'stress_reactor' && 'Primarily smokes in response to stress and anxiety'}
+                        {profile.quit_archetype === 'social_mirror' && 'Heavily influenced by social situations'}
+                        {profile.quit_archetype === 'auto_pilot' && 'Smokes out of habit and routine'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Smoking Triggers */}
+                  <div>
+                    <label className="text-sm text-neutral-500">Smoking Triggers</label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile?.smoking_triggers && profile.smoking_triggers.length > 0 ? (
+                        profile.smoking_triggers.map((trigger: string) => (
+                          <span
+                            key={trigger}
+                            className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium"
+                          >
+                            {trigger}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-neutral-400 text-sm">No triggers recorded</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Emotional States */}
+                  <div>
+                    <label className="text-sm text-neutral-500">Emotional States Linked to Smoking</label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {profile?.emotional_states && profile.emotional_states.length > 0 ? (
+                        profile.emotional_states.map((state: string) => (
+                          <span
+                            key={state}
+                            className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                          >
+                            {state.replace('_', ' ')}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-neutral-400 text-sm">No emotional states recorded</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fear Index */}
+                  <div>
+                    <label className="text-sm text-neutral-500">Fear Index (Health Concerns)</label>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex-1">
+                        <div className="h-3 bg-neutral-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all"
+                            style={{ width: `${((profile?.fear_index || 0) / 10) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="font-bold text-2xl min-w-[3rem] text-right">
+                        {profile?.fear_index ?? '-'}/10
+                      </span>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      {(profile?.fear_index || 0) <= 3 && 'Low concern about health consequences'}
+                      {(profile?.fear_index || 0) > 3 && (profile?.fear_index || 0) <= 7 && 'Moderate concern about health consequences'}
+                      {(profile?.fear_index || 0) > 7 && 'High concern about health consequences'}
+                    </p>
+                  </div>
+
+                  {/* Quit Reason */}
+                  <div>
+                    <label className="text-sm text-neutral-500">Why They Want to Quit</label>
+                    <p className="font-medium mt-1 p-3 bg-neutral-50 rounded-lg text-sm">
+                      {profile?.quit_reason || 'No reason provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Settings */}
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">

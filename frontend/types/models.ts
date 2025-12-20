@@ -15,6 +15,8 @@ import {
   SupportTicketStatus,
   SupportTicketPriority,
   SupportTicketCategory,
+  QuitArchetype,
+  EmotionalState,
 } from './enums'
 
 // User Profile (extends PocketBase users collection)
@@ -32,6 +34,12 @@ export interface UserProfile {
   consumption_unit?: ConsumptionUnit
   motivations?: string[] // JSON array
   enable_reminders?: boolean
+  // New onboarding fields
+  smoking_triggers?: CravingTrigger[] // Multi-select triggers
+  emotional_states?: EmotionalState[] // Emotional states linked to smoking
+  fear_index?: number // 0-10 scale
+  quit_reason?: string // Free text - why they want to quit
+  quit_archetype?: QuitArchetype // Auto-assigned based on triggers/emotional states
   created?: string
   updated?: string
 }

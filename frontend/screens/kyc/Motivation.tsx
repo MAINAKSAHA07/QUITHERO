@@ -22,6 +22,7 @@ const motivations = [
 export default function Motivation({ step, totalSteps, onNext, onBack }: MotivationProps) {
   const { user, updateUserProfile } = useApp()
   const [selectedMotivations, setSelectedMotivations] = useState<string[]>([])
+  const [quitReason, setQuitReason] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,6 +38,11 @@ export default function Motivation({ step, totalSteps, onNext, onBack }: Motivat
       return
     }
 
+    if (!quitReason.trim()) {
+      setError('Please tell us why you want to quit')
+      return
+    }
+
     if (!user?.id) {
       setError('User not found. Please login again.')
       return
@@ -48,6 +54,7 @@ export default function Motivation({ step, totalSteps, onNext, onBack }: Motivat
     try {
       const result = await profileService.upsert(user.id, {
         motivations: selectedMotivations,
+        quit_reason: quitReason.trim(),
       })
 
       if (result.success && result.data) {
@@ -91,7 +98,7 @@ export default function Motivation({ step, totalSteps, onNext, onBack }: Motivat
           Select all that apply - this helps us motivate you
         </p>
 
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-8">
           {motivations.map((motivation) => {
             const Icon = motivation.icon
             const isSelected = selectedMotivations.includes(motivation.id)
@@ -117,6 +124,22 @@ export default function Motivation({ step, totalSteps, onNext, onBack }: Motivat
           })}
         </div>
 
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-text-primary mb-2">
+            Tell us more about why you want to quit
+          </label>
+          <textarea
+            value={quitReason}
+            onChange={(e) => setQuitReason(e.target.value)}
+            placeholder="Share your personal reasons for wanting to quit smoking. This will help us support you better on your journey..."
+            className="w-full px-4 py-3 rounded-xl glass text-text-primary placeholder-text-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-primary min-h-[120px] resize-none"
+            maxLength={500}
+          />
+          <div className="text-xs text-text-primary/50 mt-1 text-right">
+            {quitReason.length}/500 characters
+          </div>
+        </div>
+
         {error && (
           <p className="mt-4 text-sm text-error text-center">{error}</p>
         )}
@@ -127,7 +150,7 @@ export default function Motivation({ step, totalSteps, onNext, onBack }: Motivat
           </GlassButton>
           <GlassButton
             onClick={handleContinue}
-            disabled={selectedMotivations.length === 0 || loading}
+            disabled={selectedMotivations.length === 0 || !quitReason.trim() || loading}
             className="flex-1 py-4 min-w-0"
           >
             {loading ? 'Saving...' : 'Continue'}

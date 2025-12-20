@@ -98,3 +98,21 @@ export enum SupportTicketCategory {
   OTHER = 'other',
 }
 
+export enum QuitArchetype {
+  ESCAPIST = 'escapist',
+  STRESS_REACTOR = 'stress_reactor',
+  SOCIAL_MIRROR = 'social_mirror',
+  AUTO_PILOT = 'auto_pilot',
+}
+
+export enum EmotionalState {
+  ANXIOUS = 'anxious',
+  STRESSED = 'stressed',
+  BORED = 'bored',
+  LONELY = 'lonely',
+  HAPPY = 'happy_state',
+  ANGRY = 'angry',
+  SAD_STATE = 'sad_state',
+  EXCITED = 'excited',
+}
+

@@ -9,7 +9,8 @@ A comprehensive addiction recovery app built with React, TypeScript, and Tailwin
 - **Craving Support** - Instant help when cravings strike
 - **Progress Tracking** - Visual analytics and achievements
 - **Journal** - Personal reflection and mood tracking
-- **Multi-step Onboarding** - Personalized KYC flow
+- **Multi-step Onboarding** - Personalized 7-step KYC flow with archetype assignment
+- **Quit Archetypes** - AI-powered personality profiling (Escapist, Stress Reactor, Social Mirror, Auto-Pilot)
 - **PocketBase Backend** - Docker-based backend with SQLite database
 
 ## 🛠️ Tech Stack
@@ -65,7 +66,15 @@ The app will be available at `http://localhost:5175`
 2. **Language Selection** - Multi-language support
 3. **Onboarding** - 4-screen carousel introduction
 4. **Authentication** - Login & Sign Up with PocketBase
-5. **KYC Flow** - 5-step onboarding (Personal Info, Addiction Details, Quit Date, Motivation, Reminders)
+5. **KYC Flow** - 7-step personalized onboarding:
+   - Personal Info (age, gender, language)
+   - Addiction Details (nicotine forms, daily consumption, years using)
+   - Trigger Selection (multi-select smoking triggers)
+   - Emotional States (emotions linked to smoking)
+   - Fear Index (0-10 health concern scale)
+   - Motivation (preset categories + free-text quit reason)
+   - Reminder Settings (time preferences)
+   - **Auto-assigns Quit Archetype** based on user responses
 6. **Home Dashboard** - Stats cards, quick actions, motivational content
 7. **Sessions List** - 10-day program overview
 8. **Session Detail** - Step-by-step content (text, video, questions, exercises)
@@ -211,11 +220,86 @@ For more details, see [backoffice/README.md](./backoffice/README.md)
 - **Bottom Navigation**: Fixed 5-tab navigation (Home, Sessions, Support FAB, Progress, Profile)
 - **Top Navigation**: Context-sensitive header with back/menu/actions
 
+## 🎯 Onboarding & Personalization System
+
+### Quit Archetypes
+
+The app automatically assigns users to one of four personality archetypes based on their smoking triggers and emotional states:
+
+#### 🌊 The Escapist
+- **Profile**: Smokes when bored or seeking distraction
+- **Triggers**: Boredom, loneliness
+- **Emotional States**: Bored, lonely, sad
+- **Intervention**: Alternative activities, emotional coping, mindfulness
+
+#### ⚡ The Stress Reactor
+- **Profile**: Smokes in response to stress and pressure
+- **Triggers**: Stress, anxiety
+- **Emotional States**: Stressed, anxious, angry
+- **Intervention**: Stress management, breathing exercises, healthy outlets
+
+#### 👥 The Social Mirror
+- **Profile**: Heavily influenced by social situations
+- **Triggers**: Social situations, celebrations
+- **Emotional States**: Happy, excited (around others)
+- **Intervention**: Social support networks, alternative social habits
+
+#### 🔄 The Auto-Pilot Smoker
+- **Profile**: Smokes out of habit and routine
+- **Triggers**: Habits, routines, specific times/places
+- **Emotional States**: Default when no clear pattern
+- **Intervention**: Routine disruption, habit replacement
+
+### Archetype Assignment Algorithm
+
+The system uses a scoring algorithm to determine the user's archetype:
+
+1. **Trigger Scoring** (+3 points each):
+   - Stress → Stress Reactor
+   - Boredom → Escapist
+   - Social → Social Mirror
+   - Habit → Auto-Pilot
+
+2. **Emotional State Scoring** (+1-2 points each):
+   - Stressed/Anxious (+2) → Stress Reactor
+   - Bored/Lonely (+2) → Escapist
+   - Happy/Excited (+1) → Social Mirror
+   - Angry (+1) → Stress Reactor
+   - Sad (+1) → Escapist
+
+3. **Assignment**: Archetype with highest score wins
+4. **Default**: Auto-Pilot if no clear winner
+
+### Database Schema
+
+**New Fields in `user_profiles`**:
+- `smoking_triggers` (JSON) - Array of trigger types
+- `emotional_states` (JSON) - Array of emotional states
+- `fear_index` (Number 0-10) - Health concern level
+- `quit_reason` (Text) - Free-text quit motivation
+- `quit_archetype` (Select) - Auto-assigned personality type
+
+### Migration
+
+For existing databases, run the migration script:
+```bash
+cd PocketBase
+node migrate-user-profiles.js
+```
+
+This adds the new fields without affecting existing data.
+
 ## 🔮 Future Features
+
+- **Archetype-Based Customization**:
+  - Personalized notification tones
+  - Targeted craving scripts
+  - Custom post-quit recovery paths
+  - Tailored daily program content
 
 - Social features and community
 - Gamification (badges, leaderboards)
-- AI/ML features (personalized recommendations)
+- AI/ML features (advanced recommendations)
 - Health integrations (Apple Health, Google Fit)
 - Premium subscription tier
 

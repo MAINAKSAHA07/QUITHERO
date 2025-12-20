@@ -41,6 +41,12 @@ const collections = [
       { name: 'consumption_unit', type: 'select', options: { values: ['cigarettes', 'ml', 'grams'] } },
       { name: 'motivations', type: 'json', options: {} },
       { name: 'enable_reminders', type: 'bool', options: { defaultValue: true } },
+      // New onboarding personalization fields
+      { name: 'smoking_triggers', type: 'json', options: {} }, // Array of triggers
+      { name: 'emotional_states', type: 'json', options: {} }, // Array of emotional states
+      { name: 'fear_index', type: 'number', options: { min: 0, max: 10 } }, // 0-10 scale
+      { name: 'quit_reason', type: 'text', options: {} }, // Free text
+      { name: 'quit_archetype', type: 'select', options: { values: ['escapist', 'stress_reactor', 'social_mirror', 'auto_pilot'] } },
     ],
     indexes: [{ fields: ['user'], unique: true }],
   },
