@@ -32,4 +32,4 @@ PocketBase/.pb_data/
 *.sln
 *.sw?
 
-.pem
+*.pem
