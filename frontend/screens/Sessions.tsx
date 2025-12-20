@@ -149,8 +149,13 @@ export default function Sessions() {
       <div className="min-h-screen pb-24">
         <TopNavigation left="menu" center="10-Day Program" right="" />
         <div className="max-w-md mx-auto px-4 pt-6 pb-8">
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-8 h-8 text-brand-primary animate-spin" />
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+            <img
+              src="/mascot.png"
+              alt="Loading..."
+              className="w-48 h-48 object-contain animate-bounce"
+            />
+            <p className="text-text-primary/70 text-base font-medium">Loading your sessions...</p>
           </div>
         </div>
         <BottomNavigation />
