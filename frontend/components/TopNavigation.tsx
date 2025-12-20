@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Menu, Bell, Search, MoreVertical } from 'lucide-react'
 import Sidebar from './Sidebar'
+import TranslatedText from './TranslatedText'
 
 interface TopNavigationProps {
   left?: 'back' | 'menu' | 'logo' | ReactNode
@@ -77,7 +78,7 @@ export default function TopNavigation({
           onClick={() => navigate('/login')}
           className="px-4 py-2 glass-button-secondary text-sm"
         >
-          Login
+          <TranslatedText text="Login" />
         </button>
       )
     }
@@ -95,7 +96,9 @@ export default function TopNavigation({
           <div className="flex-1 flex items-center">{renderLeft()}</div>
           <div className="flex-1 text-center">
             {typeof center === 'string' ? (
-              <h1 className="text-lg font-semibold text-text-primary truncate">{center}</h1>
+              <h1 className="text-lg font-semibold text-text-primary truncate">
+                <TranslatedText text={center} />
+              </h1>
             ) : (
               center
             )}

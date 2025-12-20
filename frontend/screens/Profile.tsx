@@ -23,6 +23,7 @@ import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import GlassInput from '../components/GlassInput'
+import TranslatedText from '../components/TranslatedText'
 import { useApp } from '../context/AppContext'
 import { authHelpers } from '../lib/pocketbase'
 import { analyticsService } from '../services/analytics.service'
@@ -395,7 +396,7 @@ export default function Profile() {
                     disabled={saving}
                   >
                     <Save className="w-4 h-4 inline mr-2" />
-                    {saving ? 'Saving...' : 'Save'}
+                    <TranslatedText text={saving ? 'Saving...' : 'Save'} />
                   </GlassButton>
                   <GlassButton
                     onClick={() => {
@@ -410,7 +411,7 @@ export default function Profile() {
                     disabled={saving}
                   >
                     <X className="w-4 h-4 inline mr-2" />
-                    Cancel
+                    <TranslatedText text="Cancel" />
                   </GlassButton>
                 </div>
                 {error && <p className="text-sm text-error text-center">{error}</p>}
@@ -425,14 +426,16 @@ export default function Profile() {
                   className="glass-button-secondary px-4 py-2 text-sm"
                 >
                   <Edit className="w-4 h-4 inline mr-2" />
-                  Edit Profile
+                  <TranslatedText text="Edit Profile" />
                 </button>
               </>
             )}
 
             <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
               <div>
-                <div className="text-lg font-bold text-text-primary">Member since</div>
+                <div className="text-lg font-bold text-text-primary">
+                  <TranslatedText text="Member since" />
+                </div>
                 <div className="text-xs text-text-primary/70">
                   {new Date(memberSince).toLocaleDateString()}
                 </div>
@@ -441,13 +444,17 @@ export default function Profile() {
                 <div className="text-lg font-bold text-text-primary">
                   {progressStats?.days_smoke_free || 0}
                 </div>
-                <div className="text-xs text-text-primary/70">Days smoke-free</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Days smoke-free" />
+                </div>
               </div>
               <div>
                 <div className="text-lg font-bold text-text-primary">
                   {currentSession ? (currentSession.current_day || 0) : 0}
                 </div>
-                <div className="text-xs text-text-primary/70">Current day</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Current day" />
+                </div>
               </div>
             </div>
           </GlassCard>
@@ -459,12 +466,16 @@ export default function Profile() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">Account</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-3">
+            <TranslatedText text="Account" />
+          </h3>
           <GlassCard className="p-4 mb-6 space-y-3">
             <button className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl">
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Email</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Email" />
+                </span>
               </div>
               <span className="text-text-primary/70 text-sm">{user?.email || ''}</span>
             </button>
@@ -474,16 +485,20 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Change Password</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Change Password" />
+                </span>
               </div>
             </button>
-            <button 
+            <button
               onClick={() => navigate('/language?from=/profile')}
               className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl"
             >
               <div className="flex items-center gap-3">
                 <Globe className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Language</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Language" />
+                </span>
               </div>
               <span className="text-text-primary/70 text-sm">
                 {languages.find(l => l.code === language)?.name || 'English'}
@@ -498,13 +513,17 @@ export default function Profile() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">Notifications</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-3">
+            <TranslatedText text="Notifications" />
+          </h3>
           <GlassCard className="p-4 mb-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-text-primary">Daily reminders</div>
+                <div className="font-medium text-text-primary">
+                  <TranslatedText text="Daily reminders" />
+                </div>
                 <div className="text-xs text-text-primary/70">
-                  Get notified at {reminderTime} every day
+                  <TranslatedText text={`Get notified at ${reminderTime} every day`} />
                 </div>
               </div>
               <button
@@ -537,7 +556,9 @@ export default function Profile() {
             {error && <p className="text-sm text-error text-center mt-2">{error}</p>}
             {success && <p className="text-sm text-success text-center mt-2">{success}</p>}
             <div className="flex items-center justify-between">
-              <div className="font-medium text-text-primary">Craving alerts</div>
+              <div className="font-medium text-text-primary">
+                <TranslatedText text="Craving alerts" />
+              </div>
               <button
                 onClick={() =>
                   setNotifications({ ...notifications, craving: !notifications.craving })
@@ -554,7 +575,9 @@ export default function Profile() {
               </button>
             </div>
             <div className="flex items-center justify-between">
-              <div className="font-medium text-text-primary">Achievement notifications</div>
+              <div className="font-medium text-text-primary">
+                <TranslatedText text="Achievement notifications" />
+              </div>
               <button
                 onClick={() =>
                   setNotifications({
@@ -582,24 +605,32 @@ export default function Profile() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">Program</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-3">
+            <TranslatedText text="Program" />
+          </h3>
           <GlassCard className="p-4 mb-6 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Current program</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Current program" />
+                </span>
               </div>
-              <span className="text-text-primary/70 text-sm">10-Day Transformation</span>
+              <span className="text-text-primary/70 text-sm">
+                <TranslatedText text="10-Day Transformation" />
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Quit date</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Quit date" />
+                </span>
               </div>
               <span className="text-text-primary/70 text-sm">
                 {userProfile?.quit_date
                   ? new Date(userProfile.quit_date).toLocaleDateString()
-                  : 'Not set'}
+                  : <TranslatedText text="Not set" />}
               </span>
             </div>
             <button
@@ -608,7 +639,9 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <Download className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Download Certificate</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Download Certificate" />
+                </span>
               </div>
             </button>
           </GlassCard>
@@ -620,7 +653,9 @@ export default function Profile() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">Support</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-3">
+            <TranslatedText text="Support" />
+          </h3>
           <GlassCard className="p-4 mb-6 space-y-3">
             <button
               onClick={handleFAQs}
@@ -628,7 +663,9 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <HelpCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">FAQs</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="FAQs" />
+                </span>
               </div>
             </button>
             <button
@@ -637,7 +674,9 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <MessageCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Contact Support</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Contact Support" />
+                </span>
               </div>
             </button>
             <button
@@ -646,7 +685,9 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <Star className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Rate App</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Rate App" />
+                </span>
               </div>
             </button>
             <button
@@ -655,7 +696,9 @@ export default function Profile() {
             >
               <div className="flex items-center gap-3">
                 <Share2 className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">Share App</span>
+                <span className="text-text-primary">
+                  <TranslatedText text="Share App" />
+                </span>
               </div>
             </button>
           </GlassCard>
@@ -675,13 +718,13 @@ export default function Profile() {
                   onClick={handleTerms}
                   className="hover:text-brand-primary transition-colors"
                 >
-                  Terms
+                  <TranslatedText text="Terms" />
                 </button>
                 <button
                   onClick={handlePrivacy}
                   className="hover:text-brand-primary transition-colors"
                 >
-                  Privacy
+                  <TranslatedText text="Privacy" />
                 </button>
               </div>
             </div>
@@ -701,7 +744,7 @@ export default function Profile() {
             className="py-4 text-error border-error/50"
           >
             <LogOut className="w-5 h-5 inline mr-2" />
-            Logout
+            <TranslatedText text="Logout" />
           </GlassButton>
         </motion.div>
       </div>
@@ -746,7 +789,9 @@ export default function Profile() {
           >
             <div className="p-6 bg-white rounded-2xl shadow-2xl border border-gray-200">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Change Password</h3>
+                <h3 className="text-xl font-bold text-gray-900">
+                  <TranslatedText text="Change Password" />
+                </h3>
                 <button
                   onClick={() => {
                     setShowPasswordModal(false)
@@ -766,7 +811,7 @@ export default function Profile() {
               <div className="space-y-4">
                 <div className="w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Password
+                    <TranslatedText text="Current Password" />
                   </label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
@@ -785,7 +830,7 @@ export default function Profile() {
                 </div>
                 <div className="w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Password
+                    <TranslatedText text="New Password" />
                   </label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
@@ -804,7 +849,7 @@ export default function Profile() {
                 </div>
                 <div className="w-full">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm New Password
+                    <TranslatedText text="Confirm New Password" />
                   </label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
@@ -831,7 +876,7 @@ export default function Profile() {
                     className="flex-1 py-3"
                     disabled={changingPassword}
                   >
-                    {changingPassword ? 'Changing...' : 'Change Password'}
+                    <TranslatedText text={changingPassword ? 'Changing...' : 'Change Password'} />
                   </GlassButton>
                   <button
                     onClick={() => {
@@ -846,7 +891,7 @@ export default function Profile() {
                     disabled={changingPassword}
                     className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Cancel
+                    <TranslatedText text="Cancel" />
                   </button>
                 </div>
               </div>

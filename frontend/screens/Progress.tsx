@@ -5,6 +5,7 @@ import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
 import AchievementNotification from '../components/AchievementNotification'
+import TranslatedText from '../components/TranslatedText'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
@@ -168,9 +169,9 @@ export default function Progress() {
               onChange={(e) => setTimeFilter(e.target.value as 'week' | 'month' | 'all')}
               className="glass-input text-sm py-1 px-2"
             >
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-              <option value="all">All Time</option>
+              <option value="week"><TranslatedText text="This Week" /></option>
+              <option value="month"><TranslatedText text="This Month" /></option>
+              <option value="all"><TranslatedText text="All Time" /></option>
             </select>
           </div>
         }
@@ -199,7 +200,7 @@ export default function Progress() {
                 {overallStats.daysSmokeFree}
               </div>
               <div className="text-lg font-semibold text-text-primary mb-1">
-                DAYS SMOKE-FREE
+                <TranslatedText text="DAYS SMOKE-FREE" />
               </div>
               <Trophy className="w-8 h-8 text-brand-primary mx-auto" />
             </div>
@@ -210,28 +211,36 @@ export default function Progress() {
                 <div className="text-xl font-bold text-text-primary">
                   ₹{overallStats.moneySaved}
                 </div>
-                <div className="text-xs text-text-primary/70">Money saved</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Money saved" />
+                </div>
               </div>
               <div className="glass-subtle p-4 rounded-xl text-center">
                 <Cigarette className="w-6 h-6 text-info mx-auto mb-2" />
                 <div className="text-xl font-bold text-text-primary">
                   {overallStats.cigarettesNotSmoked}
                 </div>
-                <div className="text-xs text-text-primary/70">Not smoked</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Not smoked" />
+                </div>
               </div>
               <div className="glass-subtle p-4 rounded-xl text-center">
                 <Clock className="w-6 h-6 text-success mx-auto mb-2" />
                 <div className="text-xl font-bold text-text-primary">
                   {overallStats.lifeRegained}h
                 </div>
-                <div className="text-xs text-text-primary/70">Life regained</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Life regained" />
+                </div>
               </div>
               <div className="glass-subtle p-4 rounded-xl text-center">
                 <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
                 <div className="text-xl font-bold text-text-primary">
                   +{overallStats.healthImprovement}%
                 </div>
-                <div className="text-xs text-text-primary/70">Lung capacity</div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Lung capacity" />
+                </div>
               </div>
             </div>
           </GlassCard>
@@ -245,7 +254,7 @@ export default function Progress() {
         >
           <GlassCard className="p-6 mb-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Craving Patterns
+              <TranslatedText text="Craving Patterns" />
             </h3>
             {loading ? (
               <div className="flex items-center justify-center h-[200px]">
@@ -253,7 +262,7 @@ export default function Progress() {
               </div>
             ) : cravingTrend.length === 0 ? (
               <div className="flex items-center justify-center h-[200px] text-text-primary/50">
-                <p>No craving data available</p>
+                <p><TranslatedText text="No craving data available" /></p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
@@ -297,7 +306,7 @@ export default function Progress() {
         >
           <GlassCard className="p-6 mb-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Trigger Breakdown
+              <TranslatedText text="Trigger Breakdown" />
             </h3>
             {loading ? (
               <div className="flex items-center justify-center h-[200px]">
@@ -305,7 +314,7 @@ export default function Progress() {
               </div>
             ) : triggerBreakdown.length === 0 ? (
               <div className="flex items-center justify-center h-[200px] text-text-primary/50">
-                <p>No trigger data available</p>
+                <p><TranslatedText text="No trigger data available" /></p>
               </div>
             ) : (
               <div className="flex items-center justify-center">
@@ -339,14 +348,16 @@ export default function Progress() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Achievements</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">
+            <TranslatedText text="Achievements" />
+          </h3>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
             </div>
           ) : formattedAchievements.length === 0 ? (
             <div className="text-center py-8 text-text-primary/50 mb-6">
-              <p>No achievements available</p>
+              <p><TranslatedText text="No achievements available" /></p>
             </div>
           ) : (
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide mb-6">
@@ -377,12 +388,14 @@ export default function Progress() {
                       {achievement.title}
                     </div>
                     {achievement.unlocked ? (
-                      <div className="text-xs text-success mt-1">✓ Unlocked</div>
+                      <div className="text-xs text-success mt-1">
+                        <TranslatedText text="✓ Unlocked" />
+                      </div>
                     ) : (
                       <div className="text-xs text-text-primary/50 mt-1">
-                        {achievement.requirement_type === 'days_streak' && `${achievement.requirement_value} days`}
-                        {achievement.requirement_type === 'cravings_resisted' && `${achievement.requirement_value} cravings`}
-                        {achievement.requirement_type === 'sessions_completed' && `${achievement.requirement_value} sessions`}
+                        {achievement.requirement_type === 'days_streak' && <TranslatedText text={`${achievement.requirement_value} days`} />}
+                        {achievement.requirement_type === 'cravings_resisted' && <TranslatedText text={`${achievement.requirement_value} cravings`} />}
+                        {achievement.requirement_type === 'sessions_completed' && <TranslatedText text={`${achievement.requirement_value} sessions`} />}
                       </div>
                     )}
                   </GlassCard>
@@ -400,7 +413,7 @@ export default function Progress() {
         >
           <GlassCard className="p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Health Improvements
+              <TranslatedText text="Health Improvements" />
             </h3>
             <div className="space-y-3">
               {healthMilestones.map((milestone, index) => (

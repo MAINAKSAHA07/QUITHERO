@@ -4,6 +4,7 @@ import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, L
 import { useApp } from '../context/AppContext'
 import { authHelpers } from '../lib/pocketbase'
 import GlassCard from './GlassCard'
+import TranslatedText from './TranslatedText'
 
 interface SidebarProps {
   isOpen: boolean
@@ -70,7 +71,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <GlassCard className="h-full w-full !bg-white/90 backdrop-blur-[30px] rounded-none border-r border-white/40 flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/30">
-                <h2 className="text-xl font-bold text-text-primary">Menu</h2>
+                <h2 className="text-xl font-bold text-text-primary">
+                  <TranslatedText text="Menu" />
+                </h2>
                 <button
                   onClick={onClose}
                   className="w-10 h-10 rounded-full bg-white/40 backdrop-blur-sm border border-white/50 flex items-center justify-center hover:bg-white/50 transition-colors"
@@ -111,7 +114,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       }`}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="font-medium">{item.label}</span>
+                      <span className="font-medium">
+                        <TranslatedText text={item.label} />
+                      </span>
                     </button>
                   )
                 })}
@@ -127,7 +132,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/40 backdrop-blur-sm border border-white/50 text-text-primary hover:bg-white/50 transition-all"
                 >
                   <Globe className="w-5 h-5" />
-                  <span className="font-medium">Language</span>
+                  <span className="font-medium">
+                    <TranslatedText text="Language" />
+                  </span>
                 </button>
                 <button
                   onClick={() => {
@@ -136,14 +143,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/40 backdrop-blur-sm border border-white/50 text-text-primary hover:bg-white/50 transition-all"
                 >
                   <Settings className="w-5 h-5" />
-                  <span className="font-medium">Settings</span>
+                  <span className="font-medium">
+                    <TranslatedText text="Settings" />
+                  </span>
                 </button>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/40 backdrop-blur-sm border border-error/50 text-error hover:bg-error/10 transition-all font-medium"
                 >
                   <LogOut className="w-5 h-5" />
-                  Logout
+                  <TranslatedText text="Logout" />
                 </button>
               </div>
             </GlassCard>

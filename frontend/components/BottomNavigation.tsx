@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Calendar, Plus, Ticket, User } from 'lucide-react'
 import { motion } from 'framer-motion'
+import TranslatedText from './TranslatedText'
 
 export default function BottomNavigation() {
   const location = useLocation()
@@ -83,7 +84,7 @@ export default function BottomNavigation() {
                   active ? 'text-brand-primary font-medium' : 'text-text-primary/50'
                 }`}
               >
-                {item.label}
+                <TranslatedText text={item.label} />
               </span>
             </Link>
           )
