@@ -39,7 +39,7 @@ export default function Breathing() {
   const [selectedMood, setSelectedMood] = useState<Mood>(Mood.NEUTRAL)
   const [saveToJournal, setSaveToJournal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startTimeRef = useRef<Date | null>(null)
   const phaseRef = useRef<BreathingPhase>('inhale')
   const roundRef = useRef(1)

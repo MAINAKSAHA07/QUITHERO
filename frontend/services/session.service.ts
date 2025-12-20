@@ -46,7 +46,7 @@ export class SessionService extends BaseService {
         
         // For other errors, log but still return null to prevent app breakage
         // Only log in development mode
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.warn('Session query failed (non-critical):', error.message)
         }
         return { success: true, data: null as any }
