@@ -752,24 +752,34 @@ async function updateCollectionSchema(collectionDef, existing) {
   try {
     // Get full collection details
     const fullCollection = await pb.collections.getOne(existing.id)
-    const existingSchema = fullCollection?.schema || []
+    
+    // PocketBase returns fields in both 'fields' and 'schema' properties
+    // Prefer 'fields' as it's more complete
+    const existingSchema = fullCollection?.fields || fullCollection?.schema || []
+    
+    // Get field names, excluding system fields for comparison
     const existingFieldNames = existingSchema
+      .filter(f => !f.system && !f.primaryKey && f.name !== 'id')
       .map(f => f?.name || f?.id)
       .filter(Boolean)
     
     const requiredFieldNames = collectionDef.schema.map(f => f.name)
     const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
     
-    // If no fields exist (only ID), we need ALL fields
-    if (existingSchema.length === 0 || missingFields.length > 0) {
-      const isCompletelyEmpty = existingSchema.length === 0
+    // Count total fields (including system) and user fields
+    const totalFields = existingSchema.length
+    const userFields = existingSchema.filter(f => !f.system && !f.primaryKey && f.name !== 'id').length
+    
+    // If no user fields exist (only ID/system fields), we need ALL fields
+    if (userFields === 0 || missingFields.length > 0) {
+      const isCompletelyEmpty = userFields === 0
       const fieldsToAdd = isCompletelyEmpty
         ? collectionDef.schema  // All fields if schema is empty
         : collectionDef.schema.filter(field => missingFields.includes(field.name))  // Only missing fields
       
-      console.log(`      Current schema: ${existingSchema.length} fields`)
-      console.log(`      Required fields: ${requiredFieldNames.length}`)
-      console.log(`      Missing fields: ${missingFields.length}`)
+      console.log(`      Current: ${totalFields} total fields (${userFields} user fields)`)
+      console.log(`      Required: ${requiredFieldNames.length} fields`)
+      console.log(`      Missing: ${missingFields.length} field(s)`)
       console.log(`      Will add: ${fieldsToAdd.length} field(s)`)
       
       // Helper to resolve collection name to ID
@@ -823,8 +833,9 @@ async function updateCollectionSchema(collectionDef, existing) {
       
       // Build fields in PocketBase format (like fix-schemas.js)
       // First, get the ID field from existing collection
-      const idField = fullCollection?.fields?.find(f => f.primaryKey) || 
-                      existingSchema.find(f => f.name === 'id') ||
+      // Check both 'fields' and 'schema' properties
+      const allExistingFields = fullCollection?.fields || fullCollection?.schema || existingSchema
+      const idField = allExistingFields.find(f => f.primaryKey || f.name === 'id') || 
                       {
                         name: 'id',
                         type: 'text',
@@ -881,9 +892,15 @@ async function updateCollectionSchema(collectionDef, existing) {
         return pbField
       })
       
-      // Build final fields array: ID field first, then existing fields (excluding ID), then new fields
-      const existingFieldsWithoutId = existingSchema.filter(f => f.name !== 'id' && !f.primaryKey)
-      const finalFields = [idField, ...existingFieldsWithoutId, ...pbFields]
+      // Build final fields array: ID field first, then existing user fields, then new fields
+      // Keep all existing fields (including system fields like created, updated) but exclude ID since we add it first
+      const existingUserFields = existingSchema.filter(f => 
+        f.name !== 'id' && 
+        !f.primaryKey && 
+        !f.system
+      )
+      const existingSystemFields = existingSchema.filter(f => f.system && f.name !== 'id')
+      const finalFields = [idField, ...existingSystemFields, ...existingUserFields, ...pbFields]
       
       // Remove duplicates by name (keep the last one, which will be the new one)
       const uniqueFields = finalFields.reduce((acc, field) => {
@@ -897,7 +914,7 @@ async function updateCollectionSchema(collectionDef, existing) {
         return acc
       }, [])
       
-      console.log(`      Building fields array: ID + ${existingFieldsWithoutId.length} existing + ${pbFields.length} new = ${uniqueFields.length} total`)
+      console.log(`      Building fields array: ID + ${existingSystemFields.length} system + ${existingUserFields.length} existing user + ${pbFields.length} new = ${uniqueFields.length} total`)
       
       // Try to update the collection using 'fields' instead of 'schema'
       try {
@@ -920,23 +937,29 @@ async function updateCollectionSchema(collectionDef, existing) {
         let verifyCollection
         let finalFields = []
         let attempts = 0
-        const maxAttempts = 3
+        const maxAttempts = 5
         
         while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 800))
           verifyCollection = await pb.collections.getOne(existing.id)
           // PocketBase returns fields in both 'schema' and 'fields' properties
           finalFields = verifyCollection?.fields || verifyCollection?.schema || []
           
-          if (finalFields.length > 1) { // More than just ID
-            break // Fields have been updated
+          // Count user fields (non-system)
+          const userFieldCount = finalFields.filter(f => !f.system && !f.primaryKey && f.name !== 'id').length
+          
+          if (userFieldCount >= requiredFieldNames.length) {
+            break // All required fields are present
           }
           attempts++
+          if (attempts < maxAttempts) {
+            console.log(`      Waiting for fields to propagate (attempt ${attempts + 1}/${maxAttempts})...`)
+          }
         }
         
         const finalFieldCount = finalFields.length
-        const finalFieldNames = finalFields
-          .filter(f => !f.system && !f.primaryKey) // Exclude system fields
+        const finalUserFields = finalFields.filter(f => !f.system && !f.primaryKey && f.name !== 'id')
+        const finalFieldNames = finalUserFields
           .map(f => f?.name || f?.id)
           .filter(Boolean)
         
@@ -1775,24 +1798,64 @@ async function completeSetup() {
     // Verify all collections have their required fields
     console.log('\n  🔍 Verifying collection schemas...')
     let schemaIssues = 0
+    const collectionsNeedingFix = []
+    
     for (const collectionDef of collections) {
       try {
         const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
         const fullCollection = await pb.collections.getOne(existing.id)
-        const existingSchema = fullCollection?.schema || []
-        const existingFieldNames = existingSchema.map(f => f?.name || f?.id || '').filter(Boolean)
+        
+        // PocketBase returns fields in both 'fields' and 'schema' properties
+        const existingFields = fullCollection?.fields || fullCollection?.schema || []
+        
+        // Get field names, excluding system fields
+        const existingFieldNames = existingFields
+          .filter(f => !f.system && !f.primaryKey && f.name !== 'id')
+          .map(f => f?.name || f?.id || '')
+          .filter(Boolean)
+        
         const requiredFieldNames = collectionDef.schema.map(f => f.name)
         const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
         
         if (missingFields.length > 0) {
           console.warn(`    ⚠ "${collectionDef.name}" is missing ${missingFields.length} field(s): ${missingFields.join(', ')}`)
+          console.warn(`       Current fields (${existingFieldNames.length}): ${existingFieldNames.slice(0, 5).join(', ')}${existingFieldNames.length > 5 ? '...' : ''}`)
           schemaIssues++
+          collectionsNeedingFix.push({ collectionDef, existing, missingFields })
         } else {
-          console.log(`    ✓ "${collectionDef.name}" has all required fields (${existingSchema.length} fields)`)
+          console.log(`    ✓ "${collectionDef.name}" has all required fields (${existingFieldNames.length} user fields)`)
         }
       } catch (e) {
         console.error(`    ✗ Could not verify "${collectionDef.name}": ${e.message}`)
         schemaIssues++
+      }
+    }
+    
+    // If there are collections with missing fields, try to fix them
+    if (collectionsNeedingFix.length > 0) {
+      console.log(`\n  🔧 Attempting to fix ${collectionsNeedingFix.length} collection(s) with missing fields...\n`)
+      let fixedCount = 0
+      
+      for (const { collectionDef, existing, missingFields } of collectionsNeedingFix) {
+        try {
+          console.log(`  Fixing "${collectionDef.name}" (missing: ${missingFields.join(', ')})...`)
+          const fixResult = await updateCollectionSchema(collectionDef, existing)
+          
+          if (fixResult.success && fixResult.fieldsAdded > 0) {
+            console.log(`    ✓ Added ${fixResult.fieldsAdded} field(s)`)
+            fixedCount++
+          } else if (fixResult.success) {
+            console.log(`    ⊘ No fields added (may already exist)`)
+          } else {
+            console.warn(`    ✗ Fix failed: ${fixResult.error}`)
+          }
+        } catch (e) {
+          console.error(`    ✗ Error fixing "${collectionDef.name}": ${e.message}`)
+        }
+      }
+      
+      if (fixedCount > 0) {
+        console.log(`\n  ✓ Fixed ${fixedCount} collection(s)`)
       }
     }
     
