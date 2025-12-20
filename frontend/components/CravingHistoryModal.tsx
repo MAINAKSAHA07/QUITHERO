@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Calendar, AlertCircle } from 'lucide-react'
-import GlassCard from './GlassCard'
+import { X, Calendar } from 'lucide-react'
 import { Craving } from '../types/models'
 import { CravingType, CravingTrigger } from '../types/enums'
 

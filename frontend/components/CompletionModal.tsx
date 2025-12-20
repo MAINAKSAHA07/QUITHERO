@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle, Home, ArrowRight } from 'lucide-react'
-import GlassCard from './GlassCard'
 import GlassButton from './GlassButton'
 
 interface CompletionModalProps {

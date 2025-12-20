@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sessionService, programService } from '../services'
-import { UserSession, ProgramDay, Step, SessionProgress } from '../types/models'
+import { UserSession, ProgramDay, SessionProgress } from '../types/models'
 import { useApp } from '../context/AppContext'
 
 export function useSessions() {
@@ -21,7 +21,7 @@ export function useSessions() {
         setCurrentSession(result.data)
         // Fetch program days
         if (result.data.program) {
-          const programId = typeof result.data.program === 'string' ? result.data.program : result.data.program.id
+          const programId = typeof result.data.program === 'string' ? result.data.program : (result.data.program as any)?.id || result.data.program
           const daysResult = await programService.getProgramDays(programId)
           if (daysResult.success && daysResult.data) {
             setProgramDays(daysResult.data)

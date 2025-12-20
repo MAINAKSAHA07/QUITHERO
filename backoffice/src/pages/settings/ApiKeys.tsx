@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Eye, EyeOff, Trash2, Copy, Key, Globe, RefreshCw } from 'lucide-react'
+import { Plus, Eye, EyeOff, Copy, Key, Globe } from 'lucide-react'
 
 interface ApiKey {
   id: string
@@ -151,7 +151,7 @@ export const ApiKeys = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
-                {apiKeys.map((apiKey: ApiKey) => {
+                {(apiKeys as any as ApiKey[]).map((apiKey: ApiKey) => {
                   const isRevealed = revealedKeys.has(apiKey.id)
                   const maskedKey = apiKey.key ? `${apiKey.key.slice(0, 8)}...${apiKey.key.slice(-4)}` : 'N/A'
                   return (
@@ -263,7 +263,7 @@ export const ApiKeys = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {webhooks.map((webhook: Webhook) => (
+            {(webhooks as any as Webhook[]).map((webhook: Webhook) => (
               <div key={webhook.id} className="border border-neutral-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -494,7 +494,7 @@ interface CreateWebhookModalProps {
 }
 
 const CreateWebhookModal: React.FC<CreateWebhookModalProps> = ({ onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
     url: '',
     events: [] as string[],

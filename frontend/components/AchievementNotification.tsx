@@ -42,7 +42,7 @@ export default function AchievementNotification({ achievement, onClose }: Achiev
               transition={{ type: 'spring', delay: 0.2 }}
               className="w-16 h-16 rounded-full bg-brand-primary/20 flex items-center justify-center flex-shrink-0"
             >
-              <Trophy className={`w-8 h-8 ${getTierColor(achievement.tier)}`} />
+              <Trophy className={`w-8 h-8 ${getTierColor(achievement.tier || 'bronze')}`} />
             </motion.div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">

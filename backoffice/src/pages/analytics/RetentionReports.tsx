@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { TrendingDown, Users, Calendar, Download, AlertCircle } from 'lucide-react'
+import { TrendingDown, Users, Download, AlertCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
@@ -242,7 +242,7 @@ export const RetentionReports = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {churnReasonsData.map((entry, index) => (
+                {churnReasonsData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

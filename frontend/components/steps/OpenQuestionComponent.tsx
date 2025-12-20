@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Step } from '../../types/models'
 import { OpenStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
-import GlassInput from '../GlassInput'
 
 interface OpenQuestionComponentProps {
   step: Step

@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { BarChart3, TrendingUp, Calendar, Award, FileText, Activity } from 'lucide-react'
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
 
@@ -155,7 +154,7 @@ export const EngagementMetrics = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {featureUsageData.map((entry, index) => (
+                {featureUsageData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -215,7 +214,7 @@ export const EngagementMetrics = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {triggerChartData.map((entry, index) => (
+                {triggerChartData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -259,7 +258,7 @@ export const EngagementMetrics = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {moodChartData.map((entry, index) => (
+                {moodChartData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

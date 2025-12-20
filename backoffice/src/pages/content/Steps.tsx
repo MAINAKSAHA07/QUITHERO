@@ -161,7 +161,7 @@ export const Steps = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {steps.map((step: any, index: number) => {
+          {steps.map((step: any, _index: number) => {
             const stepType = step.type as StepType
             const Icon = stepTypeIcons[stepType] || FileText
             const content = step.content_json || {}
@@ -283,7 +283,7 @@ interface AddEditStepModalProps {
 }
 
 const AddEditStepModal: React.FC<AddEditStepModalProps> = ({ dayId, step, onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [stepType, setStepType] = useState<StepType>(step?.type || 'text')
   const [formData, setFormData] = useState<any>(() => {
     if (step) {

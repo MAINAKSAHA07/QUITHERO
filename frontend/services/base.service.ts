@@ -20,6 +20,7 @@ export class BaseService {
     sort?: string
     expand?: string
     fields?: string
+    limit?: number
   }): Promise<ApiResponse<any[]>> {
     try {
       const records = await pb.collection(this.collectionName).getFullList({

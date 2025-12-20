@@ -28,7 +28,7 @@ export class CravingService extends BaseService {
         sort: options?.sort || '-created',
         ...(options?.limit && { limit: options.limit }),
       })
-      return { success: true, data: records || [] }
+      return { success: true, data: (records || []) as any as Craving[] }
     } catch (error: any) {
       // If it's a 404, 400, or collection doesn't exist, return empty array
       if (error.status === 404 || error.status === 400 || 

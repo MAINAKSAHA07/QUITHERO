@@ -4,8 +4,6 @@
  */
 
 export class NotificationService {
-  private static permission: NotificationPermission = 'default'
-
   /**
    * Request notification permission
    */
@@ -16,13 +14,11 @@ export class NotificationService {
     }
 
     if (Notification.permission === 'granted') {
-      this.permission = 'granted'
       return true
     }
 
     if (Notification.permission !== 'denied') {
       const permission = await Notification.requestPermission()
-      this.permission = permission
       return permission === 'granted'
     }
 

@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Sparkles } from 'lucide-react'
-import GlassCard from './GlassCard'
 
 interface MotivationalQuoteModalProps {
   isOpen: boolean

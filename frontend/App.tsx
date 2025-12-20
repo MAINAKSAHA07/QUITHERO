@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import SplashScreen from './screens/SplashScreen'
 import LanguageSelection from './screens/LanguageSelection'

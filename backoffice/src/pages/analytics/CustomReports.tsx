@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
 import { Plus, Save, Download, FileText, BarChart3, TrendingUp, PieChart as PieChartIcon, Table } from 'lucide-react'
 
 interface SavedReport {

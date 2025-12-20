@@ -39,12 +39,12 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
     // Check if user is already authenticated
     const currentUser = adminAuthHelpers.getCurrentUser()
     if (currentUser) {
-      setUser(currentUser as AdminUser)
+      setUser(currentUser as any as AdminUser)
     }
     setIsLoading(false)
 
     // Listen for auth changes
-    const unsubscribe = pb.authStore.onChange((token, model) => {
+    const unsubscribe = pb.authStore.onChange((_token, model) => {
       setUser(model as AdminUser | null)
     })
 
@@ -57,7 +57,7 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
     setIsLoading(true)
     const result = await adminAuthHelpers.login(email, password)
     if (result.success) {
-      setUser(result.data?.record as AdminUser)
+      setUser(result.data?.record as any as AdminUser)
     }
     setIsLoading(false)
     return result

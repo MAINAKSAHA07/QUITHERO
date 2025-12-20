@@ -1,8 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Download, Search, Filter, MoreVertical, Eye, Edit, Trash2, Mail, UserCheck, UserX } from 'lucide-react'
-import { UsersTable } from '../../components/tables/UsersTable'
+import { Plus, Download, Search, Eye, Edit, Trash2, Mail, UserCheck, UserX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   useReactTable,
@@ -37,7 +36,7 @@ export const AllUsers = () => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [showBulkActions, setShowBulkActions] = useState(false)
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['users', page, perPage, statusFilter, searchQuery],
     queryFn: () => adminCollectionHelpers.getList('users', page, perPage, {
       filter: searchQuery ? `email ~ "${searchQuery}" || name ~ "${searchQuery}"` : undefined,
@@ -54,9 +53,9 @@ export const AllUsers = () => {
     },
   })
 
-  const users = data?.data?.items || []
-  const totalPages = data?.data?.totalPages || 1
-  const totalItems = data?.data?.totalItems || 0
+  const users = (data?.data && 'items' in data.data ? (data.data as any).items : []) || []
+  const totalPages = (data?.data && 'totalPages' in data.data ? (data.data as any).totalPages : 1) || 1
+  const totalItems = (data?.data && 'totalItems' in data.data ? (data.data as any).totalItems : 0) || 0
 
   const selectedUsers = useMemo(() => {
     return Object.keys(rowSelection)
@@ -104,7 +103,7 @@ export const AllUsers = () => {
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map((row: any[]) => row.map((cell: any) => `"${cell}"`).join(','))
     ].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv' })

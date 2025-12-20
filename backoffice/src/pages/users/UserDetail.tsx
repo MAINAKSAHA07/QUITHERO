@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, XCircle, Calendar, Clock, TrendingUp, Award, FileText, BarChart3, Activity } from 'lucide-react'
+import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity'

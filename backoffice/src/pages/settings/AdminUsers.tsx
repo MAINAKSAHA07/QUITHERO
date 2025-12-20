@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Edit, Trash2, UserCheck, UserX, Mail, Shield } from 'lucide-react'
+import { Plus, Edit, Trash2, UserCheck, UserX, Shield } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface AdminUser {
@@ -127,7 +127,7 @@ export const AdminUsers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {admins.map((admin: AdminUser) => (
+              {(admins as any as AdminUser[]).map((admin: AdminUser) => (
                 <tr key={admin.id} className="hover:bg-neutral-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -219,7 +219,7 @@ interface AdminUserModalProps {
 }
 
 const AdminUserModal: React.FC<AdminUserModalProps> = ({ admin, onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
     name: admin?.name || '',
     email: admin?.email || '',

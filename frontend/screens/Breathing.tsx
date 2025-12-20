@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CheckCircle, Music, MusicOff } from 'lucide-react'
+import { X, CheckCircle } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'

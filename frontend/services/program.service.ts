@@ -31,7 +31,7 @@ export class ProgramService extends BaseService {
         sort: 'day_number',
         expand: 'program',
       })
-      return { success: true, data: result }
+      return { success: true, data: result as any as ProgramDay[] }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -47,7 +47,7 @@ export class ProgramService extends BaseService {
         sort: 'order',
         expand: 'program_day',
       })
-      return { success: true, data: result }
+      return { success: true, data: result as any as Step[] }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -61,7 +61,7 @@ export class ProgramService extends BaseService {
       const result = await pb.collection('program_days').getOne(programDayId, {
         expand: 'program',
       })
-      return { success: true, data: result }
+      return { success: true, data: result as any as ProgramDay }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -76,7 +76,7 @@ export class ProgramService extends BaseService {
         `program = "${programId}" && day_number = ${dayNumber}`,
         { expand: 'program' }
       )
-      return { success: true, data: result }
+      return { success: true, data: result as any as ProgramDay }
     } catch (error: any) {
       return { success: false, error: error.message }
     }

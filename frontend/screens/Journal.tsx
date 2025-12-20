@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Edit, Trash2, X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Calendar } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'

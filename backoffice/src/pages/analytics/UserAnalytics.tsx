@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Users, TrendingUp, Calendar, Globe, Smartphone, Monitor } from 'lucide-react'
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Users, TrendingUp, Calendar } from 'lucide-react'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
-const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
+// const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
 
 export const UserAnalytics = () => {
   const [dateRange, setDateRange] = useState<'30' | '90' | '180' | '365'>('30')

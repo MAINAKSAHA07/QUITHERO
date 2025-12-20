@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Upload, Grid, List, Folder, Image, File, Search, Trash2, Download, Eye, FolderPlus, MoreVertical } from 'lucide-react'
+import { Upload, Grid, List, Folder, Image, File, Search, Trash2, Download, Eye, FolderPlus } from 'lucide-react'
 
 interface MediaItem {
   id: string
@@ -51,7 +51,7 @@ export const MediaLibrary = () => {
     return filters.length > 0 ? filters.join(' && ') : undefined
   }
 
-  const media = mediaData?.data || []
+  const media = (mediaData?.data || []) as any as MediaItem[]
   const folders = Array.from(new Set(media.map((item: MediaItem) => item.folder).filter(Boolean)))
 
   const filteredMedia = media.filter((item: MediaItem) => {
@@ -427,7 +427,7 @@ interface UploadModalProps {
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({ onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [files, setFiles] = useState<File[]>([])
   const [folder, setFolder] = useState('')
   const [isUploading, setIsUploading] = useState(false)

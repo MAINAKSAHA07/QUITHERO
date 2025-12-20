@@ -34,9 +34,9 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
       </div>
       <div className="pt-2">
         <GlassButton
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
+          onClick={(e?: React.MouseEvent) => {
+            e?.preventDefault()
+            e?.stopPropagation()
             onNext()
           }}
           fullWidth

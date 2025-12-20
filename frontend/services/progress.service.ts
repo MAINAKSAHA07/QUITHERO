@@ -98,7 +98,7 @@ export class ProgressService extends BaseService {
   async getByUserId(userId: string): Promise<ApiResponse<ProgressStats>> {
     try {
       const result = await pb.collection(this.collectionName).getFirstListItem(`user = "${userId}"`)
-      return { success: true, data: result }
+      return { success: true, data: result as any as ProgressStats }
     } catch (error: any) {
       if (error.status === 404) {
         // No stats yet, return default

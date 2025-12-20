@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, RefreshCw, CheckCircle, Lock } from 'lucide-react'
+import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
@@ -25,7 +25,7 @@ export default function Session() {
   const { user, refreshProgress } = useApp()
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
-  const [sessionProgress, setSessionProgress] = useState<SessionProgress | null>(null)
+  const [, setSessionProgress] = useState<SessionProgress | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -65,7 +65,7 @@ export default function Session() {
       let progress: SessionProgress | null = null
       
       if (progressResult.success) {
-        progress = progressResult.data
+        progress = progressResult.data || null
         if (progress && progress.id) {
           setSessionProgress(progress)
           // Resume from last step

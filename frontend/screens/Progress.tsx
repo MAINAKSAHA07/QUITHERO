@@ -36,10 +36,10 @@ const TRIGGER_COLORS: Record<string, string> = {
 }
 
 export default function Progress() {
-  const { user, refreshProgress } = useApp()
+  const { user } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const { getTrend, getTriggerBreakdown } = useCravings()
-  const { achievements, userAchievements, isUnlocked, checkAndUnlock } = useAchievements()
+  const { achievements, isUnlocked, checkAndUnlock } = useAchievements()
   
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('week')
   const [cravingTrend, setCravingTrend] = useState<any[]>([])
@@ -66,7 +66,7 @@ export default function Progress() {
       // Get craving trend
       const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
       const trendResult = await getTrend(days)
-      if (trendResult.success && trendResult.data) {
+      if (trendResult.success && 'data' in trendResult && trendResult.data) {
         // Format data for chart (convert dates to day names for week, or keep dates for month/all)
         const formatted = trendResult.data.map((item: any) => {
           try {
@@ -90,7 +90,7 @@ export default function Progress() {
 
       // Get trigger breakdown
       const breakdownResult = await getTriggerBreakdown()
-      if (breakdownResult.success && breakdownResult.data) {
+      if (breakdownResult.success && 'data' in breakdownResult && breakdownResult.data) {
         const formatted = breakdownResult.data.map((item: any) => ({
           name: item.name.charAt(0).toUpperCase() + item.name.slice(1).replace('_', ' '),
           value: item.value,
@@ -372,7 +372,7 @@ export default function Progress() {
                       !achievement.unlocked ? 'opacity-50' : ''
                     }`}
                   >
-                    <Trophy className={`w-10 h-10 ${getTierColor(achievement.tier)} mx-auto mb-2`} />
+                    <Trophy className={`w-10 h-10 ${getTierColor(achievement.tier || 'bronze')} mx-auto mb-2`} />
                     <div className="text-sm font-medium text-text-primary">
                       {achievement.title}
                     </div>

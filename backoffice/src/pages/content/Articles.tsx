@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Edit, Trash2, Copy, Eye, Search, Filter, FileText, Globe, Calendar } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -195,7 +195,7 @@ export const Articles = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {articles.map((article: Article) => (
+              {(articles as any as Article[]).map((article: Article) => (
                 <tr key={article.id} className="hover:bg-neutral-50">
                   <td className="px-6 py-4">
                     <div>

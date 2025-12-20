@@ -9,7 +9,6 @@ import MotivationalQuoteModal from '../components/MotivationalQuoteModal'
 import CravingHistoryModal from '../components/CravingHistoryModal'
 import { useApp } from '../context/AppContext'
 import { useCravings } from '../hooks/useCravings'
-import { cravingService } from '../services/craving.service'
 import { analyticsService } from '../services/analytics.service'
 import { achievementService } from '../services/achievement.service'
 import { contentService } from '../services/content.service'
@@ -166,8 +165,8 @@ export default function CravingSupport() {
 
         if (slipped) {
           // Get days smoke-free for encouragement
-          const progressResult = await cravingService.getCountByType(user.id, 'slip')
-          const totalSlips = progressResult.success ? (progressResult.data || 0) : 0
+          // const progressResult = await cravingService.getCountByType(user.id, 'slip')
+          // const totalSlips = progressResult.success ? (progressResult.data || 0) : 0
           setEncouragementMessage(
             `It's okay. Tomorrow is a new day. You've come this far - keep going! 💪`
           )

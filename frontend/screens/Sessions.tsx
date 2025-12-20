@@ -5,7 +5,6 @@ import { CheckCircle, Lock, Calendar, Play, RefreshCw } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
-import GlassButton from '../components/GlassButton'
 import { useApp } from '../context/AppContext'
 import { useSessions } from '../hooks/useSessions'
 import { programService } from '../services/program.service'
@@ -23,7 +22,7 @@ interface DayWithProgress {
 export default function Sessions() {
   const navigate = useNavigate()
   const { user } = useApp()
-  const { currentSession, programDays, loading, fetchCurrentSession } = useSessions()
+  const { currentSession, loading, fetchCurrentSession } = useSessions()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -104,7 +103,7 @@ export default function Sessions() {
 
           daysWithProgressData.push({
             day,
-            progress,
+            progress: progress || null,
             isLocked,
             status,
           })
@@ -133,12 +132,12 @@ export default function Sessions() {
     }
   }
 
-  const getButtonText = (dayWithProgress: DayWithProgress) => {
-    if (dayWithProgress.isLocked) return 'Locked'
-    if (dayWithProgress.status === SessionStatus.COMPLETED) return 'Review'
-    if (dayWithProgress.status === SessionStatus.IN_PROGRESS) return 'Continue'
-    return 'Start'
-  }
+  // const getButtonText = (dayWithProgress: DayWithProgress) => {
+  //   if (dayWithProgress.isLocked) return 'Locked'
+  //   if (dayWithProgress.status === SessionStatus.COMPLETED) return 'Review'
+  //   if (dayWithProgress.status === SessionStatus.IN_PROGRESS) return 'Continue'
+  //   return 'Start'
+  // }
 
   const completedCount = daysWithProgress.filter(
     (d) => d.status === SessionStatus.COMPLETED

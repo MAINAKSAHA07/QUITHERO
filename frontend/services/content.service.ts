@@ -18,11 +18,14 @@ export class ContentService extends BaseService {
   ): Promise<ApiResponse<ContentItem[]>> {
     try {
       const filter = `type = "${type}" && language = "${language}" && is_active = true`
-      return await this.getAll({
+      const getAllOptions: any = {
         filter,
         sort: options?.sort || 'order',
-        limit: options?.limit,
-      })
+      }
+      if (options?.limit) {
+        getAllOptions.limit = options.limit
+      }
+      return await this.getAll(getAllOptions)
     } catch (error: any) {
       return this.handleError(error)
     }

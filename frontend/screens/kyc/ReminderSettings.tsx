@@ -16,7 +16,7 @@ interface ReminderSettingsProps {
   onBack: () => void
 }
 
-export default function ReminderSettings({ step, totalSteps, onNext, onBack }: ReminderSettingsProps) {
+export default function ReminderSettings({ step, totalSteps, onBack }: ReminderSettingsProps) {
   const { user, updateUserProfile } = useApp()
   const navigate = useNavigate()
   const [remindersEnabled, setRemindersEnabled] = useState(true)

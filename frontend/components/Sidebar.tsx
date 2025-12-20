@@ -4,7 +4,6 @@ import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, L
 import { useApp } from '../context/AppContext'
 import { authHelpers } from '../lib/pocketbase'
 import GlassCard from './GlassCard'
-import GlassButton from './GlassButton'
 
 interface SidebarProps {
   isOpen: boolean

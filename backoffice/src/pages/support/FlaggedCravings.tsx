@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Search, Filter, AlertTriangle, User, Calendar, MessageSquare, CheckCircle, XCircle, Mail } from 'lucide-react'
+import { Search, AlertTriangle, CheckCircle, XCircle, Mail } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 
@@ -10,7 +10,7 @@ export const FlaggedCravings = () => {
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [flagReasonFilter, setFlagReasonFilter] = useState<string>('all')
-  const [selectedCravings, setSelectedCravings] = useState<string[]>([])
+  const [selectedCravings] = useState<string[]>([])
 
   // Note: This assumes cravings can be flagged
   // You may need to add a 'flagged' or 'flag_reason' field to the cravings collection

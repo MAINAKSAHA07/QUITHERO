@@ -3,7 +3,6 @@ import { Achievement, UserAchievement } from '../types/models'
 import { ApiResponse } from '../types/api'
 import { pb } from '../lib/pocketbase'
 import { progressService } from './progress.service'
-import { sessionService } from './session.service'
 import { cravingService } from './craving.service'
 
 export class AchievementService extends BaseService {
@@ -28,7 +27,7 @@ export class AchievementService extends BaseService {
         expand: 'achievement',
         sort: '-unlocked_at',
       })
-      return { success: true, data: result }
+      return { success: true, data: result as any as UserAchievement[] }
     } catch (error: any) {
       return { success: false, error: error.message }
     }
@@ -79,7 +78,7 @@ export class AchievementService extends BaseService {
 
         switch (achievement.requirement_type) {
           case 'days_streak':
-            if (progressData && progressData.days_smoke_free >= (achievement.requirement_value || 0)) {
+            if (progressData && (progressData.days_smoke_free ?? 0) >= (achievement.requirement_value || 0)) {
               qualified = true
             }
             break
@@ -92,7 +91,7 @@ export class AchievementService extends BaseService {
 
           case 'sessions_completed':
             // Simplified - would need proper session count
-            if (progressData && progressData.days_smoke_free >= (achievement.requirement_value || 0)) {
+            if (progressData && (progressData.days_smoke_free ?? 0) >= (achievement.requirement_value || 0)) {
               qualified = true
             }
             break

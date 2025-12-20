@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { BarChart3, TrendingUp, Users, CheckCircle, Clock, Star } from 'lucide-react'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
+// const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
 
 export const ProgramPerformance = () => {
   const { data: programsData } = useQuery({

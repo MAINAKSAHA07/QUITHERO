@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Search, Filter, AlertCircle, Clock, CheckCircle, XCircle, MessageSquare, User, Calendar } from 'lucide-react'
+import { Plus, Search, AlertCircle, Clock, CheckCircle, XCircle, MessageSquare, User, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 // Note: This assumes support_tickets collection exists

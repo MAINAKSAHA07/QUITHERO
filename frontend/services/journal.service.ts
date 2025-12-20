@@ -28,7 +28,7 @@ export class JournalService extends BaseService {
         sort: options?.sort || '-date',
         ...(options?.limit && { limit: options.limit }),
       })
-      return { success: true, data: records }
+      return { success: true, data: records as any as JournalEntry[] }
     } catch (error: any) {
       return this.handleError(error)
     }
@@ -47,7 +47,7 @@ export class JournalService extends BaseService {
         filter: `user = "${userId}" && date >= "${startDate}" && date <= "${endDate}"`,
         sort: '-date',
       })
-      return { success: true, data: records }
+      return { success: true, data: records as any as JournalEntry[] }
     } catch (error: any) {
       return this.handleError(error)
     }
@@ -62,7 +62,7 @@ export class JournalService extends BaseService {
         .collection(this.collectionName)
         .getFirstListItem(`user = "${userId}" && date = "${date}"`)
         .catch(() => null)
-      return { success: true, data: result }
+      return { success: true, data: result as any as JournalEntry | null }
     } catch (error: any) {
       return { success: false, error: error.message }
     }

@@ -39,7 +39,7 @@ export default function Home() {
   const navigate = useNavigate()
   const { user } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
-  const { currentSession, programDays, loading: sessionLoading, fetchCurrentSession } = useSessions()
+  const { currentSession, loading: sessionLoading, fetchCurrentSession } = useSessions()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
   const [slipsCount, setSlipsCount] = useState(0)
@@ -103,7 +103,6 @@ export default function Home() {
     // Prioritize calculation (most recent) over stats (cached)
     const daysSmokeFree = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
-    const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
     
     return [

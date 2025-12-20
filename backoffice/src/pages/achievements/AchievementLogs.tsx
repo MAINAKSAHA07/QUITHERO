@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Search, Filter, Download, Award, User, Calendar, CheckCircle } from 'lucide-react'
+import { Search, Download, Award, User, Calendar, CheckCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export const AchievementLogs = () => {

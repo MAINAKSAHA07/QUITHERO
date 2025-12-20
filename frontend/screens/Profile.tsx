@@ -25,9 +25,7 @@ import GlassButton from '../components/GlassButton'
 import GlassInput from '../components/GlassInput'
 import { useApp } from '../context/AppContext'
 import { authHelpers } from '../lib/pocketbase'
-import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
-import { useProfile } from '../hooks/useProfile'
 import SupportTicketModal from '../components/SupportTicketModal'
 
 const languages = [
@@ -42,7 +40,7 @@ const languages = [
 export default function Profile() {
   const navigate = useNavigate()
   const { user, userProfile, progressStats, currentSession, setIsAuthenticated, setUser, updateUserProfile, fetchUserProfile, language } = useApp()
-  const { updateProfile } = useProfile()
+  // const { updateProfile } = useProfile()
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
