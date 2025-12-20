@@ -1,10 +1,12 @@
 import PocketBase from 'pocketbase'
 
-// Prefer an explicit env, otherwise fall back to the main app's default PocketBase port
-const PB_URL =
-  import.meta.env.VITE_POCKETBASE_URL ||
-  import.meta.env.VITE_BACKOFFICE_PB_URL ||
-  'http://localhost:8096'
+// In production (Vercel), use the serverless proxy to avoid Mixed Content errors
+// In development, connect directly to PocketBase
+const PB_URL = import.meta.env.PROD
+  ? '/api/pocketbase'  // Use Vercel proxy in production
+  : import.meta.env.VITE_POCKETBASE_URL ||
+    import.meta.env.VITE_BACKOFFICE_PB_URL ||
+    'http://localhost:8096'
 
 export const pb = new PocketBase(PB_URL)
 
