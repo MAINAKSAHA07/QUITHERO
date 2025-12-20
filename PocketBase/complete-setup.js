@@ -51,27 +51,69 @@ const envPath = join(__dirname, '..', '.env')
 try {
   const envFile = readFileSync(envPath, 'utf-8')
   envFile.split('\n').forEach(line => {
-    const match = line.match(/^\s*([^#][^=]*?)\s*=\s*(.*?)\s*$/)
+    // Skip comments and empty lines
+    const trimmedLine = line.trim()
+    if (!trimmedLine || trimmedLine.startsWith('#')) {
+      return
+    }
+    
+    // Handle export statements: export KEY=value or export KEY="value"
+    let match = trimmedLine.match(/^export\s+([^=]+?)\s*=\s*(.*?)\s*$/)
+    if (!match) {
+      // Handle regular KEY=value format
+      match = trimmedLine.match(/^\s*([^#][^=]*?)\s*=\s*(.*?)\s*$/)
+    }
+    
     if (match) {
       const key = match[1].trim()
-      const value = match[2].trim().replace(/^["']|["']$/g, '')
-      if (!process.env[key]) {
+      let value = match[2].trim()
+      
+      // Remove quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) || 
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1)
+      }
+      
+      // Only set if not already in process.env (environment variables take precedence)
+      if (!process.env[key] && value) {
         process.env[key] = value
       }
     }
   })
+  console.log(`✓ Loaded environment variables from ${envPath}`)
 } catch (error) {
-  console.warn(`Warning: Could not load .env file from ${envPath}`)
+  console.warn(`⚠️  Warning: Could not load .env file from ${envPath}`)
+  console.warn(`   Error: ${error.message}`)
+  console.warn(`   Continuing with system environment variables...\n`)
 }
 
 // ==================== CONFIGURATION ====================
 // Use AWS environment variables from .env, fallback to defaults
-let PB_URL = process.env.AWS_POCKETBASE_URL || process.env.VITE_POCKETBASE_URL 
-// Remove /_/ suffix if present (PocketBase client needs base URL)
-PB_URL = PB_URL.replace(/\/_\//g, '').replace(/\/$/, '')
+let PB_URL = process.env.AWS_POCKETBASE_URL || process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
 
-const ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL 
-const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD 
+// Remove /_/ suffix if present (PocketBase client needs base URL)
+if (PB_URL) {
+  PB_URL = PB_URL.replace(/\/_\//g, '').replace(/\/$/, '')
+} else {
+  console.error('❌ Error: PocketBase URL is not configured!')
+  console.error('   Please set AWS_POCKETBASE_URL or VITE_POCKETBASE_URL in .env file')
+  process.exit(1)
+}
+
+const ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL
+const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD
+
+// Validate required credentials
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('❌ Error: Admin credentials are not configured!')
+  console.error('   Please set AWS_PB_ADMIN_EMAIL and AWS_PB_ADMIN_PASSWORD in .env file')
+  process.exit(1)
+}
+
+console.log('📋 Configuration:')
+console.log(`   PocketBase URL: ${PB_URL}`)
+console.log(`   Admin Email: ${ADMIN_EMAIL}`)
+console.log('')
 
 const pb = new PocketBase(PB_URL)
 
@@ -1157,6 +1199,29 @@ async function completeSetup() {
           console.log(`  ⚠️  Attempt ${attempt} failed, retrying...`)
           await new Promise(resolve => setTimeout(resolve, 2000))
         } else {
+          console.error('  ✗ Authentication failed after 3 attempts')
+          console.error(`     Email: ${ADMIN_EMAIL}`)
+          console.error(`     URL: ${PB_URL}`)
+          console.error(`     Error: ${authError.message}\n`)
+          
+          // Check if it's a connection error
+          if (authError.message.includes('ECONNREFUSED') || 
+              authError.message.includes('fetch failed') ||
+              authError.message.includes('network') ||
+              authError.message.includes('timeout')) {
+            console.error('💡 Connection Troubleshooting:')
+            console.error('   1. Ensure PocketBase is running: docker-compose ps')
+            console.error('   2. Check if the URL is correct in .env file')
+            console.error('   3. For AWS: Verify security group allows port 8096')
+            console.error('   4. Check PocketBase logs: docker-compose logs pocketbase')
+            console.error('   5. Test manually: curl ' + PB_URL + '/api/health\n')
+          } else {
+            console.error('💡 Authentication Troubleshooting:')
+            console.error(`   1. Verify admin account exists at ${PB_URL}/_/`)
+            console.error('   2. Check AWS_PB_ADMIN_EMAIL and AWS_PB_ADMIN_PASSWORD in .env file')
+            console.error('   3. Create admin account if it doesn\'t exist')
+            console.error('   4. For AWS: Use the installation link to create first admin\n')
+          }
           throw authError
         }
       }
