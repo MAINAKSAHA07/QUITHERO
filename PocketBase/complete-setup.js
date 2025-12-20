@@ -1321,9 +1321,15 @@ async function setPermissions() {
       const col = await pb.collections.getOne(cfg.name)
       const updateData = {}
       
-      // Check if collection has a 'user' field
-      const colSchema = col.schema || []
-      const hasUserField = colSchema.some(f => (f.name === 'user' || f.id === 'user'))
+      // Check if collection has a 'user' field - check both 'fields' and 'schema' properties
+      const colFields = col.fields || col.schema || []
+      const hasUserField = colFields.some(f => (f.name === 'user' || f.id === 'user'))
+      
+      // Log field detection for debugging
+      if (cfg.name.includes('user') || cfg.listRule?.includes('user')) {
+        const fieldNames = colFields.filter(f => !f.system).map(f => f.name).join(', ')
+        console.log(`    Checking "${cfg.name}": hasUserField=${hasUserField}, fields=[${fieldNames}]`)
+      }
       
       // Only set rules that are explicitly defined (not undefined)
       // For rules that reference 'user' field, check if field exists first
@@ -1384,13 +1390,131 @@ async function setPermissions() {
       }
       
       await pb.collections.update(col.id, updateData)
+      
+      // Verify the rules were set correctly
+      const verifyCol = await pb.collections.getOne(col.id)
+      const appliedRules = {
+        list: verifyCol.listRule || '(none)',
+        view: verifyCol.viewRule || '(none)',
+        create: verifyCol.createRule || '(none)',
+        update: verifyCol.updateRule || '(none)',
+        delete: verifyCol.deleteRule || '(none)',
+      }
+      
       console.log(`  ✓ Set rules for: ${cfg.name}`)
+      // Log rules for user-owned collections to verify they're correct
+      if (hasUserField && cfg.listRule?.includes('user')) {
+        console.log(`    Rules: list="${appliedRules.list}", view="${appliedRules.view}", create="${appliedRules.create}"`)
+      }
     } catch (err) {
       console.error(`  ✗ Failed to set rules for ${cfg.name}: ${err.message}`)
       if (err.response) {
         console.error(`    Details: ${JSON.stringify(err.response, null, 2)}`)
       }
     }
+  }
+  
+  // Final verification: Check all collections have proper rules
+  console.log('\n  🔍 Verifying permissions...')
+  let permissionIssues = 0
+  const permissionSummary = {
+    userOwned: [],
+    publicReadable: [],
+    adminOnly: [],
+    issues: []
+  }
+  
+  for (const cfg of configs) {
+    try {
+      const col = await pb.collections.getOne(cfg.name)
+      const colFields = col.fields || col.schema || []
+      const hasUserField = colFields.some(f => (f.name === 'user' || f.id === 'user'))
+      
+      const rules = {
+        list: col.listRule || '(none)',
+        view: col.viewRule || '(none)',
+        create: col.createRule || '(none)',
+        update: col.updateRule || '(none)',
+        delete: col.deleteRule || '(none)',
+      }
+      
+      // Categorize collections
+      if (hasUserField && cfg.listRule?.includes('user')) {
+        permissionSummary.userOwned.push({
+          name: cfg.name,
+          hasUserField: true,
+          rules
+        })
+        
+        // Verify user-based rules are set
+        if (!rules.list.includes('user') && rules.list !== '') {
+          console.warn(`    ⚠ "${cfg.name}": listRule should include user check`)
+          permissionSummary.issues.push(`${cfg.name}: listRule missing user check`)
+          permissionIssues++
+        }
+        if (!rules.view.includes('user') && rules.view !== '') {
+          console.warn(`    ⚠ "${cfg.name}": viewRule should include user check`)
+          permissionSummary.issues.push(`${cfg.name}: viewRule missing user check`)
+          permissionIssues++
+        }
+      } else if (cfg.listRule === '' || cfg.viewRule === '') {
+        // Public-readable collections
+        permissionSummary.publicReadable.push({
+          name: cfg.name,
+          rules
+        })
+        
+        // Verify public read access
+        if (rules.list !== '' && rules.list !== undefined) {
+          console.warn(`    ⚠ "${cfg.name}": Should be publicly readable, but listRule is: ${rules.list}`)
+          permissionSummary.issues.push(`${cfg.name}: Should be public but has listRule`)
+          permissionIssues++
+        }
+      } else {
+        // Admin-only collections
+        permissionSummary.adminOnly.push({
+          name: cfg.name,
+          rules
+        })
+        
+        // Verify admin-only rules
+        if (!rules.list.includes('admin_users') && rules.list !== '') {
+          console.warn(`    ⚠ "${cfg.name}": Should be admin-only, but listRule is: ${rules.list}`)
+          permissionSummary.issues.push(`${cfg.name}: Should be admin-only`)
+          permissionIssues++
+        }
+      }
+      
+      // Check if all rules are set (not undefined)
+      const allRulesSet = rules.list !== '(none)' && rules.view !== '(none)' && 
+                         rules.create !== '(none)' && rules.update !== '(none)' && 
+                         rules.delete !== '(none)'
+      
+      if (!allRulesSet && cfg.name !== 'users') { // users collection has empty createRule intentionally
+        console.warn(`    ⚠ "${cfg.name}": Some rules are not set`)
+        permissionSummary.issues.push(`${cfg.name}: Missing some rules`)
+        permissionIssues++
+      }
+      
+    } catch (e) {
+      console.error(`    ✗ Could not verify "${cfg.name}": ${e.message}`)
+      permissionSummary.issues.push(`${cfg.name}: Verification failed - ${e.message}`)
+      permissionIssues++
+    }
+  }
+  
+  // Print summary
+  console.log('\n  📊 Permissions Summary:')
+  console.log(`    • User-owned collections: ${permissionSummary.userOwned.length}`)
+  console.log(`    • Public-readable collections: ${permissionSummary.publicReadable.length}`)
+  console.log(`    • Admin-only collections: ${permissionSummary.adminOnly.length}`)
+  
+  if (permissionIssues === 0) {
+    console.log('  ✓ All permissions verified correctly\n')
+  } else {
+    console.warn(`  ⚠ Found ${permissionIssues} permission issue(s):`)
+    permissionSummary.issues.forEach(issue => console.warn(`    - ${issue}`))
+    console.log('')
   }
 }
 
