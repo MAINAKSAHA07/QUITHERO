@@ -6,6 +6,10 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/api/pocketbase/:path*",
+      "destination": "/api/pocketbase"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
