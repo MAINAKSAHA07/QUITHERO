@@ -10,8 +10,16 @@ export const pb = new PocketBase(PB_URL)
 
 // Always log the URL to help debug deployment issues
 console.log('[Backoffice] PocketBase URL:', PB_URL)
+console.log('[Backoffice] Environment check:', {
+  VITE_POCKETBASE_URL: import.meta.env.VITE_POCKETBASE_URL || 'NOT SET',
+  VITE_BACKOFFICE_PB_URL: import.meta.env.VITE_BACKOFFICE_PB_URL || 'NOT SET',
+  MODE: import.meta.env.MODE,
+  PROD: import.meta.env.PROD
+})
 if (!import.meta.env.VITE_POCKETBASE_URL && !import.meta.env.VITE_BACKOFFICE_PB_URL) {
-  console.warn('[Backoffice] ⚠️ WARNING: Using default localhost URL. Set VITE_POCKETBASE_URL in environment variables!')
+  console.error('[Backoffice] ❌ ERROR: VITE_POCKETBASE_URL is not set!')
+  console.error('[Backoffice] ⚠️ Using default localhost URL. This will NOT work in production!')
+  console.error('[Backoffice] 📝 Fix: Set VITE_POCKETBASE_URL=http://54.153.95.239:8096 in Vercel environment variables and redeploy!')
 }
 
 // Enable auto cancellation for all pending requests
