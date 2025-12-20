@@ -812,9 +812,59 @@ const quotesData = [
 async function createCollection(collectionDef) {
   try {
     // Check if collection exists
+    let existing
     try {
-      const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
+      existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
       console.log(`  ✓ Collection "${collectionDef.name}" already exists`)
+      
+      // Check for missing fields and add them
+      const existingFieldNames = existing.schema.map(f => f.name)
+      const requiredFieldNames = collectionDef.schema.map(f => f.name)
+      const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
+      
+      if (missingFields.length > 0) {
+        console.log(`    → Adding ${missingFields.length} missing field(s)...`)
+        
+        // Transform missing fields to PocketBase format
+        const fieldsToAdd = collectionDef.schema
+          .filter(field => missingFields.includes(field.name))
+          .map(field => {
+            const fieldDef = {
+              name: field.name,
+              type: field.type,
+              required: field.required || false,
+            }
+
+            // Add options based on field type
+            if (field.type === 'relation') {
+              fieldDef.options = {
+                collectionId: field.options.collectionId,
+                cascadeDelete: field.options.cascadeDelete || false,
+                maxSelect: field.options.maxSelect || 1,
+              }
+            } else if (field.type === 'select') {
+              fieldDef.options = { values: field.options.values || [] }
+            } else if (field.type === 'number') {
+              fieldDef.options = {}
+              if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
+              if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
+            } else if (field.type === 'bool') {
+              fieldDef.options = { defaultValue: field.options?.defaultValue || false }
+            } else {
+              fieldDef.options = field.options || {}
+            }
+
+            return fieldDef
+          })
+        
+        // Add missing fields to existing collection
+        const updatedSchema = [...existing.schema, ...fieldsToAdd]
+        await pb.collections.update(existing.id, {
+          schema: updatedSchema,
+        })
+        console.log(`    ✓ Added missing fields: ${missingFields.join(', ')}`)
+      }
+      
       return { success: true, skipped: true, collection: existing }
     } catch (e) {
       // Collection doesn't exist, create it
@@ -838,9 +888,11 @@ async function createCollection(collectionDef) {
       } else if (field.type === 'select') {
         fieldDef.options = { values: field.options.values || [] }
       } else if (field.type === 'number') {
-        fieldDef.options = { min: field.options.min, max: field.options.max }
+        fieldDef.options = {}
+        if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
+        if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
       } else if (field.type === 'bool') {
-        fieldDef.options = { defaultValue: field.options.defaultValue || false }
+        fieldDef.options = { defaultValue: field.options?.defaultValue || false }
       } else {
         fieldDef.options = field.options || {}
       }
@@ -872,6 +924,9 @@ async function createCollection(collectionDef) {
     return { success: true, collection }
   } catch (error) {
     console.error(`  ✗ Failed to create collection "${collectionDef.name}":`, error.message)
+    if (error.response) {
+      console.error(`    Details:`, JSON.stringify(error.response, null, 2))
+    }
     return { success: false, error: error.message }
   }
 }
@@ -892,17 +947,87 @@ async function setPermissions() {
       updateRule: `${adminRule} || @request.auth.id = id`,
       deleteRule: adminRule,
     },
-    // User-owned collections
-    { name: 'user_profiles', rule: ownerRule('user') },
-    { name: 'user_sessions', rule: ownerRule('user') },
-    { name: 'session_progress', rule: ownerRule('user') },
-    { name: 'step_responses', rule: ownerRule('user') },
-    { name: 'cravings', rule: ownerRule('user') },
-    { name: 'journal_entries', rule: ownerRule('user') },
-    { name: 'progress_stats', rule: ownerRule('user') },
-    { name: 'user_achievements', rule: ownerRule('user') },
-    { name: 'analytics_events', rule: `(user = null) || (@request.auth.id = user)` },
-    { name: 'support_tickets', rule: ownerRule('user') },
+    // User-owned collections - users can only access their own records
+    { 
+      name: 'user_profiles', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'user_sessions', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'session_progress', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'step_responses', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'cravings', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'journal_entries', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'progress_stats', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: `${adminRule} || (@request.auth.id = user)`,
+    },
+    { 
+      name: 'user_achievements', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'analytics_events', 
+      listRule: `${adminRule} || (user = null) || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (user = null) || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != ""`,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'support_tickets', 
+      listRule: `${adminRule} || (@request.auth.id = user)`,
+      viewRule: `${adminRule} || (@request.auth.id = user)`,
+      createRule: `@request.auth.id != "" && (@request.auth.id = user)`,
+      updateRule: `${adminRule} || (@request.auth.id = user)`,
+      deleteRule: adminRule,
+    },
     // Public-readable, admin-writable
     { name: 'programs', listRule: '', viewRule: '', createRule: adminRule, updateRule: adminRule, deleteRule: adminRule },
     { name: 'program_days', listRule: '', viewRule: '', createRule: adminRule, updateRule: adminRule, deleteRule: adminRule },
@@ -912,26 +1037,76 @@ async function setPermissions() {
     { name: 'quotes', listRule: '', viewRule: '', createRule: adminRule, updateRule: adminRule, deleteRule: adminRule },
     { name: 'media', listRule: '', viewRule: '', createRule: adminRule, updateRule: adminRule, deleteRule: adminRule },
     // Admin-only collections
-    { name: 'api_keys', rule: adminRule },
-    { name: 'webhooks', rule: adminRule },
-    { name: 'notification_templates', rule: adminRule },
-    { name: 'audit_logs', rule: adminRule },
-    { name: 'admin_users', rule: adminRule },
+    { 
+      name: 'api_keys', 
+      listRule: adminRule,
+      viewRule: adminRule,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'webhooks', 
+      listRule: adminRule,
+      viewRule: adminRule,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'notification_templates', 
+      listRule: adminRule,
+      viewRule: adminRule,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'audit_logs', 
+      listRule: adminRule,
+      viewRule: adminRule,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
+    { 
+      name: 'admin_users', 
+      listRule: adminRule,
+      viewRule: adminRule,
+      createRule: adminRule,
+      updateRule: adminRule,
+      deleteRule: adminRule,
+    },
   ]
 
   for (const cfg of configs) {
     try {
       const col = await pb.collections.getOne(cfg.name)
-      await pb.collections.update(col.id, {
-        listRule: cfg.listRule ?? cfg.rule,
-        viewRule: cfg.viewRule ?? cfg.rule,
-        createRule: cfg.createRule ?? cfg.rule,
-        updateRule: cfg.updateRule ?? cfg.rule,
-        deleteRule: cfg.deleteRule ?? cfg.rule,
-      })
+      const updateData = {}
+      
+      // Only set rules that are explicitly defined (not undefined)
+      if (cfg.listRule !== undefined) updateData.listRule = cfg.listRule
+      if (cfg.viewRule !== undefined) updateData.viewRule = cfg.viewRule
+      if (cfg.createRule !== undefined) updateData.createRule = cfg.createRule
+      if (cfg.updateRule !== undefined) updateData.updateRule = cfg.updateRule
+      if (cfg.deleteRule !== undefined) updateData.deleteRule = cfg.deleteRule
+      
+      // Fallback to single rule if provided
+      if (cfg.rule !== undefined) {
+        if (cfg.listRule === undefined) updateData.listRule = cfg.rule
+        if (cfg.viewRule === undefined) updateData.viewRule = cfg.rule
+        if (cfg.createRule === undefined) updateData.createRule = cfg.rule
+        if (cfg.updateRule === undefined) updateData.updateRule = cfg.rule
+        if (cfg.deleteRule === undefined) updateData.deleteRule = cfg.rule
+      }
+      
+      await pb.collections.update(col.id, updateData)
       console.log(`  ✓ Set rules for: ${cfg.name}`)
     } catch (err) {
-      console.error(`  ✗ Failed to set rules for ${cfg.name}`)
+      console.error(`  ✗ Failed to set rules for ${cfg.name}: ${err.message}`)
+      if (err.response) {
+        console.error(`    Details: ${JSON.stringify(err.response, null, 2)}`)
+      }
     }
   }
 }
@@ -1000,11 +1175,19 @@ async function seedProgram() {
     console.log(`  ✓ Total steps: ${totalSteps}`)
   } catch (error) {
     console.error('  ✗ Error seeding program:', error.message)
+    if (error.response) {
+      console.error(`    Details: ${JSON.stringify(error.response, null, 2)}`)
+    }
+    throw error
   }
 }
 
 async function seedAchievements() {
   console.log('\n🏆 Step 5: Seeding Achievements...\n')
+
+  let created = 0
+  let skipped = 0
+  let failed = 0
 
   for (const achievement of achievementsData) {
     try {
@@ -1015,15 +1198,24 @@ async function seedAchievements() {
       if (existing.length === 0) {
         await pb.collection('achievements').create({
           ...achievement,
-          is_active: true,
+          is_active: achievement.is_active !== undefined ? achievement.is_active : true,
         })
         console.log(`  ✓ Created achievement: ${achievement.title}`)
+        created++
+      } else {
+        skipped++
       }
     } catch (error) {
       console.error(`  ✗ Failed to create achievement: ${achievement.title}`)
+      console.error(`    Error: ${error.message}`)
+      if (error.response) {
+        console.error(`    Details: ${JSON.stringify(error.response, null, 2)}`)
+      }
+      failed++
     }
   }
 
+  console.log(`\n  Summary: Created: ${created} | Skipped: ${skipped} | Failed: ${failed}`)
   console.log(`  ✓ Total achievements: ${achievementsData.length}`)
 }
 
