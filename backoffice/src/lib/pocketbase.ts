@@ -8,9 +8,10 @@ const PB_URL =
 
 export const pb = new PocketBase(PB_URL)
 
-// Help surface misconfiguration during local development
-if (import.meta.env.DEV) {
-  console.log('[Backoffice] PocketBase URL:', PB_URL)
+// Always log the URL to help debug deployment issues
+console.log('[Backoffice] PocketBase URL:', PB_URL)
+if (!import.meta.env.VITE_POCKETBASE_URL && !import.meta.env.VITE_BACKOFFICE_PB_URL) {
+  console.warn('[Backoffice] ⚠️ WARNING: Using default localhost URL. Set VITE_POCKETBASE_URL in environment variables!')
 }
 
 // Enable auto cancellation for all pending requests

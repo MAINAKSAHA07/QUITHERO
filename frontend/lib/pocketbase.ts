@@ -4,9 +4,10 @@ const PB_URL = import.meta.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
 
 export const pb = new PocketBase(PB_URL)
 
-// Log PocketBase URL for debugging (only in development)
-if (import.meta.env.DEV) {
-  console.log('PocketBase URL:', PB_URL)
+// Always log the URL to help debug deployment issues
+console.log('[Frontend] PocketBase URL:', PB_URL)
+if (!import.meta.env.VITE_POCKETBASE_URL) {
+  console.warn('[Frontend] ⚠️ WARNING: Using default localhost URL. Set VITE_POCKETBASE_URL in environment variables!')
 }
 
 // Enable auto cancellation for all pending requests
