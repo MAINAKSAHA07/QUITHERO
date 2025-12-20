@@ -13,3 +13,4 @@ backoffice
 *.pem
 *.bak
 # Note: dist is NOT ignored - Vercel needs it for deployment
+

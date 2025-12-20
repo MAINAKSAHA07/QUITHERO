@@ -106,3 +106,4 @@ echo "   VITE_POCKETBASE_URL=https://${DOMAIN_NAME}"
 echo "2. Redeploy your frontend and backoffice"
 echo "3. Update PocketBase CORS settings to allow your domains"
 echo ""
+
