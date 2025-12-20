@@ -226,7 +226,7 @@ export const ProgramDays = () => {
         >
           <SortableContext items={days.map((d: any) => d.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-4">
-              {days.map((day: any, index: number) => (
+              {days.map((day: any, _index: number) => (
                 <SortableDayItem
                   key={day.id}
                   day={day}
@@ -393,7 +393,7 @@ interface AddEditDayModalProps {
 }
 
 const AddEditDayModal: React.FC<AddEditDayModalProps> = ({ programId, day, onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
     day_number: day?.day_number || 1,
     title: day?.title || '',

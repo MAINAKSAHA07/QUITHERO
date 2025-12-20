@@ -7,7 +7,7 @@ import {
   flexRender,
   ColumnDef,
 } from '@tanstack/react-table'
-import { ArrowUpDown, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react'
+import { ArrowUpDown, Eye, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface User {

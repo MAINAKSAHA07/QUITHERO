@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Edit, Trash2, Shield, Users, CheckCircle } from 'lucide-react'
+import { Edit, Shield, CheckCircle } from 'lucide-react'
 
 interface Role {
   id: string
@@ -78,7 +78,7 @@ const predefinedRoles: Role[] = [
 ]
 
 export const RolesPermissions = () => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
 

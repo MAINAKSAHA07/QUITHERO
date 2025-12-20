@@ -212,7 +212,7 @@ export const NotificationTemplates = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {templates.map((template: Template) => {
+              {(templates as any as Template[]).map((template: Template) => {
                 const Icon = getTypeIcon(template.type)
                 return (
                   <tr key={template.id} className="hover:bg-neutral-50">
@@ -310,7 +310,7 @@ interface TemplateModalProps {
 }
 
 const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
     name: template?.name || '',
     type: template?.type || 'email',

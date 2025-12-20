@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Search, AlertTriangle, User, Calendar, FileText, CheckCircle, XCircle, Mail, Trash2 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { Search, AlertTriangle, FileText, CheckCircle, Mail, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export const FlaggedJournals = () => {
@@ -34,7 +33,7 @@ export const FlaggedJournals = () => {
   const buildFilter = () => {
     // Placeholder - adjust based on your actual schema
     // You might check for flagged field, or search for concerning keywords
-    const filters: string[] = []
+    // const filters: string[] = []
     
     if (flagReasonFilter !== 'all') {
       // Add flag reason filter if you have that field

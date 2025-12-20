@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Search, Filter, Download, FileText, User, Calendar, ChevronDown, ChevronRight } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { Search, Download, FileText, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface AuditLog {
   id: string
@@ -20,7 +19,7 @@ interface AuditLog {
 export const AuditLogs = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [actionTypeFilter, setActionTypeFilter] = useState<string>('all')
-  const [adminFilter, setAdminFilter] = useState<string>('all')
+  const [adminFilter] = useState<string>('all')
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: '',
     end: '',
@@ -78,7 +77,7 @@ export const AuditLogs = () => {
 
   const handleExportCSV = () => {
     const headers = ['Timestamp', 'Admin', 'Action', 'Entity Type', 'Entity ID', 'IP Address']
-    const rows = logs.map((log: AuditLog) => [
+    const rows = (logs as any as AuditLog[]).map((log: AuditLog) => [
       log.timestamp ? new Date(log.timestamp).toLocaleString() : '',
       log.expand?.admin_user?.name || log.admin_user || '',
       log.action || '',
@@ -201,7 +200,7 @@ export const AuditLogs = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
-                {logs.map((log: AuditLog) => {
+                {(logs as any as AuditLog[]).map((log: AuditLog) => {
                   const isExpanded = expandedLogs.has(log.id)
                   return (
                     <>

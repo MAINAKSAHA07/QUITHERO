@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Edit, Eye, Trash2, Copy, ToggleLeft, ToggleRight, Search, Filter, Grid, List } from 'lucide-react'
+import { Plus, Edit, Eye, Trash2, Copy, ToggleLeft, ToggleRight, Search, Grid, List } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -298,7 +298,7 @@ export const Programs = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {programs.map((program: Program) => {
+              {(programs as any as Program[]).map((program: Program) => {
                 const stats = getProgramStats(program.id)
                 return (
                   <tr key={program.id} className="hover:bg-neutral-50">
@@ -401,7 +401,7 @@ export const Programs = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {programs.map((program: Program) => {
+          {(programs as any as Program[]).map((program: Program) => {
             const stats = getProgramStats(program.id)
             return (
               <div key={program.id} className="bg-white rounded-lg shadow-card p-6">

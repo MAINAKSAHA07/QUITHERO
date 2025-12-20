@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import { Save, Globe, Users, FileText, Bell, Shield, Plug, Database } from 'lucide-react'
 
 export const AppSettings = () => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<string>('general')
   const [isSaving, setIsSaving] = useState(false)
 

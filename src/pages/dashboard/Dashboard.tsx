@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Users, Activity, Trophy, MessageSquare, TrendingUp, UserPlus, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Users, Activity, Trophy, MessageSquare, UserPlus } from 'lucide-react'
 import { MetricCard } from '../../components/common/MetricCard'
 import { UserGrowthChart } from '../../components/charts/UserGrowthChart'
 import { ProgramProgressChart } from '../../components/charts/ProgramProgressChart'
@@ -17,7 +17,7 @@ export const Dashboard = () => {
     queryFn: () => adminCollectionHelpers.getFullList('users'),
   })
 
-  const { data: programsData } = useQuery({
+  const { data: _programsData } = useQuery({
     queryKey: ['programs'],
     queryFn: () => adminCollectionHelpers.getFullList('programs'),
   })
@@ -72,8 +72,8 @@ export const Dashboard = () => {
       const newActivities: any[] = []
 
       // Recent user registrations
-      if (recentUsers?.data?.items) {
-        recentUsers.data.items.slice(0, 3).forEach((user: any) => {
+      if (recentUsers?.data && 'items' in recentUsers.data) {
+        (recentUsers.data as any).items.slice(0, 3).forEach((user: any) => {
           newActivities.push({
             type: 'user_registered',
             message: `${user.name || user.email} just registered`,
@@ -100,8 +100,8 @@ export const Dashboard = () => {
       }
 
       // Achievement unlocks
-      if (recentAchievements?.data?.items) {
-        recentAchievements.data.items.forEach((ua: any) => {
+      if (recentAchievements?.data && 'items' in recentAchievements.data) {
+        (recentAchievements.data as any).items.forEach((ua: any) => {
           newActivities.push({
             type: 'achievement_unlocked',
             message: `${ua.expand?.user?.name || 'User'} unlocked "${ua.expand?.achievement?.title || 'Achievement'}"`,

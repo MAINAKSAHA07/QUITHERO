@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { Plus, Users, TrendingUp, TrendingDown, Eye, Edit, Trash2, Filter } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Eye, Edit, Trash2, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface Segment {
@@ -19,36 +19,42 @@ const predefinedSegments = [
     id: 'active',
     name: 'Active Users',
     description: 'Users who logged in within the last 7 days',
+    criteria: { lastLoginDays: 7 },
     isPredefined: true,
   },
   {
     id: 'inactive',
     name: 'Inactive Users',
     description: 'Users who have not logged in for 30+ days',
+    criteria: { lastLoginDays: 30 },
     isPredefined: true,
   },
   {
     id: 'high-risk',
     name: 'High Risk',
     description: 'Users with many slips and low session completion',
+    criteria: { slipsThreshold: 3, completionRate: 0.5 },
     isPredefined: true,
   },
   {
     id: 'star-performers',
     name: 'Star Performers',
     description: 'Users who completed the program with no slips',
+    criteria: { slipsThreshold: 0, programCompleted: true },
     isPredefined: true,
   },
   {
     id: 'new-users',
     name: 'New Users',
     description: 'Users registered within the last 7 days',
+    criteria: { registrationDays: 7 },
     isPredefined: true,
   },
   {
     id: 'churned',
     name: 'Churned',
     description: 'Users not active for 90+ days',
+    criteria: { lastLoginDays: 90 },
     isPredefined: true,
   },
 ]
@@ -180,6 +186,7 @@ export const UserSegments = () => {
 
   const segments: Segment[] = predefinedSegments.map(seg => ({
     ...seg,
+    criteria: seg.criteria || {},
     userCount: calculateSegmentCount(seg.id),
     trend: calculateTrend(seg.id),
   }))

@@ -52,7 +52,7 @@ export const AllAchievements = () => {
     },
   })
 
-  const achievements = (achievementsData?.data || []) as Achievement[]
+  const achievements = (achievementsData?.data || []) as any as Achievement[]
   const userAchievements = userAchievementsData?.data || []
 
   const getUnlockCount = (achievementId: string) => {
@@ -366,7 +366,7 @@ interface AchievementModalProps {
 }
 
 const AchievementModal: React.FC<AchievementModalProps> = ({ achievement, onClose, onSuccess }) => {
-  const queryClient = useQueryClient()
+  // const queryClient = useQueryClient()
   const [formData, setFormData] = useState({
     key: achievement?.key || '',
     title: achievement?.title || '',
