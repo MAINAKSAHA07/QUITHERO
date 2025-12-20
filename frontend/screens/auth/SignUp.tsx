@@ -6,6 +6,7 @@ import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
+import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
@@ -22,6 +23,7 @@ export default function SignUp() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showLanguageModal, setShowLanguageModal] = useState(false)
   const navigate = useNavigate()
   const { setIsAuthenticated, setUser } = useApp()
 
@@ -76,7 +78,9 @@ export default function SignUp() {
           email: formData.email,
           name: formData.name,
         }, result.data.record.id)
-        navigate('/kyc')
+
+        // Show language modal for new users before KYC
+        setShowLanguageModal(true)
       } else {
         setError(result.error || 'Registration failed. Please try again.')
       }
@@ -241,6 +245,19 @@ export default function SignUp() {
           </div>
         </motion.div>
       </div>
+
+      {/* Language Selection Modal */}
+      <LanguageModal
+        isOpen={showLanguageModal}
+        onClose={() => {
+          setShowLanguageModal(false)
+          navigate('/kyc')
+        }}
+        onLanguageSelected={() => {
+          navigate('/kyc')
+        }}
+        showSkip={true}
+      />
     </div>
   )
 }

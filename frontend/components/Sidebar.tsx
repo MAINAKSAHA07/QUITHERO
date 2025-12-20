@@ -67,7 +67,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="fixed left-0 top-0 h-full w-80 max-w-[85vw] z-[101]"
           >
-            <GlassCard className="h-full w-full bg-white/30 backdrop-blur-[30px] rounded-none border-r border-white/40 flex flex-col">
+            <GlassCard className="h-full w-full !bg-white/90 backdrop-blur-[30px] rounded-none border-r border-white/40 flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/30">
                 <h2 className="text-xl font-bold text-text-primary">Menu</h2>
@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
               {/* User Info */}
               {user && (
-                <div className="p-6 border-b border-white/30 bg-white/20">
+                <div className="p-6 border-b border-white/30 bg-white/60">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center">
                       <User className="w-6 h-6 text-white" />

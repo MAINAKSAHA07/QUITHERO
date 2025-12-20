@@ -6,6 +6,7 @@ import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
+import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
@@ -16,8 +17,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showLanguageModal, setShowLanguageModal] = useState(false)
   const navigate = useNavigate()
-  const { setIsAuthenticated, setUser } = useApp()
+  const { setIsAuthenticated, setUser, language } = useApp()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,7 +44,13 @@ export default function Login() {
         })
         // Track login
         await analyticsService.trackEvent('login', {}, result.data.record.id)
-        navigate('/home')
+
+        // Show language modal if no language is set, otherwise navigate to home
+        if (!language || language === 'en') {
+          setShowLanguageModal(true)
+        } else {
+          navigate('/home')
+        }
       } else {
         setError(result.error || 'Login failed. Please check your credentials.')
       }
@@ -185,6 +193,19 @@ export default function Login() {
           </div>
         </motion.div>
       </div>
+
+      {/* Language Selection Modal */}
+      <LanguageModal
+        isOpen={showLanguageModal}
+        onClose={() => {
+          setShowLanguageModal(false)
+          navigate('/home')
+        }}
+        onLanguageSelected={() => {
+          navigate('/home')
+        }}
+        showSkip={true}
+      />
     </div>
   )
 }

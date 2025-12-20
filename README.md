@@ -289,6 +289,160 @@ node migrate-user-profiles.js
 
 This adds the new fields without affecting existing data.
 
+## 🌍 Translation & Internationalization
+
+### Supported Languages
+
+The app supports 6 languages with automatic translation:
+- 🇺🇸 English (en)
+- 🇮🇳 हिंदी / Hindi (hi)
+- 🇪🇸 Español / Spanish (es)
+- 🇫🇷 Français / French (fr)
+- 🇩🇪 Deutsch / German (de)
+- 🇨🇳 中文 / Chinese (zh)
+
+### How Translation Works
+
+The app uses **Google Translate API** for real-time translation:
+
+1. **Language Context**: Global language state managed by `AppContext`
+2. **Translation Service**: Automatic translation with caching ([`translation.service.ts`](frontend/services/translation.service.ts))
+3. **TranslatedText Component**: Wrap any text to auto-translate ([`TranslatedText.tsx`](frontend/components/TranslatedText.tsx))
+4. **Language Modal**: Popup for language selection on login/signup ([`LanguageModal.tsx`](frontend/components/LanguageModal.tsx))
+
+### Implementation Guide
+
+#### Method 1: Using TranslatedText Component (Recommended)
+
+Wrap text content with the `TranslatedText` component:
+
+```tsx
+import TranslatedText from '../components/TranslatedText'
+
+<h1>
+  <TranslatedText text="Welcome to Quit Hero" />
+</h1>
+
+<p>
+  <TranslatedText text="Start your journey today" />
+</p>
+```
+
+#### Method 2: Using useTranslation Hook
+
+For dynamic content or programmatic translation:
+
+```tsx
+import { useTranslation } from '../hooks/useTranslation'
+
+function MyComponent() {
+  const { t, currentLanguage } = useTranslation()
+
+  const translateText = async () => {
+    const translated = await t('Hello World', 'en')
+    console.log(translated)
+  }
+
+  return <div>{/* ... */}</div>
+}
+```
+
+#### Method 3: Batch Translation
+
+For multiple texts at once:
+
+```tsx
+const { translateBatch } = useTranslation()
+
+const texts = ['Home', 'Profile', 'Settings']
+const translated = await translateBatch(texts, 'en')
+```
+
+### Language Selection Flow
+
+**On Login/Signup:**
+1. User logs in or signs up
+2. **Language modal automatically appears** (if not already set)
+3. User selects preferred language
+4. Language saved to user profile and localStorage
+5. All app content translates automatically
+
+**Changing Language:**
+- Go to Profile → Language selector
+- Or navigate to `/language-selection`
+- Changes apply immediately across entire app
+
+### Translation Features
+
+- **Automatic Caching**: Translations cached to reduce API calls
+- **Offline Fallback**: Original text shown if translation fails
+- **Real-time Updates**: UI updates instantly when language changes
+- **Profile Sync**: Language preference synced with user profile
+- **Analytics**: Language change events tracked
+
+### Adding New Languages
+
+1. Add language to `frontend/types/enums.ts`:
+```typescript
+export enum Language {
+  EN = 'en',
+  HI = 'hi',
+  ES = 'es',
+  FR = 'fr',
+  DE = 'de',
+  ZH = 'zh',
+  // Add new language
+  AR = 'ar', // Arabic
+}
+```
+
+2. Add to language options in `LanguageModal.tsx` and `LanguageSelection.tsx`:
+```typescript
+const languages = [
+  // ...existing languages
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+]
+```
+
+3. Update database schema to include new language in `user_profiles.language` field
+
+### Files Reference
+
+**Core Translation Files:**
+- [`/frontend/services/translation.service.ts`](frontend/services/translation.service.ts) - Translation API service
+- [`/frontend/hooks/useTranslation.ts`](frontend/hooks/useTranslation.ts) - Translation React hook
+- [`/frontend/components/TranslatedText.tsx`](frontend/components/TranslatedText.tsx) - Auto-translate component
+- [`/frontend/components/LanguageModal.tsx`](frontend/components/LanguageModal.tsx) - Language selection popup
+- [`/frontend/screens/LanguageSelection.tsx`](frontend/screens/LanguageSelection.tsx) - Full-screen language selector
+- [`/frontend/context/AppContext.tsx`](frontend/context/AppContext.tsx#L36-L72) - Language state management
+
+**Updated Auth Screens:**
+- [`/frontend/screens/auth/Login.tsx`](frontend/screens/auth/Login.tsx) - Shows language modal on login
+- [`/frontend/screens/auth/SignUp.tsx`](frontend/screens/auth/SignUp.tsx) - Shows language modal on signup
+
+### Best Practices
+
+1. **Use TranslatedText for static content**: Wrap all user-facing text
+2. **Keep source text in English**: Use `sourceLang='en'` as default
+3. **Provide fallbacks**: Use `fallback` prop for critical text
+4. **Cache management**: Translation service auto-caches, clear on language change
+5. **Error handling**: Service gracefully falls back to original text on errors
+
+### Translation Coverage
+
+Current implementation includes automatic translation for:
+- ✅ All navigation elements
+- ✅ Home screen content
+- ✅ Profile screen
+- ✅ Progress screen
+- ✅ Journal entries
+- ✅ Craving support
+- ✅ Session content (program days/steps)
+- ✅ Onboarding (KYC flow)
+- ✅ Settings and modals
+
+**Note**: To enable translation on any new screen, simply wrap text with `<TranslatedText text="Your text here" />`.
+
 ## 🔮 Future Features
 
 - **Archetype-Based Customization**:
@@ -302,6 +456,7 @@ This adds the new fields without affecting existing data.
 - AI/ML features (advanced recommendations)
 - Health integrations (Apple Health, Google Fit)
 - Premium subscription tier
+- Additional language support (Arabic, Portuguese, Japanese)
 
 ## 📝 License
 
