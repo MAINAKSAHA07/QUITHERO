@@ -822,47 +822,66 @@ async function createCollection(collectionDef) {
       const requiredFieldNames = collectionDef.schema.map(f => f.name)
       const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
       
-      if (missingFields.length > 0) {
-        console.log(`    → Adding ${missingFields.length} missing field(s)...`)
+      // If collection has no fields (only ID), we need to add all fields
+      const hasOnlyId = existing.schema.length === 0 || (existing.schema.length === 1 && existing.schema[0].name === 'id')
+      
+      if (missingFields.length > 0 || hasOnlyId) {
+        const fieldsToAddCount = hasOnlyId ? collectionDef.schema.length : missingFields.length
+        console.log(`    → Adding ${fieldsToAddCount} missing field(s) to "${collectionDef.name}"...`)
         
-        // Transform missing fields to PocketBase format
-        const fieldsToAdd = collectionDef.schema
-          .filter(field => missingFields.includes(field.name))
-          .map(field => {
-            const fieldDef = {
-              name: field.name,
-              type: field.type,
-              required: field.required || false,
-            }
-
-            // Add options based on field type
-            if (field.type === 'relation') {
-              fieldDef.options = {
-                collectionId: field.options.collectionId,
-                cascadeDelete: field.options.cascadeDelete || false,
-                maxSelect: field.options.maxSelect || 1,
+        try {
+          // Transform ALL required fields to PocketBase format (if only ID exists, add all)
+          const fieldsToAdd = (hasOnlyId ? collectionDef.schema : collectionDef.schema.filter(field => missingFields.includes(field.name)))
+            .map(field => {
+              const fieldDef = {
+                name: field.name,
+                type: field.type,
+                required: field.required || false,
               }
-            } else if (field.type === 'select') {
-              fieldDef.options = { values: field.options.values || [] }
-            } else if (field.type === 'number') {
-              fieldDef.options = {}
-              if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
-              if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
-            } else if (field.type === 'bool') {
-              fieldDef.options = { defaultValue: field.options?.defaultValue || false }
-            } else {
-              fieldDef.options = field.options || {}
-            }
 
-            return fieldDef
+              // Add options based on field type
+              if (field.type === 'relation') {
+                fieldDef.options = {
+                  collectionId: field.options.collectionId,
+                  cascadeDelete: field.options.cascadeDelete || false,
+                  maxSelect: field.options.maxSelect || 1,
+                }
+              } else if (field.type === 'select') {
+                fieldDef.options = { values: field.options.values || [] }
+              } else if (field.type === 'number') {
+                fieldDef.options = {}
+                if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
+                if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
+              } else if (field.type === 'bool') {
+                fieldDef.options = { defaultValue: field.options?.defaultValue || false }
+              } else {
+                fieldDef.options = field.options || {}
+              }
+
+              return fieldDef
+            })
+          
+          // Add missing fields to existing collection
+          // Keep existing schema fields and add new ones
+          const updatedSchema = hasOnlyId 
+            ? fieldsToAdd  // If only ID, replace with all fields
+            : [...existing.schema, ...fieldsToAdd]  // Otherwise, append missing fields
+          
+          await pb.collections.update(existing.id, {
+            schema: updatedSchema,
           })
-        
-        // Add missing fields to existing collection
-        const updatedSchema = [...existing.schema, ...fieldsToAdd]
-        await pb.collections.update(existing.id, {
-          schema: updatedSchema,
-        })
-        console.log(`    ✓ Added missing fields: ${missingFields.join(', ')}`)
+          
+          const addedFieldNames = fieldsToAdd.map(f => f.name).join(', ')
+          console.log(`    ✓ Added ${fieldsToAdd.length} field(s): ${addedFieldNames}`)
+        } catch (updateError) {
+          console.error(`    ✗ Could not add missing fields: ${updateError.message}`)
+          if (updateError.response) {
+            console.error(`    Details: ${JSON.stringify(updateError.response, null, 2)}`)
+          }
+          // Don't return here - we still want to mark collection as existing
+        }
+      } else {
+        console.log(`    ✓ All fields already exist`)
       }
       
       return { success: true, skipped: true, collection: existing }
@@ -1084,20 +1103,65 @@ async function setPermissions() {
       const col = await pb.collections.getOne(cfg.name)
       const updateData = {}
       
+      // Check if collection has a 'user' field
+      const hasUserField = col.schema.some(f => f.name === 'user')
+      
       // Only set rules that are explicitly defined (not undefined)
-      if (cfg.listRule !== undefined) updateData.listRule = cfg.listRule
-      if (cfg.viewRule !== undefined) updateData.viewRule = cfg.viewRule
-      if (cfg.createRule !== undefined) updateData.createRule = cfg.createRule
-      if (cfg.updateRule !== undefined) updateData.updateRule = cfg.updateRule
-      if (cfg.deleteRule !== undefined) updateData.deleteRule = cfg.deleteRule
+      // For rules that reference 'user' field, check if field exists first
+      if (cfg.listRule !== undefined) {
+        // Replace user field references if field doesn't exist
+        let rule = cfg.listRule
+        if (!hasUserField && rule && rule.includes('user')) {
+          // If user field doesn't exist, make it admin-only for now
+          rule = adminRule
+        }
+        updateData.listRule = rule
+      }
+      
+      if (cfg.viewRule !== undefined) {
+        let rule = cfg.viewRule
+        if (!hasUserField && rule && rule.includes('user')) {
+          rule = adminRule
+        }
+        updateData.viewRule = rule
+      }
+      
+      if (cfg.createRule !== undefined) {
+        let rule = cfg.createRule
+        if (!hasUserField && rule && rule.includes('user')) {
+          // Allow authenticated users to create if user field doesn't exist
+          rule = `@request.auth.id != ""`
+        }
+        updateData.createRule = rule
+      }
+      
+      if (cfg.updateRule !== undefined) {
+        let rule = cfg.updateRule
+        if (!hasUserField && rule && rule.includes('user')) {
+          rule = adminRule
+        }
+        updateData.updateRule = rule
+      }
+      
+      if (cfg.deleteRule !== undefined) {
+        let rule = cfg.deleteRule
+        if (!hasUserField && rule && rule.includes('user')) {
+          rule = adminRule
+        }
+        updateData.deleteRule = rule
+      }
       
       // Fallback to single rule if provided
       if (cfg.rule !== undefined) {
-        if (cfg.listRule === undefined) updateData.listRule = cfg.rule
-        if (cfg.viewRule === undefined) updateData.viewRule = cfg.rule
-        if (cfg.createRule === undefined) updateData.createRule = cfg.rule
-        if (cfg.updateRule === undefined) updateData.updateRule = cfg.rule
-        if (cfg.deleteRule === undefined) updateData.deleteRule = cfg.rule
+        let rule = cfg.rule
+        if (!hasUserField && rule && rule.includes('user')) {
+          rule = adminRule
+        }
+        if (cfg.listRule === undefined) updateData.listRule = rule
+        if (cfg.viewRule === undefined) updateData.viewRule = rule
+        if (cfg.createRule === undefined) updateData.createRule = rule
+        if (cfg.updateRule === undefined) updateData.updateRule = rule
+        if (cfg.deleteRule === undefined) updateData.deleteRule = rule
       }
       
       await pb.collections.update(col.id, updateData)
@@ -1133,41 +1197,72 @@ async function seedProgram() {
     }
 
     // Seed program days and steps
+    let daysCreated = 0
+    let stepsCreated = 0
+    
     for (const dayData of programDays) {
-      const existingDays = await pb.collection('program_days').getFullList({
-        filter: `program = "${program.id}" && day_number = ${dayData.day_number}`,
-      })
-
-      let day
-      if (existingDays.length > 0) {
-        day = existingDays[0]
-      } else {
-        day = await pb.collection('program_days').create({
-          program: program.id,
-          day_number: dayData.day_number,
-          title: dayData.title,
-          subtitle: dayData.subtitle,
-          estimated_duration_min: dayData.estimated_duration_min,
-          is_locked: false,
-        })
-      }
-
-      // Create steps
-      for (const stepData of dayData.steps) {
-        const existingSteps = await pb.collection('steps').getFullList({
-          filter: `program_day = "${day.id}" && order = ${stepData.order}`,
+      try {
+        const existingDays = await pb.collection('program_days').getFullList({
+          filter: `program = "${program.id}" && day_number = ${dayData.day_number}`,
         })
 
-        if (existingSteps.length === 0) {
-          await pb.collection('steps').create({
-            program_day: day.id,
-            order: stepData.order,
-            type: stepData.type,
-            content_json: stepData.content_json,
-          })
+        let day
+        if (existingDays.length > 0) {
+          day = existingDays[0]
+          console.log(`  ✓ Day ${dayData.day_number} already exists`)
+        } else {
+          try {
+            day = await pb.collection('program_days').create({
+              program: program.id,
+              day_number: dayData.day_number,
+              title: dayData.title,
+              subtitle: dayData.subtitle || '',
+              estimated_duration_min: dayData.estimated_duration_min || 0,
+              is_locked: false,
+            })
+            console.log(`  ✓ Created day ${dayData.day_number}: ${dayData.title}`)
+            daysCreated++
+          } catch (dayError) {
+            console.error(`  ✗ Failed to create day ${dayData.day_number}: ${dayError.message}`)
+            if (dayError.response) {
+              console.error(`    Details: ${JSON.stringify(dayError.response, null, 2)}`)
+            }
+            continue // Skip to next day
+          }
+        }
+
+        // Create steps
+        for (const stepData of dayData.steps) {
+          try {
+            const existingSteps = await pb.collection('steps').getFullList({
+              filter: `program_day = "${day.id}" && order = ${stepData.order}`,
+            })
+
+            if (existingSteps.length === 0) {
+              await pb.collection('steps').create({
+                program_day: day.id,
+                order: stepData.order,
+                type: stepData.type,
+                content_json: stepData.content_json,
+              })
+              stepsCreated++
+            }
+          } catch (stepError) {
+            console.error(`  ✗ Failed to create step ${stepData.order} for day ${dayData.day_number}: ${stepError.message}`)
+            if (stepError.response) {
+              console.error(`    Details: ${JSON.stringify(stepError.response, null, 2)}`)
+            }
+          }
+        }
+      } catch (dayLoopError) {
+        console.error(`  ✗ Error processing day ${dayData.day_number}: ${dayLoopError.message}`)
+        if (dayLoopError.response) {
+          console.error(`    Details: ${JSON.stringify(dayLoopError.response, null, 2)}`)
         }
       }
     }
+    
+    console.log(`  ✓ Created ${daysCreated} new days, ${stepsCreated} new steps`)
 
     console.log('  ✓ 10-day program seeded successfully')
     console.log(`  ✓ Total days: ${programDays.length}`)
@@ -1433,7 +1528,35 @@ async function completeSetup() {
 
     const created = results.filter(r => r.success && !r.skipped).length
     const skipped = results.filter(r => r.success && r.skipped).length
-    console.log(`\n  ✓ Created: ${created} | Skipped: ${skipped}\n`)
+    console.log(`\n  ✓ Created: ${created} | Skipped: ${skipped}`)
+    
+    // Verify all collections have their required fields
+    console.log('\n  🔍 Verifying collection schemas...')
+    let schemaIssues = 0
+    for (const collectionDef of collections) {
+      try {
+        const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
+        const existingFieldNames = existing.schema.map(f => f.name)
+        const requiredFieldNames = collectionDef.schema.map(f => f.name)
+        const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
+        
+        if (missingFields.length > 0) {
+          console.warn(`    ⚠ "${collectionDef.name}" is missing ${missingFields.length} field(s): ${missingFields.join(', ')}`)
+          schemaIssues++
+        } else {
+          console.log(`    ✓ "${collectionDef.name}" has all required fields (${existing.schema.length} fields)`)
+        }
+      } catch (e) {
+        console.error(`    ✗ Could not verify "${collectionDef.name}": ${e.message}`)
+        schemaIssues++
+      }
+    }
+    
+    if (schemaIssues > 0) {
+      console.warn(`\n  ⚠ Found ${schemaIssues} collection(s) with schema issues. Re-run the script to fix them.`)
+    } else {
+      console.log(`\n  ✓ All collections have proper schemas!\n`)
+    }
 
     // Step 3: Set Permissions
     await setPermissions()
