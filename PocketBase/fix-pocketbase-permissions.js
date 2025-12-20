@@ -18,14 +18,9 @@
 
 import PocketBase from 'pocketbase'
 
-const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD
+import { initPocketBase } from './utils.js'
 
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error('❌ PB_ADMIN_EMAIL and PB_ADMIN_PASSWORD must be set to run fix-pocketbase-permissions.js')
-  process.exit(1)
-}
+const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocketBase()
 
 const pb = new PocketBase(PB_URL)
 

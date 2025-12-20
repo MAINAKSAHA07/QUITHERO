@@ -1,9 +1,7 @@
 import PocketBase from 'pocketbase'
+import { initPocketBase } from './utils.js'
 
-const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD
-
+const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocketBase()
 const pb = new PocketBase(PB_URL)
 
 const adminRule = '@request.auth.collectionName = "admin_users"'
@@ -11,11 +9,6 @@ const adminRule = '@request.auth.collectionName = "admin_users"'
 // helper to set owner rule based on a user field name
 const ownerRule = (field) => `@request.auth.id = ${field}`
 const ownerOrNullRule = (field) => `(${field} = null) || (@request.auth.id = ${field})`
-
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error('❌ PB_ADMIN_EMAIL and PB_ADMIN_PASSWORD must be set in the environment to run set-rules.js')
-  process.exit(1)
-}
 
 const configs = [
   // built-in auth users collection

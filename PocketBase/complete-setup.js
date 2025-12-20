@@ -39,76 +39,11 @@
  */
 
 import PocketBase from 'pocketbase'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
-import { readFileSync } from 'fs'
-
-// Load .env file from project root
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const envPath = join(__dirname, '..', '.env')
-
-try {
-  const envFile = readFileSync(envPath, 'utf-8')
-  envFile.split('\n').forEach(line => {
-    // Skip comments and empty lines
-    const trimmedLine = line.trim()
-    if (!trimmedLine || trimmedLine.startsWith('#')) {
-      return
-    }
-    
-    // Handle export statements: export KEY=value or export KEY="value"
-    let match = trimmedLine.match(/^export\s+([^=]+?)\s*=\s*(.*?)\s*$/)
-    if (!match) {
-      // Handle regular KEY=value format
-      match = trimmedLine.match(/^\s*([^#][^=]*?)\s*=\s*(.*?)\s*$/)
-    }
-    
-    if (match) {
-      const key = match[1].trim()
-      let value = match[2].trim()
-      
-      // Remove quotes if present
-      if ((value.startsWith('"') && value.endsWith('"')) || 
-          (value.startsWith("'") && value.endsWith("'"))) {
-        value = value.slice(1, -1)
-      }
-      
-      // Only set if not already in process.env (environment variables take precedence)
-      if (!process.env[key] && value) {
-        process.env[key] = value
-      }
-    }
-  })
-  console.log(`✓ Loaded environment variables from ${envPath}`)
-} catch (error) {
-  console.warn(`⚠️  Warning: Could not load .env file from ${envPath}`)
-  console.warn(`   Error: ${error.message}`)
-  console.warn(`   Continuing with system environment variables...\n`)
-}
+import { initPocketBase } from './utils.js'
 
 // ==================== CONFIGURATION ====================
-// Use AWS environment variables from .env, fallback to defaults
-let PB_URL = process.env.AWS_POCKETBASE_URL || process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-
-// Remove /_/ suffix if present (PocketBase client needs base URL)
-if (PB_URL) {
-  PB_URL = PB_URL.replace(/\/_\//g, '').replace(/\/$/, '')
-} else {
-  console.error('❌ Error: PocketBase URL is not configured!')
-  console.error('   Please set AWS_POCKETBASE_URL or VITE_POCKETBASE_URL in .env file')
-  process.exit(1)
-}
-
-const ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL
-const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD
-
-// Validate required credentials
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error('❌ Error: Admin credentials are not configured!')
-  console.error('   Please set AWS_PB_ADMIN_EMAIL and AWS_PB_ADMIN_PASSWORD in .env file')
-  process.exit(1)
-}
+// Load .env and get configuration (uses AWS variables, falls back to defaults)
+const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocketBase()
 
 console.log('📋 Configuration:')
 console.log(`   PocketBase URL: ${PB_URL}`)
@@ -827,8 +762,18 @@ async function updateCollectionSchema(collectionDef, existing) {
     
     // If no fields exist (only ID), we need ALL fields
     if (existingSchema.length === 0 || missingFields.length > 0) {
+      const isCompletelyEmpty = existingSchema.length === 0
+      const fieldsToAdd = isCompletelyEmpty
+        ? collectionDef.schema  // All fields if schema is empty
+        : collectionDef.schema.filter(field => missingFields.includes(field.name))  // Only missing fields
+      
+      console.log(`      Current schema: ${existingSchema.length} fields`)
+      console.log(`      Required fields: ${requiredFieldNames.length}`)
+      console.log(`      Missing fields: ${missingFields.length}`)
+      console.log(`      Will add: ${fieldsToAdd.length} field(s)`)
+      
       // Transform all required fields to PocketBase format
-      const allFields = collectionDef.schema.map(field => {
+      const allFields = fieldsToAdd.map(field => {
         const fieldDef = {
           name: field.name,
           type: field.type,
@@ -857,30 +802,126 @@ async function updateCollectionSchema(collectionDef, existing) {
         return fieldDef
       })
       
-      // If collection has existing fields, merge them (but prioritize new fields)
-      const updatedSchema = existingSchema.length === 0 
-        ? allFields  // Replace entirely if empty
-        : [...existingSchema.filter(f => requiredFieldNames.includes(f?.name || f?.id)), ...allFields.filter(f => !existingFieldNames.includes(f.name))]
+      // Build the final schema: existing fields + new fields
+      // If completely empty, use all fields. Otherwise merge.
+      let uniqueSchema
+      if (isCompletelyEmpty) {
+        // Collection has no fields - use all required fields
+        uniqueSchema = allFields
+        console.log(`      Using complete schema (${uniqueSchema.length} fields)`)
+      } else {
+        // Merge existing and new fields
+        const mergedSchema = [...existingSchema, ...allFields]
+        // Remove duplicates by name (keep the new one)
+        uniqueSchema = mergedSchema.reduce((acc, field) => {
+          const fieldName = field.name || field.id
+          const existingIndex = acc.findIndex(f => (f.name || f.id) === fieldName)
+          if (existingIndex >= 0) {
+            // Replace existing with new
+            acc[existingIndex] = field
+          } else {
+            acc.push(field)
+          }
+          return acc
+        }, [])
+        console.log(`      Merged schema: ${existingSchema.length} existing + ${allFields.length} new = ${uniqueSchema.length} total`)
+      }
       
-      // Remove duplicates by name
-      const uniqueSchema = updatedSchema.reduce((acc, field) => {
-        const fieldName = field.name || field.id
-        if (!acc.find(f => (f.name || f.id) === fieldName)) {
-          acc.push(field)
+      // Try to update the collection schema
+      // PocketBase requires schema updates to include all fields, not just additions
+      try {
+        console.log(`      Attempting to update schema with ${uniqueSchema.length} field(s)...`)
+        const updateResponse = await pb.collections.update(existing.id, {
+          schema: uniqueSchema,
+        })
+        console.log(`      ✓ Schema update API call succeeded`)
+        
+        // Wait a moment for the update to propagate
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Verify the update worked
+        const verifyCollection = await pb.collections.getOne(existing.id)
+        const finalSchema = verifyCollection?.schema || []
+        const finalSchemaCount = finalSchema.length
+        const finalFieldNames = finalSchema.map(f => f?.name || f?.id).filter(Boolean)
+        
+        // Check if all required fields are now present
+        const stillMissing = requiredFieldNames.filter(name => !finalFieldNames.includes(name))
+        
+        if (stillMissing.length > 0) {
+          console.warn(`      ⚠ Some fields still missing after update: ${stillMissing.join(', ')}`)
+          return { 
+            success: false, 
+            error: `Fields still missing: ${stillMissing.join(', ')}`,
+            fieldsAdded: fieldsToAdd.length - stillMissing.length,
+            finalFieldCount: finalSchemaCount
+          }
         }
-        return acc
-      }, [])
-      
-      await pb.collections.update(existing.id, {
-        schema: uniqueSchema,
-      })
-      
-      return { success: true, fieldsAdded: missingFields.length || allFields.length }
+        
+        return { 
+          success: true, 
+          fieldsAdded: fieldsToAdd.length,
+          finalFieldCount: finalSchemaCount
+        }
+      } catch (updateError) {
+        // Log the full error for debugging
+        console.error(`      ✗ Schema update failed: ${updateError.message}`)
+        if (updateError.response) {
+          console.error(`      Full error response:`, JSON.stringify(updateError.response, null, 2))
+        }
+        if (updateError.data) {
+          console.error(`      Error data:`, JSON.stringify(updateError.data, null, 2))
+        }
+        
+        // If bulk update fails, try adding fields one at a time
+        console.warn(`      ⚠ Trying alternative: adding fields one at a time...`)
+        let successCount = 0
+        
+        for (const field of allFields) {
+          try {
+            // Get current schema
+            const currentCollection = await pb.collections.getOne(existing.id)
+            const currentSchema = currentCollection?.schema || []
+            
+            // Check if field already exists
+            const fieldExists = currentSchema.some(f => (f.name || f.id) === field.name)
+            if (fieldExists) {
+              continue
+            }
+            
+            // Add field to schema
+            const updatedSchema = [...currentSchema, field]
+            await pb.collections.update(existing.id, {
+              schema: updatedSchema,
+            })
+            successCount++
+            await new Promise(resolve => setTimeout(resolve, 200)) // Small delay between additions
+          } catch (fieldError) {
+            console.warn(`      ⚠ Could not add field "${field.name}": ${fieldError.message}`)
+          }
+        }
+        
+        if (successCount > 0) {
+          const verifyCollection = await pb.collections.getOne(existing.id)
+          const finalSchemaCount = (verifyCollection?.schema || []).length
+          return { 
+            success: true, 
+            fieldsAdded: successCount,
+            finalFieldCount: finalSchemaCount
+          }
+        } else {
+          throw updateError // Re-throw original error if individual additions also failed
+        }
+      }
     }
     
-    return { success: true, fieldsAdded: 0 }
+    return { success: true, fieldsAdded: 0, finalFieldCount: existingSchema.length }
   } catch (error) {
-    return { success: false, error: error.message }
+    console.error(`    Error in updateCollectionSchema for ${collectionDef.name}:`, error.message)
+    if (error.response) {
+      console.error(`    Response:`, JSON.stringify(error.response, null, 2))
+    }
+    return { success: false, error: error.message, response: error.response }
   }
 }
 
@@ -888,10 +929,9 @@ async function createCollection(collectionDef) {
   try {
     // Check if collection exists
     let existing
-    let collectionExists = false
     try {
       existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
-      collectionExists = true
+      // Collection exists - update schema and return
       console.log(`  ✓ Collection "${collectionDef.name}" already exists`)
       
       // Use the dedicated schema update function
@@ -899,28 +939,32 @@ async function createCollection(collectionDef) {
       
       if (schemaUpdateResult.success) {
         if (schemaUpdateResult.fieldsAdded > 0) {
-          console.log(`    ✓ Updated schema: added ${schemaUpdateResult.fieldsAdded} field(s)`)
+          console.log(`    ✓ Updated schema: added ${schemaUpdateResult.fieldsAdded} field(s) (total: ${schemaUpdateResult.finalFieldCount || 'unknown'})`)
         } else {
-          console.log(`    ✓ Schema is up to date`)
+          console.log(`    ✓ Schema is up to date (${schemaUpdateResult.finalFieldCount || 'unknown'} fields)`)
         }
       } else {
         console.warn(`    ⚠ Schema update had issues: ${schemaUpdateResult.error}`)
+        if (schemaUpdateResult.response) {
+          console.warn(`    Details: ${JSON.stringify(schemaUpdateResult.response, null, 2)}`)
+        }
       }
       
       // Always return if collection exists, regardless of field update success
       return { success: true, skipped: true, collection: existing }
     } catch (e) {
-      // If collection exists but we got an error, still return (don't try to create)
-      if (collectionExists) {
-        console.warn(`    ⚠ Error processing existing collection, but it exists: ${e.message}`)
-        return { success: true, skipped: true, collection: existing }
-      }
-      // Collection doesn't exist, continue to create it
-      // Only continue if the error is "not found"
-      if (!e.message?.includes('not found') && e.status !== 404 && e.code !== 'not_found') {
-        // Unexpected error, re-throw it
+      // Check if error is "not found" - means collection doesn't exist
+      const isNotFound = e.message?.includes('not found') || 
+                        e.status === 404 || 
+                        e.code === 'not_found' ||
+                        e.response?.code === 404
+      
+      if (!isNotFound) {
+        // Unexpected error when checking for collection
+        console.error(`  ✗ Error checking for collection "${collectionDef.name}": ${e.message}`)
         throw e
       }
+      // Collection doesn't exist - will continue to create it below
     }
 
     // Only reach here if collection doesn't exist
@@ -1570,32 +1614,46 @@ async function completeSetup() {
     console.log('\n  🔧 Step 2.5: Ensuring all collection schemas are complete...\n')
     let schemaUpdates = 0
     let schemaErrors = 0
+    let schemaSkipped = 0
     
     for (const collectionDef of collections) {
       try {
         const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
+        console.log(`  Processing "${collectionDef.name}"...`)
+        
         const updateResult = await updateCollectionSchema(collectionDef, existing)
         
         if (updateResult.success && updateResult.fieldsAdded > 0) {
-          console.log(`  ✓ "${collectionDef.name}": Added ${updateResult.fieldsAdded} field(s)`)
+          console.log(`    ✓ Added ${updateResult.fieldsAdded} field(s) (now has ${updateResult.finalFieldCount || 'unknown'} total)`)
           schemaUpdates++
         } else if (updateResult.success) {
-          // Schema is complete, no update needed
+          console.log(`    ✓ Schema complete (${updateResult.finalFieldCount || 'unknown'} fields)`)
+          schemaSkipped++
         } else {
-          console.warn(`  ⚠ "${collectionDef.name}": ${updateResult.error}`)
+          console.error(`    ✗ Failed: ${updateResult.error}`)
+          if (updateResult.response) {
+            console.error(`      Details: ${JSON.stringify(updateResult.response, null, 2)}`)
+          }
           schemaErrors++
         }
       } catch (e) {
         console.error(`  ✗ "${collectionDef.name}": ${e.message}`)
+        if (e.response) {
+          console.error(`    Response: ${JSON.stringify(e.response, null, 2)}`)
+        }
         schemaErrors++
       }
     }
     
+    console.log(`\n  Summary:`)
     if (schemaUpdates > 0) {
-      console.log(`\n  ✓ Updated ${schemaUpdates} collection(s) with missing fields`)
+      console.log(`    ✓ Updated ${schemaUpdates} collection(s) with missing fields`)
+    }
+    if (schemaSkipped > 0) {
+      console.log(`    ⊘ ${schemaSkipped} collection(s) already had complete schemas`)
     }
     if (schemaErrors > 0) {
-      console.warn(`\n  ⚠ ${schemaErrors} collection(s) had schema update errors`)
+      console.warn(`    ✗ ${schemaErrors} collection(s) had schema update errors`)
     }
     
     // Verify all collections have their required fields

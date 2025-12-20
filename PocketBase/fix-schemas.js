@@ -1,9 +1,7 @@
 import PocketBase from 'pocketbase'
+import { initPocketBase } from './utils.js'
 
-const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || 'mainaksaha0807@gmail.com'
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || '8104760831'
-
+const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocketBase()
 const pb = new PocketBase(PB_URL)
 
 const desired = {

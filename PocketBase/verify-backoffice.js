@@ -5,9 +5,14 @@
  * Run this AFTER updating PocketBase permissions
  */
 
-const PB_URL = 'http://localhost:8096';
-const BACKOFFICE_ADMIN_EMAIL = 'mainak.tln@gmail.com';
-const ADMIN_PASSWORD = '8104760831';
+import { initPocketBase, getPocketBaseURL, loadEnv } from './utils.js'
+
+// Load .env file
+loadEnv()
+
+const PB_URL = getPocketBaseURL()
+const BACKOFFICE_ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL || 'mainak.tln@gmail.com'
+const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD || '8104760831'
 
 async function verifyAccess() {
   console.log('🔍 Verifying Backoffice Access to PocketBase...\n');

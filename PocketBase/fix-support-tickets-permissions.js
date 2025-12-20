@@ -7,16 +7,9 @@
  */
 
 import PocketBase from 'pocketbase'
+import { initPocketBase } from './utils.js'
 
-const PB_URL = process.env.VITE_POCKETBASE_URL || process.env.PB_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD
-
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  console.error('❌ Error: PB_ADMIN_EMAIL and PB_ADMIN_PASSWORD environment variables are required')
-  console.error('   Example: PB_ADMIN_EMAIL=admin@example.com PB_ADMIN_PASSWORD=password node fix-support-tickets-permissions.js')
-  process.exit(1)
-}
+const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocketBase()
 
 const pb = new PocketBase(PB_URL)
 
