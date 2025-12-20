@@ -809,6 +809,81 @@ const quotesData = [
 
 // ==================== HELPER FUNCTIONS ====================
 
+async function updateCollectionSchema(collectionDef, existing) {
+  /**
+   * Force update a collection's schema with all required fields
+   * This is a separate function to ensure schema updates work correctly
+   */
+  try {
+    // Get full collection details
+    const fullCollection = await pb.collections.getOne(existing.id)
+    const existingSchema = fullCollection?.schema || []
+    const existingFieldNames = existingSchema
+      .map(f => f?.name || f?.id)
+      .filter(Boolean)
+    
+    const requiredFieldNames = collectionDef.schema.map(f => f.name)
+    const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
+    
+    // If no fields exist (only ID), we need ALL fields
+    if (existingSchema.length === 0 || missingFields.length > 0) {
+      // Transform all required fields to PocketBase format
+      const allFields = collectionDef.schema.map(field => {
+        const fieldDef = {
+          name: field.name,
+          type: field.type,
+          required: field.required || false,
+        }
+
+        // Add options based on field type
+        if (field.type === 'relation') {
+          fieldDef.options = {
+            collectionId: field.options.collectionId,
+            cascadeDelete: field.options.cascadeDelete || false,
+            maxSelect: field.options.maxSelect || 1,
+          }
+        } else if (field.type === 'select') {
+          fieldDef.options = { values: field.options.values || [] }
+        } else if (field.type === 'number') {
+          fieldDef.options = {}
+          if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
+          if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
+        } else if (field.type === 'bool') {
+          fieldDef.options = { defaultValue: field.options?.defaultValue || false }
+        } else {
+          fieldDef.options = field.options || {}
+        }
+
+        return fieldDef
+      })
+      
+      // If collection has existing fields, merge them (but prioritize new fields)
+      const updatedSchema = existingSchema.length === 0 
+        ? allFields  // Replace entirely if empty
+        : [...existingSchema.filter(f => requiredFieldNames.includes(f?.name || f?.id)), ...allFields.filter(f => !existingFieldNames.includes(f.name))]
+      
+      // Remove duplicates by name
+      const uniqueSchema = updatedSchema.reduce((acc, field) => {
+        const fieldName = field.name || field.id
+        if (!acc.find(f => (f.name || f.id) === fieldName)) {
+          acc.push(field)
+        }
+        return acc
+      }, [])
+      
+      await pb.collections.update(existing.id, {
+        schema: uniqueSchema,
+      })
+      
+      return { success: true, fieldsAdded: missingFields.length || allFields.length }
+    }
+    
+    return { success: true, fieldsAdded: 0 }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
 async function createCollection(collectionDef) {
   try {
     // Check if collection exists
@@ -819,76 +894,17 @@ async function createCollection(collectionDef) {
       collectionExists = true
       console.log(`  ✓ Collection "${collectionDef.name}" already exists`)
       
-      // Check for missing fields and add them
-      // Handle case where schema might be undefined or null
-      const existingSchema = existing?.schema || []
-      const existingFieldNames = existingSchema.map(f => f?.name || f?.id || '').filter(Boolean)
-      const requiredFieldNames = collectionDef.schema.map(f => f.name)
-      const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
+      // Use the dedicated schema update function
+      const schemaUpdateResult = await updateCollectionSchema(collectionDef, existing)
       
-      // If collection has no fields (only ID), we need to add all fields
-      const hasOnlyId = existingSchema.length === 0 || (existingSchema.length === 1 && (existingSchema[0]?.name === 'id' || existingSchema[0]?.id === 'id'))
-      
-      if (missingFields.length > 0 || hasOnlyId) {
-        const fieldsToAddCount = hasOnlyId ? collectionDef.schema.length : missingFields.length
-        console.log(`    → Adding ${fieldsToAddCount} missing field(s) to "${collectionDef.name}"...`)
-        
-        try {
-          // Transform ALL required fields to PocketBase format (if only ID exists, add all)
-          const fieldsToAdd = (hasOnlyId ? collectionDef.schema : collectionDef.schema.filter(field => missingFields.includes(field.name)))
-            .map(field => {
-              const fieldDef = {
-                name: field.name,
-                type: field.type,
-                required: field.required || false,
-              }
-
-              // Add options based on field type
-              if (field.type === 'relation') {
-                fieldDef.options = {
-                  collectionId: field.options.collectionId,
-                  cascadeDelete: field.options.cascadeDelete || false,
-                  maxSelect: field.options.maxSelect || 1,
-                }
-              } else if (field.type === 'select') {
-                fieldDef.options = { values: field.options.values || [] }
-              } else if (field.type === 'number') {
-                fieldDef.options = {}
-                if (field.options?.min !== undefined) fieldDef.options.min = field.options.min
-                if (field.options?.max !== undefined) fieldDef.options.max = field.options.max
-              } else if (field.type === 'bool') {
-                fieldDef.options = { defaultValue: field.options?.defaultValue || false }
-              } else {
-                fieldDef.options = field.options || {}
-              }
-
-              return fieldDef
-            })
-          
-          // Add missing fields to existing collection
-          // Keep existing schema fields and add new ones
-          const updatedSchema = hasOnlyId 
-            ? fieldsToAdd  // If only ID, replace with all fields
-            : [...existingSchema, ...fieldsToAdd]  // Otherwise, append missing fields
-          
-          if (existing?.id) {
-            await pb.collections.update(existing.id, {
-              schema: updatedSchema,
-            })
-            
-            const addedFieldNames = fieldsToAdd.map(f => f.name).join(', ')
-            console.log(`    ✓ Added ${fieldsToAdd.length} field(s): ${addedFieldNames}`)
-          } else {
-            console.warn(`    ⚠ Could not update: collection ID not found`)
-          }
-        } catch (updateError) {
-          console.error(`    ✗ Could not add missing fields: ${updateError.message}`)
-          if (updateError.response) {
-            console.error(`    Details: ${JSON.stringify(updateError.response, null, 2)}`)
-          }
+      if (schemaUpdateResult.success) {
+        if (schemaUpdateResult.fieldsAdded > 0) {
+          console.log(`    ✓ Updated schema: added ${schemaUpdateResult.fieldsAdded} field(s)`)
+        } else {
+          console.log(`    ✓ Schema is up to date`)
         }
       } else {
-        console.log(`    ✓ All fields already exist`)
+        console.warn(`    ⚠ Schema update had issues: ${schemaUpdateResult.error}`)
       }
       
       // Always return if collection exists, regardless of field update success
@@ -1550,14 +1566,47 @@ async function completeSetup() {
     const skipped = results.filter(r => r.success && r.skipped).length
     console.log(`\n  ✓ Created: ${created} | Skipped: ${skipped}`)
     
+    // Step 2.5: Force update all collection schemas to ensure all fields are present
+    console.log('\n  🔧 Step 2.5: Ensuring all collection schemas are complete...\n')
+    let schemaUpdates = 0
+    let schemaErrors = 0
+    
+    for (const collectionDef of collections) {
+      try {
+        const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
+        const updateResult = await updateCollectionSchema(collectionDef, existing)
+        
+        if (updateResult.success && updateResult.fieldsAdded > 0) {
+          console.log(`  ✓ "${collectionDef.name}": Added ${updateResult.fieldsAdded} field(s)`)
+          schemaUpdates++
+        } else if (updateResult.success) {
+          // Schema is complete, no update needed
+        } else {
+          console.warn(`  ⚠ "${collectionDef.name}": ${updateResult.error}`)
+          schemaErrors++
+        }
+      } catch (e) {
+        console.error(`  ✗ "${collectionDef.name}": ${e.message}`)
+        schemaErrors++
+      }
+    }
+    
+    if (schemaUpdates > 0) {
+      console.log(`\n  ✓ Updated ${schemaUpdates} collection(s) with missing fields`)
+    }
+    if (schemaErrors > 0) {
+      console.warn(`\n  ⚠ ${schemaErrors} collection(s) had schema update errors`)
+    }
+    
     // Verify all collections have their required fields
     console.log('\n  🔍 Verifying collection schemas...')
     let schemaIssues = 0
     for (const collectionDef of collections) {
       try {
         const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
-        const existingSchema = existing.schema || []
-        const existingFieldNames = existingSchema.map(f => f.name || f.id || '').filter(Boolean)
+        const fullCollection = await pb.collections.getOne(existing.id)
+        const existingSchema = fullCollection?.schema || []
+        const existingFieldNames = existingSchema.map(f => f?.name || f?.id || '').filter(Boolean)
         const requiredFieldNames = collectionDef.schema.map(f => f.name)
         const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
         
@@ -1574,7 +1623,8 @@ async function completeSetup() {
     }
     
     if (schemaIssues > 0) {
-      console.warn(`\n  ⚠ Found ${schemaIssues} collection(s) with schema issues. Re-run the script to fix them.`)
+      console.warn(`\n  ⚠ Found ${schemaIssues} collection(s) with schema issues.`)
+      console.warn(`     This may require manual intervention via PocketBase admin panel.`)
     } else {
       console.log(`\n  ✓ All collections have proper schemas!\n`)
     }
