@@ -20,6 +20,21 @@ export default defineConfig({
   root: './',
   build: {
     outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react'],
+          'query-vendor': ['@tanstack/react-query'],
+          'table-vendor': ['@tanstack/react-table'],
+          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'chart-vendor': ['recharts', 'd3'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
 })
 
