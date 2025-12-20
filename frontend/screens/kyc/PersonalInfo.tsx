@@ -16,7 +16,7 @@ interface PersonalInfoProps {
 }
 
 export default function PersonalInfo({ step, totalSteps, onNext, onBack }: PersonalInfoProps) {
-  const { user, updateUserProfile } = useApp()
+  const { user, updateUserProfile, language } = useApp()
   const [age, setAge] = useState('')
   const [gender, setGender] = useState<Gender | ''>('')
   const [location, setLocation] = useState('')
@@ -38,10 +38,13 @@ export default function PersonalInfo({ step, totalSteps, onNext, onBack }: Perso
     setError('')
 
     try {
+      // Use current language from context, or default to English
+      const userLanguage = (language as Language) || Language.EN
+      
       const result = await profileService.upsert(user.id, {
         age: parseInt(age),
         gender: gender as Gender,
-        language: Language.EN, // Default to English for now
+        language: userLanguage,
         ...(location && { location }),
       })
 

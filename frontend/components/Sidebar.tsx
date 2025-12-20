@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, LogOut } from 'lucide-react'
+import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, LogOut, Globe } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { authHelpers } from '../lib/pocketbase'
 import GlassCard from './GlassCard'
@@ -120,6 +120,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
               {/* Footer Actions */}
               <div className="p-4 border-t border-white/30 space-y-2">
+                <button
+                  onClick={() => {
+                    navigate('/language?from=' + location.pathname)
+                    onClose()
+                  }}
+                  className="w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-white/40 backdrop-blur-sm border border-white/50 text-text-primary hover:bg-white/50 transition-all"
+                >
+                  <Globe className="w-5 h-5" />
+                  <span className="font-medium">Language</span>
+                </button>
                 <button
                   onClick={() => {
                     handleNavigate('/profile')

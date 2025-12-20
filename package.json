@@ -13,6 +13,7 @@
     "pb:stop": "docker-compose down",
     "pb:logs": "docker-compose logs -f pocketbase",
     "pb:restart": "docker-compose restart pocketbase",
+    "pb:complete-setup": "node PocketBase/complete-setup.js",
     "pb:setup": "node PocketBase/setup-pocketbase.js",
     "pb:rules": "node PocketBase/set-rules.js",
     "pb:fix-sessions": "node PocketBase/fix-user-sessions.js",

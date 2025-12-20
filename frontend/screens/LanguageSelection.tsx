@@ -7,6 +7,9 @@ import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { useApp } from '../context/AppContext'
 import TranslatedText from '../components/TranslatedText'
+import { profileService } from '../services/profile.service'
+import { analyticsService } from '../services/analytics.service'
+import { Language } from '../types/enums'
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
@@ -18,8 +21,9 @@ const languages = [
 ]
 
 export default function LanguageSelection() {
-  const { language: currentLanguage, setLanguage } = useApp()
+  const { user, language: currentLanguage, setLanguage, updateUserProfile } = useApp()
   const [selectedLang, setSelectedLang] = useState<string | null>(currentLanguage || null)
+  const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
 
   // Update selected language when current language changes
@@ -29,13 +33,39 @@ export default function LanguageSelection() {
     }
   }, [currentLanguage])
 
-  const handleContinue = () => {
-    if (selectedLang) {
+  const handleContinue = async () => {
+    if (!selectedLang) return
+
+    setSaving(true)
+    try {
+      // Update language in context and localStorage
       setLanguage(selectedLang)
+      
       // Clear translation cache when language changes
-      import('../services/translation.service').then(({ translationService }) => {
-        translationService.clearCache()
-      })
+      const { translationService } = await import('../services/translation.service')
+      translationService.clearCache()
+      
+      // If user is logged in, save language to user profile
+      if (user?.id) {
+        try {
+          const result = await profileService.updateProfile(user.id, {
+            language: selectedLang as Language,
+          })
+          
+          if (result.success && result.data && updateUserProfile) {
+            await updateUserProfile(result.data)
+          }
+          
+          // Track analytics
+          await analyticsService.trackEvent('language_changed', {
+            language: selectedLang,
+          }, user.id)
+        } catch (error) {
+          console.error('Failed to save language to profile:', error)
+          // Don't block navigation if profile update fails
+        }
+      }
+      
       // Navigate back to previous page or onboarding if coming from initial setup
       const from = new URLSearchParams(window.location.search).get('from')
       if (from) {
@@ -43,6 +73,10 @@ export default function LanguageSelection() {
       } else {
         navigate('/onboarding')
       }
+    } catch (error) {
+      console.error('Error changing language:', error)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -102,11 +136,11 @@ export default function LanguageSelection() {
 
           <GlassButton
             onClick={handleContinue}
-            disabled={!selectedLang}
+            disabled={!selectedLang || saving}
             fullWidth
             className="py-4 text-lg"
           >
-            <TranslatedText text="Continue" />
+            {saving ? 'Saving...' : <TranslatedText text="Continue" />}
           </GlassButton>
         </motion.div>
       </div>

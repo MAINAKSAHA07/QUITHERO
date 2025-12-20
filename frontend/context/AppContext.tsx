@@ -53,6 +53,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_language', lang)
   }
 
+  // Sync language from user profile when profile is loaded
+  useEffect(() => {
+    if (userProfile?.language) {
+      // If profile has a language, use it and sync to localStorage
+      if (userProfile.language !== language) {
+        setLanguageState(userProfile.language)
+        localStorage.setItem('app_language', userProfile.language)
+      }
+    } else if (userProfile && !userProfile.language) {
+      // If profile exists but has no language, save current language to profile
+      if (user?.id && language) {
+        profileService.updateProfile(user.id, {
+          language: language as any,
+        }).catch(console.error)
+      }
+    }
+  }, [userProfile?.language, user?.id, language])
+
   // Sync with PocketBase auth state on mount
   useEffect(() => {
     const currentUser = authHelpers.getCurrentUser()
