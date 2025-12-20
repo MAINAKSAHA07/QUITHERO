@@ -17,5 +17,17 @@ export default defineConfig({
     port: 5175,
     host: true,
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // Ensure proper handling of SPA routes
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+      },
+    },
+  },
+  // Copy public files to dist
+  publicDir: 'public',
 })
 
