@@ -772,8 +772,25 @@ async function updateCollectionSchema(collectionDef, existing) {
       console.log(`      Missing fields: ${missingFields.length}`)
       console.log(`      Will add: ${fieldsToAdd.length} field(s)`)
       
+      // Helper to resolve collection name to ID
+      const resolveCollectionId = async (collectionNameOrId) => {
+        // If it's already an ID (starts with underscore or looks like an ID), return as-is
+        if (collectionNameOrId.startsWith('_') || collectionNameOrId.length > 20) {
+          return collectionNameOrId
+        }
+        // Otherwise, resolve collection name to ID
+        try {
+          const collection = await pb.collections.getFirstListItem(`name="${collectionNameOrId}"`)
+          return collection.id
+        } catch (e) {
+          console.warn(`      ⚠ Could not resolve collection "${collectionNameOrId}", using as-is`)
+          return collectionNameOrId
+        }
+      }
+      
       // Transform all required fields to PocketBase format
-      const allFields = fieldsToAdd.map(field => {
+      const allFields = []
+      for (const field of fieldsToAdd) {
         const fieldDef = {
           name: field.name,
           type: field.type,
@@ -782,8 +799,10 @@ async function updateCollectionSchema(collectionDef, existing) {
 
         // Add options based on field type
         if (field.type === 'relation') {
+          // Resolve collection name to ID
+          const collectionId = await resolveCollectionId(field.options.collectionId)
           fieldDef.options = {
-            collectionId: field.options.collectionId,
+            collectionId: collectionId,
             cascadeDelete: field.options.cascadeDelete || false,
             maxSelect: field.options.maxSelect || 1,
           }
@@ -799,69 +818,155 @@ async function updateCollectionSchema(collectionDef, existing) {
           fieldDef.options = field.options || {}
         }
 
-        return fieldDef
-      })
-      
-      // Build the final schema: existing fields + new fields
-      // If completely empty, use all fields. Otherwise merge.
-      let uniqueSchema
-      if (isCompletelyEmpty) {
-        // Collection has no fields - use all required fields
-        uniqueSchema = allFields
-        console.log(`      Using complete schema (${uniqueSchema.length} fields)`)
-      } else {
-        // Merge existing and new fields
-        const mergedSchema = [...existingSchema, ...allFields]
-        // Remove duplicates by name (keep the new one)
-        uniqueSchema = mergedSchema.reduce((acc, field) => {
-          const fieldName = field.name || field.id
-          const existingIndex = acc.findIndex(f => (f.name || f.id) === fieldName)
-          if (existingIndex >= 0) {
-            // Replace existing with new
-            acc[existingIndex] = field
-          } else {
-            acc.push(field)
-          }
-          return acc
-        }, [])
-        console.log(`      Merged schema: ${existingSchema.length} existing + ${allFields.length} new = ${uniqueSchema.length} total`)
+        allFields.push(fieldDef)
       }
       
-      // Try to update the collection schema
-      // PocketBase requires schema updates to include all fields, not just additions
+      // Build fields in PocketBase format (like fix-schemas.js)
+      // First, get the ID field from existing collection
+      const idField = fullCollection?.fields?.find(f => f.primaryKey) || 
+                      existingSchema.find(f => f.name === 'id') ||
+                      {
+                        name: 'id',
+                        type: 'text',
+                        required: true,
+                        system: true,
+                        primaryKey: true,
+                        hidden: false,
+                        presentable: false,
+                        autogeneratePattern: '[a-z0-9]{15}',
+                        min: 15,
+                        max: 15,
+                        pattern: '^[a-z0-9]+$'
+                      }
+      
+      // Convert our field definitions to PocketBase format
+      const pbFields = allFields.map(field => {
+        const pbField = {
+          name: field.name,
+          type: field.type,
+          required: field.required || false,
+          system: false,
+          hidden: false,
+          presentable: false,
+        }
+        
+        // Handle different field types
+        if (field.type === 'relation') {
+          // Use already-resolved collectionId from fieldDef.options
+          pbField.collectionId = field.options.collectionId
+          pbField.maxSelect = field.options.maxSelect || 1
+          pbField.cascadeDelete = field.options.cascadeDelete || false
+        } else if (field.type === 'select') {
+          pbField.values = field.options.values || []
+          pbField.maxSelect = field.options.maxSelect || 1
+        } else if (field.type === 'number') {
+          pbField.min = field.options?.min ?? null
+          pbField.max = field.options?.max ?? null
+          pbField.onlyInt = false
+        } else if (field.type === 'text') {
+          pbField.min = field.options?.min || 0
+          pbField.max = field.options?.max || 0
+          pbField.pattern = ''
+          pbField.autogeneratePattern = ''
+        } else if (field.type === 'url') {
+          pbField.onlyDomains = []
+        } else if (field.type === 'bool') {
+          pbField.defaultValue = field.options?.defaultValue || false
+        } else if (field.type === 'json') {
+          // JSON fields don't need special options
+        } else if (field.type === 'date') {
+          // Date fields don't need special options
+        }
+        
+        return pbField
+      })
+      
+      // Build final fields array: ID field first, then existing fields (excluding ID), then new fields
+      const existingFieldsWithoutId = existingSchema.filter(f => f.name !== 'id' && !f.primaryKey)
+      const finalFields = [idField, ...existingFieldsWithoutId, ...pbFields]
+      
+      // Remove duplicates by name (keep the last one, which will be the new one)
+      const uniqueFields = finalFields.reduce((acc, field) => {
+        const fieldName = field.name
+        const existingIndex = acc.findIndex(f => f.name === fieldName)
+        if (existingIndex >= 0) {
+          acc[existingIndex] = field // Replace with new
+        } else {
+          acc.push(field)
+        }
+        return acc
+      }, [])
+      
+      console.log(`      Building fields array: ID + ${existingFieldsWithoutId.length} existing + ${pbFields.length} new = ${uniqueFields.length} total`)
+      
+      // Try to update the collection using 'fields' instead of 'schema'
       try {
-        console.log(`      Attempting to update schema with ${uniqueSchema.length} field(s)...`)
+        console.log(`      Attempting to update fields with ${uniqueFields.length} field(s)...`)
+        
         const updateResponse = await pb.collections.update(existing.id, {
-          schema: uniqueSchema,
+          fields: uniqueFields,
         })
+        
+        // Log the response to see what PocketBase actually returned
         console.log(`      ✓ Schema update API call succeeded`)
+        if (updateResponse?.schema) {
+          console.log(`      Response schema count: ${updateResponse.schema.length}`)
+        }
         
         // Wait a moment for the update to propagate
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
-        // Verify the update worked
-        const verifyCollection = await pb.collections.getOne(existing.id)
-        const finalSchema = verifyCollection?.schema || []
-        const finalSchemaCount = finalSchema.length
-        const finalFieldNames = finalSchema.map(f => f?.name || f?.id).filter(Boolean)
+        // Verify the update worked - try multiple times in case of propagation delay
+        let verifyCollection
+        let finalFields = []
+        let attempts = 0
+        const maxAttempts = 3
+        
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+          verifyCollection = await pb.collections.getOne(existing.id)
+          // PocketBase returns fields in both 'schema' and 'fields' properties
+          finalFields = verifyCollection?.fields || verifyCollection?.schema || []
+          
+          if (finalFields.length > 1) { // More than just ID
+            break // Fields have been updated
+          }
+          attempts++
+        }
+        
+        const finalFieldCount = finalFields.length
+        const finalFieldNames = finalFields
+          .filter(f => !f.system && !f.primaryKey) // Exclude system fields
+          .map(f => f?.name || f?.id)
+          .filter(Boolean)
+        
+        console.log(`      Verification: Found ${finalFieldCount} total fields (${finalFieldNames.length} non-system)`)
+        console.log(`      Field names: ${finalFieldNames.slice(0, 5).join(', ')}${finalFieldNames.length > 5 ? '...' : ''}`)
         
         // Check if all required fields are now present
         const stillMissing = requiredFieldNames.filter(name => !finalFieldNames.includes(name))
         
         if (stillMissing.length > 0) {
           console.warn(`      ⚠ Some fields still missing after update: ${stillMissing.join(', ')}`)
+          console.warn(`      Sent ${uniqueFields.length} fields, but collection only has ${finalFieldCount} fields`)
+          
+          // Log what we sent vs what we got
+          const sentFieldNames = uniqueFields.filter(f => !f.system && !f.primaryKey).map(f => f.name).filter(Boolean)
+          console.warn(`      Sent fields: ${sentFieldNames.join(', ')}`)
+          console.warn(`      Got fields: ${finalFieldNames.join(', ')}`)
+          
           return { 
             success: false, 
             error: `Fields still missing: ${stillMissing.join(', ')}`,
             fieldsAdded: fieldsToAdd.length - stillMissing.length,
-            finalFieldCount: finalSchemaCount
+            finalFieldCount: finalFieldCount
           }
         }
         
         return { 
           success: true, 
           fieldsAdded: fieldsToAdd.length,
-          finalFieldCount: finalSchemaCount
+          finalFieldCount: finalFieldCount
         }
       } catch (updateError) {
         // Log the full error for debugging
@@ -879,25 +984,36 @@ async function updateCollectionSchema(collectionDef, existing) {
         
         for (const field of allFields) {
           try {
-            // Get current schema
+            // Get current fields
             const currentCollection = await pb.collections.getOne(existing.id)
-            const currentSchema = currentCollection?.schema || []
+            const currentFields = currentCollection?.fields || currentCollection?.schema || []
             
             // Check if field already exists
-            const fieldExists = currentSchema.some(f => (f.name || f.id) === field.name)
+            const fieldExists = currentFields.some(f => f.name === field.name)
             if (fieldExists) {
               continue
             }
             
-            // Add field to schema
-            const updatedSchema = [...currentSchema, field]
+            // Add field to fields array (include ID field)
+            const idField = currentFields.find(f => f.primaryKey || f.name === 'id') || {
+              name: 'id',
+              type: 'text',
+              required: true,
+              system: true,
+              primaryKey: true,
+            }
+            const updatedFields = [idField, ...currentFields.filter(f => f.name !== 'id' && !f.primaryKey), field]
+            
             await pb.collections.update(existing.id, {
-              schema: updatedSchema,
+              fields: updatedFields,
             })
             successCount++
-            await new Promise(resolve => setTimeout(resolve, 200)) // Small delay between additions
+            await new Promise(resolve => setTimeout(resolve, 300)) // Small delay between additions
           } catch (fieldError) {
             console.warn(`      ⚠ Could not add field "${field.name}": ${fieldError.message}`)
+            if (fieldError.response) {
+              console.warn(`        Response: ${JSON.stringify(fieldError.response, null, 2)}`)
+            }
           }
         }
         
