@@ -1,0 +1,14 @@
+# Ignore files that shouldn't be deployed for backoffice
+node_modules
+.git
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode
+.idea
+*.pem
+*.bak
+# Note: dist is NOT ignored - Vercel needs it for deployment
+
