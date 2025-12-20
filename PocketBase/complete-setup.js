@@ -11,7 +11,7 @@
  * Prerequisites:
  * 1. Docker must be installed and running
  * 2. PocketBase container must be running (npm run pb:start)
- * 3. Admin account must be created via web UI at http://localhost:8096/_/
+ * 3. Admin account must be created via web UI (check AWS_POCKETBASE_URL in .env)
  *
  * Usage:
  *   npm run pb:complete-setup
@@ -28,17 +28,50 @@
  * 7. Verifies the setup
  *
  * Environment Variables (from .env):
- * - VITE_POCKETBASE_URL (default: http://localhost:8096)
- * - PB_ADMIN_EMAIL
- * - PB_ADMIN_PASSWORD
+ * - AWS_POCKETBASE_URL (primary, e.g., http://54.153.95.239:8096/_/)
+ * - AWS_PB_ADMIN_EMAIL (primary)
+ * - AWS_PB_ADMIN_PASSWORD (primary)
+ * - VITE_POCKETBASE_URL (fallback, default: http://localhost:8096)
+ * - PB_ADMIN_EMAIL (fallback)
+ * - PB_ADMIN_PASSWORD (fallback)
+ * 
+ * Note: The script automatically loads variables from .env file in the project root.
  */
 
 import PocketBase from 'pocketbase'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import { readFileSync } from 'fs'
+
+// Load .env file from project root
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const envPath = join(__dirname, '..', '.env')
+
+try {
+  const envFile = readFileSync(envPath, 'utf-8')
+  envFile.split('\n').forEach(line => {
+    const match = line.match(/^\s*([^#][^=]*?)\s*=\s*(.*?)\s*$/)
+    if (match) {
+      const key = match[1].trim()
+      const value = match[2].trim().replace(/^["']|["']$/g, '')
+      if (!process.env[key]) {
+        process.env[key] = value
+      }
+    }
+  })
+} catch (error) {
+  console.warn(`Warning: Could not load .env file from ${envPath}`)
+}
 
 // ==================== CONFIGURATION ====================
-const PB_URL = process.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || 'mainaksaha0807@gmail.com'
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || '8104760831'
+// Use AWS environment variables from .env, fallback to defaults
+let PB_URL = process.env.AWS_POCKETBASE_URL || process.env.VITE_POCKETBASE_URL 
+// Remove /_/ suffix if present (PocketBase client needs base URL)
+PB_URL = PB_URL.replace(/\/_\//g, '').replace(/\/$/, '')
+
+const ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL 
+const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD 
 
 const pb = new PocketBase(PB_URL)
 
@@ -1194,7 +1227,7 @@ async function completeSetup() {
     console.log('     Password: Admin123!')
     console.log('')
     console.log('🚀 Next Steps:')
-    console.log('   1. Access PocketBase Admin: http://localhost:8096/_/')
+    console.log(`   1. Access PocketBase Admin: ${PB_URL}/_/`)
     console.log('   2. Start Frontend: npm run dev')
     console.log('   3. Start Backoffice: npm run dev:backoffice')
     console.log('   4. Test the demo user login')
@@ -1207,8 +1240,8 @@ async function completeSetup() {
     console.error('Error:', error.message)
     console.error('\n💡 Troubleshooting:')
     console.error('   1. Ensure PocketBase is running: npm run pb:start')
-    console.error('   2. Create admin account at: http://localhost:8096/_/')
-    console.error('   3. Verify credentials in .env file')
+    console.error(`   2. Create admin account at: ${PB_URL}/_/`)
+    console.error('   3. Verify AWS credentials in .env file (AWS_POCKETBASE_URL, AWS_PB_ADMIN_EMAIL, AWS_PB_ADMIN_PASSWORD)')
     console.error('   4. Check PocketBase logs: npm run pb:logs')
     console.error('')
     process.exit(1)
