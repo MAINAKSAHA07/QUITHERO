@@ -75,20 +75,20 @@ export default function Sessions() {
       if (daysResult.success && daysResult.data) {
         const days = daysResult.data
 
-        // Fetch progress for each day
-        const daysWithProgressData: DayWithProgress[] = []
-        for (let i = 0; i < days.length; i++) {
-          const day = days[i]
+        // Fetch progress for ALL days in parallel (much faster!)
+        const progressPromises = days.map((day) => {
           if (!day.id) {
             console.error('Day missing ID:', day)
-            continue
+            return Promise.resolve({ success: true, data: null })
           }
+          return sessionService.getSessionProgress(user.id, day.id)
+        })
 
-          const progressResult = await sessionService.getSessionProgress(
-            user.id,
-            day.id
-          )
+        const progressResults = await Promise.all(progressPromises)
 
+        // Process results and determine locked status
+        const daysWithProgressData: DayWithProgress[] = days.map((day, i) => {
+          const progressResult = progressResults[i]
           const progress = progressResult.success ? progressResult.data : null
           const status = progress?.status || SessionStatus.NOT_STARTED
 
@@ -97,17 +97,19 @@ export default function Sessions() {
           if (i === 0) {
             isLocked = false // Day 1 always unlocked
           } else {
-            const prevDay = daysWithProgressData[i - 1]
-            isLocked = prevDay.status !== SessionStatus.COMPLETED
+            const prevStatus = progressResults[i - 1].success
+              ? (progressResults[i - 1].data?.status || SessionStatus.NOT_STARTED)
+              : SessionStatus.NOT_STARTED
+            isLocked = prevStatus !== SessionStatus.COMPLETED
           }
 
-          daysWithProgressData.push({
+          return {
             day,
             progress: progress || null,
             isLocked,
             status,
-          })
-        }
+          }
+        })
 
         setDaysWithProgress(daysWithProgressData)
       } else {
