@@ -33,3 +33,6 @@ PocketBase/.pb_data/
 *.sw?
 
 *.pem
+
+# Local Netlify folder
+.netlify
