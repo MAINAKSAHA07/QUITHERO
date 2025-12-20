@@ -813,17 +813,21 @@ async function createCollection(collectionDef) {
   try {
     // Check if collection exists
     let existing
+    let collectionExists = false
     try {
       existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
+      collectionExists = true
       console.log(`  ✓ Collection "${collectionDef.name}" already exists`)
       
       // Check for missing fields and add them
-      const existingFieldNames = existing.schema.map(f => f.name)
+      // Handle case where schema might be undefined or null
+      const existingSchema = existing?.schema || []
+      const existingFieldNames = existingSchema.map(f => f?.name || f?.id || '').filter(Boolean)
       const requiredFieldNames = collectionDef.schema.map(f => f.name)
       const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
       
       // If collection has no fields (only ID), we need to add all fields
-      const hasOnlyId = existing.schema.length === 0 || (existing.schema.length === 1 && existing.schema[0].name === 'id')
+      const hasOnlyId = existingSchema.length === 0 || (existingSchema.length === 1 && (existingSchema[0]?.name === 'id' || existingSchema[0]?.id === 'id'))
       
       if (missingFields.length > 0 || hasOnlyId) {
         const fieldsToAddCount = hasOnlyId ? collectionDef.schema.length : missingFields.length
@@ -865,30 +869,45 @@ async function createCollection(collectionDef) {
           // Keep existing schema fields and add new ones
           const updatedSchema = hasOnlyId 
             ? fieldsToAdd  // If only ID, replace with all fields
-            : [...existing.schema, ...fieldsToAdd]  // Otherwise, append missing fields
+            : [...existingSchema, ...fieldsToAdd]  // Otherwise, append missing fields
           
-          await pb.collections.update(existing.id, {
-            schema: updatedSchema,
-          })
-          
-          const addedFieldNames = fieldsToAdd.map(f => f.name).join(', ')
-          console.log(`    ✓ Added ${fieldsToAdd.length} field(s): ${addedFieldNames}`)
+          if (existing?.id) {
+            await pb.collections.update(existing.id, {
+              schema: updatedSchema,
+            })
+            
+            const addedFieldNames = fieldsToAdd.map(f => f.name).join(', ')
+            console.log(`    ✓ Added ${fieldsToAdd.length} field(s): ${addedFieldNames}`)
+          } else {
+            console.warn(`    ⚠ Could not update: collection ID not found`)
+          }
         } catch (updateError) {
           console.error(`    ✗ Could not add missing fields: ${updateError.message}`)
           if (updateError.response) {
             console.error(`    Details: ${JSON.stringify(updateError.response, null, 2)}`)
           }
-          // Don't return here - we still want to mark collection as existing
         }
       } else {
         console.log(`    ✓ All fields already exist`)
       }
       
+      // Always return if collection exists, regardless of field update success
       return { success: true, skipped: true, collection: existing }
     } catch (e) {
-      // Collection doesn't exist, create it
+      // If collection exists but we got an error, still return (don't try to create)
+      if (collectionExists) {
+        console.warn(`    ⚠ Error processing existing collection, but it exists: ${e.message}`)
+        return { success: true, skipped: true, collection: existing }
+      }
+      // Collection doesn't exist, continue to create it
+      // Only continue if the error is "not found"
+      if (!e.message?.includes('not found') && e.status !== 404 && e.code !== 'not_found') {
+        // Unexpected error, re-throw it
+        throw e
+      }
     }
 
+    // Only reach here if collection doesn't exist
     // Transform schema to PocketBase format
     const schema = collectionDef.schema.map(field => {
       const fieldDef = {
@@ -1104,7 +1123,8 @@ async function setPermissions() {
       const updateData = {}
       
       // Check if collection has a 'user' field
-      const hasUserField = col.schema.some(f => f.name === 'user')
+      const colSchema = col.schema || []
+      const hasUserField = colSchema.some(f => (f.name === 'user' || f.id === 'user'))
       
       // Only set rules that are explicitly defined (not undefined)
       // For rules that reference 'user' field, check if field exists first
@@ -1536,7 +1556,8 @@ async function completeSetup() {
     for (const collectionDef of collections) {
       try {
         const existing = await pb.collections.getFirstListItem(`name="${collectionDef.name}"`)
-        const existingFieldNames = existing.schema.map(f => f.name)
+        const existingSchema = existing.schema || []
+        const existingFieldNames = existingSchema.map(f => f.name || f.id || '').filter(Boolean)
         const requiredFieldNames = collectionDef.schema.map(f => f.name)
         const missingFields = requiredFieldNames.filter(name => !existingFieldNames.includes(name))
         
@@ -1544,7 +1565,7 @@ async function completeSetup() {
           console.warn(`    ⚠ "${collectionDef.name}" is missing ${missingFields.length} field(s): ${missingFields.join(', ')}`)
           schemaIssues++
         } else {
-          console.log(`    ✓ "${collectionDef.name}" has all required fields (${existing.schema.length} fields)`)
+          console.log(`    ✓ "${collectionDef.name}" has all required fields (${existingSchema.length} fields)`)
         }
       } catch (e) {
         console.error(`    ✗ Could not verify "${collectionDef.name}": ${e.message}`)
