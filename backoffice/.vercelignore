@@ -1,4 +1,4 @@
-# Ignore files that shouldn't be deployed
+# Ignore files that shouldn't be deployed for backoffice
 node_modules
 .git
 .env
@@ -8,10 +8,7 @@ node_modules
 .DS_Store
 .vscode
 .idea
-PocketBase
 *.pem
 *.bak
 # Note: dist is NOT ignored - Vercel needs it for deployment
-# Note: backoffice is NOT ignored - it's deployed separately with its own rootDirectory
-
 
