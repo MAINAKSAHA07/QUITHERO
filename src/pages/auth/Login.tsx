@@ -32,7 +32,7 @@ export const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
             <LogIn className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-neutral-dark">Quit Hero Admin</h1>
+          <h1 className="text-2xl font-bold text-neutral-dark">smono Admin</h1>
           <p className="text-neutral-500 mt-2">Sign in to your admin account</p>
         </div>
 
@@ -54,7 +54,7 @@ export const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="admin@quithero.com"
+              placeholder="admin@smono.com"
             />
           </div>
 

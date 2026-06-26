@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Users, Activity, Trophy, MessageSquare, UserPlus } from 'lucide-react'
 import { MetricCard } from '../../components/common/MetricCard'
 import { UserGrowthChart } from '../../components/charts/UserGrowthChart'
@@ -39,7 +39,7 @@ export const Dashboard = () => {
     queryFn: async () => {
       try {
         return await adminCollectionHelpers.getFullList('support_tickets', {
-          filter: 'status = "pending" || status = "open"',
+          filter: 'status = "open" || status = "in_progress"',
         })
       } catch (error: any) {
         // If collection doesn't exist or has errors, return empty
@@ -55,7 +55,7 @@ export const Dashboard = () => {
   const { data: recentUsers } = useQuery({
     queryKey: ['users', 'recent'],
     queryFn: () => adminCollectionHelpers.getList('users', 1, 10, {
-      sort: '-created',
+      sort: recentSort('users'),
     }),
   })
 

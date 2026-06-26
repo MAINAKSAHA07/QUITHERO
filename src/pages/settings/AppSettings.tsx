@@ -22,7 +22,7 @@ export const AppSettings = () => {
   // For now, we'll use local state
   const [settings, setSettings] = useState({
     general: {
-      appName: 'Quit Hero',
+      appName: 'smono',
       tagline: 'Your Journey to Freedom',
       defaultLanguage: 'en',
       supportedLanguages: ['en', 'es', 'fr', 'hi'],
@@ -63,8 +63,8 @@ export const AppSettings = () => {
     integrations: {
       emailProvider: 'sendgrid',
       emailApiKey: '',
-      emailFrom: 'noreply@quithero.com',
-      emailFromName: 'Quit Hero',
+      emailFrom: 'noreply@smono.com',
+      emailFromName: 'smono',
       smsProvider: 'twilio',
       smsApiKey: '',
       smsFromNumber: '',

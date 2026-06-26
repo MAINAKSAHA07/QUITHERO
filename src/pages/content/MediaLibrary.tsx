@@ -1,13 +1,23 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, pb, recentSort } from '../../lib/pocketbase'
 import { Upload, Grid, List, Folder, Image, File, Search, Trash2, Download, Eye, FolderPlus } from 'lucide-react'
+
+// Helper function to get file URL from PocketBase
+const getFileUrl = (record: MediaItem, filename?: string): string => {
+  if (!filename && !record.file) {
+    return record.url || '' // Fallback to external URL if no file
+  }
+  const actualFilename = filename || record.file
+  return pb.files.getUrl(record, actualFilename || '')
+}
 
 interface MediaItem {
   id: string
   filename: string
   type: 'image' | 'video' | 'audio' | 'document' | 'other'
-  url?: string
+  file?: string // PocketBase file field
+  url?: string // External URL (optional)
   size?: number
   folder?: string
   created?: string
@@ -31,7 +41,7 @@ export const MediaLibrary = () => {
       try {
         return await adminCollectionHelpers.getFullList('media', {
           filter: buildFilter(),
-          sort: '-created',
+          sort: recentSort('media'),
         })
       } catch (error: any) {
         // If collection doesn't exist, return empty
@@ -247,10 +257,10 @@ export const MediaLibrary = () => {
                   }
                 }}
               >
-                {item.type === 'image' && item.url ? (
+                {item.type === 'image' && (item.file || item.url) ? (
                   <div className="aspect-square bg-neutral-100 relative">
                     <img
-                      src={item.url}
+                      src={getFileUrl(item)}
                       alt={item.filename}
                       className="w-full h-full object-cover"
                     />
@@ -359,9 +369,9 @@ export const MediaLibrary = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {item.url && (
+                        {(item.file || item.url) && (
                           <a
-                            href={item.url}
+                            href={getFileUrl(item)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 hover:bg-neutral-100 rounded-lg"
@@ -370,14 +380,16 @@ export const MediaLibrary = () => {
                             <Eye className="w-4 h-4 text-secondary" />
                           </a>
                         )}
-                        <a
-                          href={item.url}
-                          download
-                          className="p-2 hover:bg-neutral-100 rounded-lg"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4 text-secondary" />
-                        </a>
+                        {(item.file || item.url) && (
+                          <a
+                            href={getFileUrl(item)}
+                            download={item.filename}
+                            className="p-2 hover:bg-neutral-100 rounded-lg"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4 text-secondary" />
+                          </a>
+                        )}
                         <button
                           onClick={() => handleDelete(item)}
                           className="p-2 hover:bg-neutral-100 rounded-lg"
@@ -453,29 +465,52 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onSuccess }) => {
     }
 
     setIsUploading(true)
+    let successCount = 0
+    let errorCount = 0
+
     try {
-      // In a real implementation, upload to PocketBase file storage
+      // Upload files to PocketBase
       for (const file of files) {
-        const formData = new FormData()
-        formData.append('file', file)
-        if (folder) {
-          formData.append('folder', folder)
-        }
+        try {
+          setUploadProgress(prev => ({ ...prev, [file.name]: 0 }))
 
-        // Simulate upload progress
-        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }))
-        for (let i = 0; i <= 100; i += 10) {
-          await new Promise(resolve => setTimeout(resolve, 50))
-          setUploadProgress(prev => ({ ...prev, [file.name]: i }))
-        }
+          // Determine file type
+          const fileType = file.type.startsWith('image/') ? 'image' :
+                          file.type.startsWith('video/') ? 'video' :
+                          file.type.startsWith('audio/') ? 'audio' :
+                          file.type.includes('pdf') || file.type.includes('document') ? 'document' : 'other'
 
-        // In real implementation:
-        // await adminCollectionHelpers.create('media', formData)
+          // Create FormData for upload
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('filename', file.name)
+          formData.append('type', fileType)
+          formData.append('size', file.size.toString())
+          if (folder) {
+            formData.append('folder', folder)
+          }
+
+          // Upload to PocketBase media collection
+          setUploadProgress(prev => ({ ...prev, [file.name]: 50 }))
+          await adminCollectionHelpers.create('media', formData)
+
+          setUploadProgress(prev => ({ ...prev, [file.name]: 100 }))
+          successCount++
+        } catch (error) {
+          console.error(`Failed to upload ${file.name}:`, error)
+          errorCount++
+          setUploadProgress(prev => ({ ...prev, [file.name]: -1 })) // -1 indicates error
+        }
       }
-      alert(`${files.length} file(s) uploaded successfully!`)
-      onSuccess()
+
+      if (successCount > 0) {
+        alert(`${successCount} file(s) uploaded successfully!` + (errorCount > 0 ? ` ${errorCount} failed.` : ''))
+        onSuccess()
+      } else {
+        alert('All uploads failed. Please try again.')
+      }
     } catch (error) {
-      console.error('Failed to upload files:', error)
+      console.error('Upload process failed:', error)
       alert('Failed to upload files')
     } finally {
       setIsUploading(false)
@@ -525,18 +560,26 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onSuccess }) => {
             <div className="space-y-2">
               <p className="text-sm font-medium">Selected Files:</p>
               {files.map((file, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-neutral-50 rounded">
-                  <span className="text-sm text-neutral-700">{file.name}</span>
-                  <span className="text-xs text-neutral-500">
-                    {(file.size / 1024).toFixed(1)} KB
+                <div key={idx} className="flex items-center gap-2 p-2 bg-neutral-50 rounded">
+                  <span className="text-sm text-neutral-700 flex-1 truncate">{file.name}</span>
+                  <span className="text-xs text-neutral-500 whitespace-nowrap">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
                   </span>
                   {uploadProgress[file.name] !== undefined && (
-                    <div className="flex-1 mx-4 bg-neutral-200 rounded-full h-2">
+                    <div className="flex-1 mx-4 bg-neutral-200 rounded-full h-2 max-w-[200px]">
                       <div
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${uploadProgress[file.name]}%` }}
+                        className={`h-2 rounded-full transition-all ${
+                          uploadProgress[file.name] === -1 ? 'bg-red-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: uploadProgress[file.name] === -1 ? '100%' : `${uploadProgress[file.name]}%` }}
                       />
                     </div>
+                  )}
+                  {uploadProgress[file.name] === -1 && (
+                    <span className="text-xs text-red-500">Failed</span>
+                  )}
+                  {uploadProgress[file.name] === 100 && (
+                    <span className="text-xs text-green-500">✓</span>
                   )}
                 </div>
               ))}

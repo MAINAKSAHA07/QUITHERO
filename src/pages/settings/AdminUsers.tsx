@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, UserCheck, UserX, Shield } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -29,7 +29,7 @@ export const AdminUsers = () => {
         // Try to get users with admin roles
         return await adminCollectionHelpers.getFullList('users', {
           filter: 'role != ""',
-          sort: '-created',
+          sort: recentSort('users'),
         })
       } catch (error: any) {
         // If that fails, return empty
