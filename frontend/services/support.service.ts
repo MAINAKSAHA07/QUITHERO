@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { SupportTicket } from '../types/models'
 import { SupportTicketStatus, SupportTicketPriority, SupportTicketCategory } from '../types/enums'
 import { ApiResponse } from '../types/api'
+import { recentSort } from '../lib/pocketbase'
 
 export class SupportService extends BaseService {
   constructor() {
@@ -58,7 +59,7 @@ export class SupportService extends BaseService {
 
       const result = await this.getAll({
         filter,
-        sort: options?.sort || '-created',
+        sort: options?.sort || recentSort(this.collectionName),
       })
 
       if (result.success && result.data) {

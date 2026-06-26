@@ -1,7 +1,7 @@
 import { BaseService } from './base.service'
 import { Craving } from '../types/models'
 import { ApiResponse } from '../types/api'
-import { pb } from '../lib/pocketbase'
+import { pb, recentSort } from '../lib/pocketbase'
 
 export class CravingService extends BaseService {
   constructor() {
@@ -25,7 +25,7 @@ export class CravingService extends BaseService {
         : `user = "${userId}"`
       const records = await pb.collection(this.collectionName).getFullList({
         filter,
-        sort: options?.sort || '-created',
+        sort: options?.sort || recentSort(this.collectionName),
         ...(options?.limit && { limit: options.limit }),
       })
       return { success: true, data: (records || []) as any as Craving[] }
@@ -54,16 +54,23 @@ export class CravingService extends BaseService {
     try {
       const startDate = new Date()
       startDate.setDate(startDate.getDate() - days)
-      const startDateStr = startDate.toISOString().split('T')[0]
+      const startMs = startDate.getTime()
 
       const cravings = await pb.collection(this.collectionName).getFullList({
-        filter: `user = "${userId}" && created >= "${startDateStr}"`,
-        sort: 'created',
+        filter: `user = "${userId}"`,
+        sort: recentSort(this.collectionName),
+      })
+
+      const recent = cravings.filter((craving: any) => {
+        if (!craving.created) return true
+        return new Date(craving.created).getTime() >= startMs
       })
 
       // Group by date
-      const grouped = cravings.reduce((acc: any, craving: any) => {
-        const date = craving.created.split('T')[0]
+      const grouped = recent.reduce((acc: any, craving: any) => {
+        const date = craving.created
+          ? craving.created.split('T')[0]
+          : new Date().toISOString().split('T')[0]
         if (!acc[date]) {
           acc[date] = { date, count: 0 }
         }
@@ -133,7 +140,7 @@ export class CravingService extends BaseService {
    */
   async getRecent(userId: string, limit: number = 10): Promise<ApiResponse<Craving[]>> {
     return await this.getByUser(userId, {
-      sort: '-created',
+      sort: recentSort(this.collectionName),
       limit,
     })
   }
