@@ -73,7 +73,7 @@ export class NotificationService {
     const msUntilReminder = reminderTime.getTime() - now.getTime()
 
     const timeoutId = window.setTimeout(() => {
-      this.showNotification('Quit Hero', {
+      this.showNotification('smono', {
         body: 'Time for your daily check-in! How are you feeling today?',
         tag: 'daily-reminder',
         requireInteraction: false,

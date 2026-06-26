@@ -319,8 +319,8 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
     is_active: template?.is_active !== undefined ? template.is_active : true,
     subject: template?.subject || '',
     content: template?.content || '',
-    from_name: template?.from_name || 'Quit Hero',
-    from_email: template?.from_email || 'noreply@quithero.com',
+    from_name: template?.from_name || 'smono',
+    from_email: template?.from_email || 'noreply@smono.com',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -449,7 +449,7 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                   className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   required
-                  placeholder="e.g., Welcome to Quit Hero, {{user.name}}!"
+                  placeholder="e.g., Welcome to smono, {{user.name}}!"
                 />
               </div>
               <div>

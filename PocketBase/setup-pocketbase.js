@@ -251,7 +251,8 @@ const collections = [
     schema: [
       { name: 'filename', type: 'text', options: {}, required: true },
       { name: 'type', type: 'select', options: { values: ['image', 'video', 'audio', 'document', 'other'] }, required: true },
-      { name: 'url', type: 'url', options: {} },
+      { name: 'file', type: 'file', options: { maxSelect: 1, maxSize: 104857600 }, required: false }, // 100MB max
+      { name: 'url', type: 'url', options: {}, required: false },
       { name: 'size', type: 'number', options: {} },
       { name: 'folder', type: 'text', options: {} },
     ],

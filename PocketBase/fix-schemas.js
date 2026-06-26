@@ -150,6 +150,7 @@ const desired = {
   media: [
     { name: 'filename', type: 'text', required: true },
     { name: 'type', type: 'select', required: true, values: ['image', 'video', 'audio', 'document', 'other'] },
+    { name: 'file', type: 'file', maxSize: 104857600 },
     { name: 'url', type: 'url' },
     { name: 'size', type: 'number' },
     { name: 'folder', type: 'text' },

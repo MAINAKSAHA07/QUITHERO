@@ -10,6 +10,10 @@ const PB_URL = import.meta.env.PROD
 
 export const pb = new PocketBase(PB_URL)
 
+// Base collections were created without system date fields; only `users` supports `-created`.
+export const recentSort = (collection: string) =>
+  collection === 'users' ? '-created' : '-id'
+
 // Always log the URL to help debug deployment issues
 console.log('[Backoffice] PocketBase URL:', PB_URL)
 console.log('[Backoffice] Environment check:', {

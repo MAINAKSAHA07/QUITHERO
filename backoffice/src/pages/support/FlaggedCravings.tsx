@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Search, AlertTriangle, CheckCircle, XCircle, Mail } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
@@ -22,7 +22,7 @@ export const FlaggedCravings = () => {
         // Adjust filter based on your schema
         return await adminCollectionHelpers.getFullList('cravings', {
           filter: buildFilter(),
-          sort: '-created',
+          sort: recentSort('cravings'),
           expand: 'user',
         })
       } catch (error: any) {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Menu, Bell, Search, MoreVertical } from 'lucide-react'
 import Sidebar from './Sidebar'
 import TranslatedText from './TranslatedText'
+import SmonoLogo from './SmonoLogo'
 
 interface TopNavigationProps {
   left?: 'back' | 'menu' | 'logo' | ReactNode
@@ -43,7 +44,7 @@ export default function TopNavigation({
     }
     if (left === 'logo') {
       return (
-        <div className="text-xl font-bold text-gradient">Quit Hero</div>
+        <SmonoLogo size="md" />
       )
     }
     return left

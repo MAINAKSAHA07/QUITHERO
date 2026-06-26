@@ -121,6 +121,15 @@ export const authHelpers = {
       return { success: false, error: errorMessage }
     }
   },
+  async loginWithGoogle() {
+    try {
+      const result = await pb.collection('users').authWithOAuth2({ provider: 'google' })
+      return { success: true, data: result }
+    } catch (error: any) {
+      console.error('Google login failed:', error)
+      return { success: false, error: error.message || 'Google authentication failed' }
+    }
+  },
   logout() {
     pb.authStore.clear()
   },

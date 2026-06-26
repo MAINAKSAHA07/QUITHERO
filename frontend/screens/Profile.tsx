@@ -250,7 +250,7 @@ export default function Profile() {
 ║                                                             ║
 ║  Keep up the amazing work!                                  ║
 ║                                                             ║
-║  Quit Hero                                                  ║
+║  smono                                                      ║
 ║  ${new Date().toLocaleDateString()}                          ║
 ║                                                             ║
 ╚═══════════════════════════════════════════════════════════╝
@@ -261,7 +261,7 @@ export default function Profile() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `quit-hero-certificate-${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `smono-certificate-${new Date().toISOString().split('T')[0]}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -304,14 +304,14 @@ export default function Profile() {
   const handleRateApp = () => {
     // For web app, show a thank you message
     // For mobile apps, this would open the app store
-    alert('Thank you for using Quit Hero! 🌟\n\nIf you\'re enjoying the app, please consider leaving a review on your app store.\n\nYour feedback helps us improve!')
+    alert('Thank you for using smono! 🌟\n\nIf you\'re enjoying the app, please consider leaving a review on your app store.\n\nYour feedback helps us improve!')
     analyticsService.trackEvent('rate_app_clicked', {}, user?.id)
   }
 
   const handleShareApp = async () => {
     const shareData = {
-      title: 'Quit Hero - Your Journey to Freedom',
-      text: 'I\'m using Quit Hero to quit smoking. Join me on this journey!',
+      title: 'smono - Your Journey to Freedom',
+      text: 'I\'m using smono to quit smoking. Join me on this journey!',
       url: window.location.origin,
     }
 
@@ -334,12 +334,12 @@ export default function Profile() {
   }
 
   const handleTerms = () => {
-    alert('Terms of Service\n\nBy using Quit Hero, you agree to:\n\n1. Use the app responsibly\n2. Provide accurate information\n3. Respect the community guidelines\n4. Not misuse the app or its features\n\nFor the full terms, please contact support.')
+    alert('Terms of Service\n\nBy using smono, you agree to:\n\n1. Use the app responsibly\n2. Provide accurate information\n3. Respect the community guidelines\n4. Not misuse the app or its features\n\nFor the full terms, please contact support.')
     analyticsService.trackEvent('terms_viewed', {}, user?.id)
   }
 
   const handlePrivacy = () => {
-    alert('Privacy Policy\n\nQuit Hero respects your privacy:\n\n1. We collect only necessary data for app functionality\n2. Your data is encrypted and secure\n3. We do not share your personal information with third parties\n4. You can delete your account and data at any time\n\nFor the full privacy policy, please contact support.')
+    alert('Privacy Policy\n\nsmono respects your privacy:\n\n1. We collect only necessary data for app functionality\n2. Your data is encrypted and secure\n3. We do not share your personal information with third parties\n4. You can delete your account and data at any time\n\nFor the full privacy policy, please contact support.')
     analyticsService.trackEvent('privacy_viewed', {}, user?.id)
   }
 
@@ -712,7 +712,7 @@ export default function Profile() {
         >
           <GlassCard className="p-4 mb-6">
             <div className="text-center text-text-primary/70 text-sm">
-              <p className="mb-2">Quit Hero v1.0.0</p>
+              <p className="mb-2">smono v1.0.0</p>
               <div className="flex justify-center gap-4">
                 <button
                   onClick={handleTerms}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Search, AlertCircle, Clock, CheckCircle, XCircle, MessageSquare, User, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -19,7 +19,7 @@ export const SupportTickets = () => {
       try {
         return await adminCollectionHelpers.getFullList('support_tickets', {
           filter: buildFilter(),
-          sort: '-created',
+          sort: recentSort('support_tickets'),
           expand: 'user',
         })
       } catch (error: any) {

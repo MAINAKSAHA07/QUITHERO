@@ -6,11 +6,12 @@ services:
     command:
       - serve
       - --http=0.0.0.0:8096
+      - --dir=/pb/pb_data
       - --encryptionEnv=PB_ENCRYPTION_KEY
     ports:
       - "8096:8096"
     volumes:
-      - ./PocketBase/pb_data:/pb/pb_data
+      - ${PB_DATA_DIR:-./PocketBase/pb_data}:/pb/pb_data
       - ./PocketBase/pb_migrations:/pb/pb_migrations
     environment:
       - PB_ENCRYPTION_KEY=${PB_ENCRYPTION_KEY:-01234567890123456789012345678901}

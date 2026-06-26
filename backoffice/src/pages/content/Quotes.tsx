@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, Upload, Search, MessageSquare, Lightbulb, ToggleLeft, ToggleRight } from 'lucide-react'
 
 interface Quote {
@@ -30,7 +30,7 @@ export const Quotes = () => {
         // Try quotes collection first
         return await adminCollectionHelpers.getFullList('quotes', {
           filter: buildFilter(),
-          sort: '-created',
+          sort: recentSort('quotes'),
         })
       } catch (error: any) {
         // Fallback to content_items if quotes collection doesn't exist
@@ -38,7 +38,7 @@ export const Quotes = () => {
           try {
             return await adminCollectionHelpers.getFullList('content_items', {
               filter: `(type = "quote" || type = "tip") && ${buildFilter() || '1=1'}`,
-              sort: '-created',
+              sort: recentSort('content_items'),
             })
           } catch {
             return { data: [] }

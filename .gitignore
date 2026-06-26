@@ -1,30 +1,48 @@
-# Logs
-logs
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+backoffice/dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.bak
+
+# PocketBase runtime data
+PocketBase/pb_data/
+PocketBase/.pb_data/
+**/pb_data/
+
+# Logs & local deploy artifacts
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+nohup.out
+deploy.log
 
-node_modules
-dist
-dist-ssr
-*.local
+# Local scratch / dev notes
+scratch/
+todo.txt
+todo2.txt
 
-# Environment variables
-.env
-.env.local
-.env.production
+# Hosting tool caches
+.netlify/
+frontend/.netlify/
+.vercel/
 
-# PocketBase data
-PocketBase/pb_data/
-PocketBase/.pb_data/
-
-# Editor directories and files
+# Editor & OS
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -32,7 +50,5 @@ PocketBase/.pb_data/
 *.sln
 *.sw?
 
-*.pem
-
-# Local Netlify folder
-.netlify
+# Vite
+*.local

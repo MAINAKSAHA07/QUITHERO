@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Eye, EyeOff, Copy, Key, Globe } from 'lucide-react'
 
 interface ApiKey {
@@ -36,7 +36,7 @@ export const ApiKeys = () => {
     queryFn: async () => {
       try {
         return await adminCollectionHelpers.getFullList('api_keys', {
-          sort: '-created',
+          sort: recentSort('api_keys'),
         })
       } catch {
         return { data: [] }
@@ -49,7 +49,7 @@ export const ApiKeys = () => {
     queryFn: async () => {
       try {
         return await adminCollectionHelpers.getFullList('webhooks', {
-          sort: '-created',
+          sort: recentSort('api_keys'),
         })
       } catch {
         return { data: [] }

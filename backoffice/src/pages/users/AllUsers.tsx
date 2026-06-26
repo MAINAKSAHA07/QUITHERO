@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Download, Search, Eye, Edit, Trash2, Mail, UserCheck, UserX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -40,7 +40,7 @@ export const AllUsers = () => {
     queryKey: ['users', page, perPage, statusFilter, searchQuery],
     queryFn: () => adminCollectionHelpers.getList('users', page, perPage, {
       filter: searchQuery ? `email ~ "${searchQuery}" || name ~ "${searchQuery}"` : undefined,
-      sort: '-created',
+      sort: recentSort('users'),
     }),
   })
 

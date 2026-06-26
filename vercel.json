@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/pocketbase/:path*",
-      "destination": "/api/pocketbase"
+      "destination": "/api/pocketbase/:path*"
     },
     {
       "source": "/(.*)",

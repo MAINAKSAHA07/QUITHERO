@@ -8,16 +8,16 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary: '#F58634',
-          accent: '#D45A1C',
-          light: '#FFD08A',
+          primary: '#A8D4EA',
+          accent: '#FDB47B',
+          light: '#FED2B2',
         },
         text: {
           primary: '#2B2B2B',
         },
         bg: {
-          soft: '#FFF7EE',
-          card: '#EDE8E3',
+          soft: '#F4F8FA',
+          card: '#E5ECEF',
         },
         success: '#4CAF50',
         info: '#2A72B5',

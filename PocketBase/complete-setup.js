@@ -318,7 +318,8 @@ const collections = [
     schema: [
       { name: 'filename', type: 'text', options: {}, required: true },
       { name: 'type', type: 'select', options: { values: ['image', 'video', 'audio', 'document', 'other'] }, required: true },
-      { name: 'url', type: 'url', options: {} },
+      { name: 'file', type: 'file', options: { maxSelect: 1, maxSize: 104857600 }, required: false }, // 100MB max
+      { name: 'url', type: 'url', options: {}, required: false },
       { name: 'size', type: 'number', options: {} },
       { name: 'folder', type: 'text', options: {} },
     ],
@@ -734,11 +735,11 @@ const quotesData = [
   { type: 'quote', content: 'The secret of getting ahead is getting started.', author: 'Mark Twain', language: 'en' },
   { type: 'quote', content: 'Believe you can and you\'re halfway there.', author: 'Theodore Roosevelt', language: 'en' },
   { type: 'quote', content: 'Success is the sum of small efforts repeated day in and day out.', author: 'Robert Collier', language: 'en' },
-  { type: 'tip', content: 'When a craving hits, try drinking a glass of cold water or taking a quick walk.', author: 'Quit Hero Team', language: 'en' },
-  { type: 'tip', content: 'Keep your hands busy. Stress balls, puzzles, or drawing can help distract from cravings.', author: 'Quit Hero Team', language: 'en' },
-  { type: 'tip', content: 'Celebrate small wins. Each day smoke-free is a victory worth acknowledging.', author: 'Quit Hero Team', language: 'en' },
+  { type: 'tip', content: 'When a craving hits, try drinking a glass of cold water or taking a quick walk.', author: 'smono Team', language: 'en' },
+  { type: 'tip', content: 'Keep your hands busy. Stress balls, puzzles, or drawing can help distract from cravings.', author: 'smono Team', language: 'en' },
+  { type: 'tip', content: 'Celebrate small wins. Each day smoke-free is a victory worth acknowledging.', author: 'smono Team', language: 'en' },
   { type: 'quote', content: 'You are stronger than your cravings. Remember why you started.', author: 'Anonymous', language: 'en' },
-  { type: 'tip', content: 'Practice deep breathing: 4 counts in, hold 4, out 4. Repeat until the craving passes.', author: 'Quit Hero Team', language: 'en' },
+  { type: 'tip', content: 'Practice deep breathing: 4 counts in, hold 4, out 4. Repeat until the craving passes.', author: 'smono Team', language: 'en' },
   { type: 'quote', content: 'The only way to do great work is to love what you do.', author: 'Steve Jobs', language: 'en' },
 ]
 
@@ -1529,7 +1530,7 @@ async function seedProgram() {
       console.log('  ✓ Found existing program')
     } catch (e) {
       program = await pb.collection('programs').create({
-        title: '10-Day Quit Hero Program',
+        title: '10-Day smono Program',
         description: 'A comprehensive 10-day program designed to help you quit smoking and build lasting habits for a smoke-free life.',
         is_active: true,
         language: 'en',
@@ -1805,7 +1806,7 @@ async function verifySetup() {
 
 async function completeSetup() {
   console.log('╔════════════════════════════════════════════════════════════╗')
-  console.log('║        QUIT HERO - Complete Database Setup Script         ║')
+  console.log('║        SMONO     - Complete Database Setup Script         ║')
   console.log('╚════════════════════════════════════════════════════════════╝')
   console.log('')
   console.log(`📍 PocketBase URL: ${PB_URL}`)

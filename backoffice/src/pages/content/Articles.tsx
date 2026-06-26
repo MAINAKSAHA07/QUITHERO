@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
@@ -33,7 +33,7 @@ export const Articles = () => {
       try {
         return await adminCollectionHelpers.getFullList('content_items', {
           filter: buildFilter(),
-          sort: '-created',
+          sort: recentSort('content_items'),
         })
       } catch (error: any) {
         // If collection doesn't exist, return empty array

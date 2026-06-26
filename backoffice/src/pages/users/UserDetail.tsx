@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -41,7 +41,7 @@ export const UserDetail = () => {
     queryKey: ['user_cravings', id],
     queryFn: () => adminCollectionHelpers.getFullList('cravings', {
       filter: `user = "${id}"`,
-      sort: '-created',
+      sort: recentSort('cravings'),
     }),
     enabled: !!id && activeTab === 'cravings',
   })

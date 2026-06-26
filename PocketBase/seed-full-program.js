@@ -352,7 +352,7 @@ async function seedFullProgram() {
     } catch (e) {
       // Create new program
       program = await pb.collection('programs').create({
-        title: '10-Day Quit Hero Program',
+        title: '10-Day smono Program',
         description: 'A comprehensive 10-day program designed to help you quit smoking and build lasting habits for a smoke-free life.',
         is_active: true,
         language: 'en',

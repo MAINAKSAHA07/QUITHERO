@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
+import SmonoLogo from '../components/SmonoLogo'
 
 export default function SplashScreen() {
   return (
@@ -44,22 +44,21 @@ export default function SplashScreen() {
         <motion.div
           animate={{
             filter: [
-              'drop-shadow(0 0 20px rgba(245, 134, 52, 0.5))',
-              'drop-shadow(0 0 30px rgba(245, 134, 52, 0.8))',
-              'drop-shadow(0 0 20px rgba(245, 134, 52, 0.5))',
+              'drop-shadow(0 0 20px rgba(142, 197, 229, 0.3))',
+              'drop-shadow(0 0 30px rgba(252, 179, 131, 0.5))',
+              'drop-shadow(0 0 20px rgba(142, 197, 229, 0.3))',
             ],
           }}
           transition={{
-            duration: 2,
+            duration: 3,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
-          className="mb-8"
+          className="mb-8 flex flex-col items-center"
         >
-          <Sparkles className="w-24 h-24 text-brand-primary" />
+          <SmonoLogo size="xl" />
         </motion.div>
-        <h1 className="text-5xl font-bold text-gradient mb-2">Quit Hero</h1>
-        <p className="text-text-primary/70 text-center">Your Journey to Freedom</p>
+        <p className="text-text-primary/70 text-center text-lg mt-4 font-medium">Your Journey to Freedom</p>
       </motion.div>
 
       {/* Loading indicator */}

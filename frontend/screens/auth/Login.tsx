@@ -10,6 +10,8 @@ import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
+import SmonoLogo from '../../components/SmonoLogo'
+import { profileService } from '../../services/profile.service'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -61,6 +63,45 @@ export default function Login() {
     }
   }
 
+  const handleGoogleLogin = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const result = await authHelpers.loginWithGoogle()
+      if (result.success && result.data) {
+        setIsAuthenticated(true)
+        const record = result.data.record
+        setUser({
+          id: record.id,
+          email: record.email,
+          name: record.name || record.email,
+        })
+        // Track login
+        await analyticsService.trackEvent('login', { method: 'google' }, record.id)
+
+        // Check if user profile exists
+        const profileResult = await profileService.getByUserId(record.id)
+        if (profileResult.success && profileResult.data) {
+          // Profile exists, go to home or show language selection
+          if (!profileResult.data.language || profileResult.data.language === 'en') {
+            setShowLanguageModal(true)
+          } else {
+            navigate('/home')
+          }
+        } else {
+          // No profile, new user, redirect to kyc
+          navigate('/kyc')
+        }
+      } else {
+        setError(result.error || 'Google login failed')
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during Google login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen pb-20">
       <TopNavigation left="logo" center="" right="" />
@@ -72,9 +113,9 @@ export default function Login() {
           transition={{ duration: 0.5 }}
         >
           {/* Logo section */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gradient mb-2">Quit Hero</h1>
-            <p className="text-text-primary/70">Welcome Back</p>
+          <div className="text-center mb-8 flex flex-col items-center">
+            <SmonoLogo size="lg" className="mb-2" />
+            <p className="text-text-primary/70 mt-2">Welcome Back</p>
           </div>
 
           <GlassCard className="p-6 mb-6">
@@ -146,6 +187,8 @@ export default function Login() {
               variant="secondary"
               fullWidth
               className="py-3 flex items-center justify-center gap-2"
+              onClick={handleGoogleLogin}
+              disabled={loading}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path

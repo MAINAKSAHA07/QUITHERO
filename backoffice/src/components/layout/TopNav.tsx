@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, Bell, User, LogOut, X, Command, FileText, Users, BarChart3, Settings, HelpCircle, ArrowRight } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { useNavigate } from 'react-router-dom'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { formatDistanceToNow } from 'date-fns'
 
 interface SearchResult {
@@ -28,7 +28,7 @@ export const TopNav = () => {
     queryKey: ['nav', 'recent_users'],
     queryFn: () =>
       adminCollectionHelpers.getList('users', 1, 5, {
-        sort: '-created',
+        sort: recentSort('users'),
       }),
   })
 
@@ -38,8 +38,8 @@ export const TopNav = () => {
       try {
         // Try to fetch support tickets with proper error handling
         const result = await adminCollectionHelpers.getList('support_tickets', 1, 5, {
-          filter: '(status = "open" || status = "in_progress")',
-          sort: '-created',
+          filter: 'status = "open" || status = "in_progress"',
+          sort: recentSort('support_tickets'),
           // Don't expand user if it might cause issues - we can access it later if needed
         })
         
@@ -190,7 +190,7 @@ export const TopNav = () => {
       <header className="sticky top-0 z-40 bg-white border-b border-neutral-200 h-16 flex items-center justify-between px-6 shadow-sm">
       {/* Left Section - Logo */}
       <div className="flex items-center">
-        <h1 className="text-xl font-bold text-primary">Quit Hero Admin</h1>
+        <h1 className="text-xl font-bold text-primary">smono Admin</h1>
       </div>
 
       {/* Center Section - Search */}
