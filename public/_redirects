@@ -1,4 +1,4 @@
-# Netlify and Cloudflare Pages redirects
-# Redirect all routes to index.html for SPA routing
-/*    /index.html   200
-
+# Replaced at build time by scripts/write-netlify-redirects.js → dist/_redirects
+# Local preview fallback:
+/api/pocketbase/*  http://localhost:8096/:splat  200
+/*  /index.html  200

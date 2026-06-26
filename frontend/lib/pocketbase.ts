@@ -123,7 +123,27 @@ export const authHelpers = {
   },
   async loginWithGoogle() {
     try {
-      const result = await pb.collection('users').authWithOAuth2({ provider: 'google' })
+      const oauthBaseUrl = import.meta.env.PROD
+        ? `${window.location.origin}/api/pocketbase`
+        : (import.meta.env.VITE_POCKETBASE_URL?.replace(/\/$/, '') || 'http://localhost:8096')
+
+      // Fail fast with a clear message if the API proxy returns HTML (misconfigured Netlify/Vercel)
+      const methodsRes = await fetch(`${oauthBaseUrl}/api/collections/users/auth-methods`)
+      const contentType = methodsRes.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          'Authentication server unreachable. The /api/pocketbase proxy may be misconfigured.'
+        )
+      }
+      const methods = await methodsRes.json()
+      if (!methods?.oauth2?.providers?.some((p: { name: string }) => p.name === 'google')) {
+        throw new Error('Google sign-in is not enabled on the server.')
+      }
+
+      const result = await pb.collection('users').authWithOAuth2({
+        provider: 'google',
+        url: oauthBaseUrl,
+      })
       return { success: true, data: result }
     } catch (error: any) {
       console.error('Google login failed:', error)

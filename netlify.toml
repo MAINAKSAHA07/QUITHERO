@@ -6,7 +6,5 @@
 [build.environment]
   NODE_VERSION = "18"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# PocketBase proxy + SPA rules are generated into dist/_redirects at build time
+# (see scripts/write-netlify-redirects.js). Set VITE_POCKETBASE_URL in Netlify env.

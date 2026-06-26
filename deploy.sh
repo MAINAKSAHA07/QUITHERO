@@ -412,6 +412,21 @@ run_pb_setup() {
   fi
 }
 
+run_oauth_setup() {
+  local google_id="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-}}"
+  local google_secret="${VITE_GOOGLE_CLIENT_SECRET:-${GOOGLE_CLIENT_SECRET:-}}"
+
+  [[ -n "$google_id" && -n "$google_secret" ]] || return
+
+  if [[ ! -f "$APP_DIR/PocketBase/configure-oauth.js" ]]; then
+    return
+  fi
+
+  log "Configuring Google OAuth on PocketBase"
+  cd "$APP_DIR"
+  node PocketBase/configure-oauth.js || warn "configure-oauth.js failed — check Google credentials"
+}
+
 build_frontend() {
   log "Building frontend"
   cd "$APP_DIR"
@@ -581,6 +596,7 @@ deploy_all() {
   sync_project_on_server
   deploy_pocketbase
   run_pb_setup
+  run_oauth_setup
   build_frontend
   build_backoffice
   write_nginx_config

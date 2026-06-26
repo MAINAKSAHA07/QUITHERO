@@ -1,0 +1,45 @@
+/**
+ * Writes Netlify _redirects into dist/ after build so /api/pocketbase/* proxies
+ * to PocketBase instead of falling through to index.html (which breaks OAuth).
+ */
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const root = path.resolve(__dirname, '..')
+
+function resolveNetlifyPbProxyTarget() {
+  const raw = (
+    process.env.NETLIFY_PB_PROXY_TARGET ||
+    process.env.VITE_POCKETBASE_URL ||
+    process.env.AWS_POCKETBASE_URL ||
+    'http://54.153.95.239:8096'
+  ).replace(/\/$/, '')
+
+  // Netlify proxies server-side — EC2 port 8096 is often closed. Route via nginx :80 instead.
+  if (/^https?:\/\/[^/:]+:8096$/i.test(raw)) {
+    return raw.replace(':8096', '/api/pocketbase')
+  }
+
+  return raw
+}
+
+const pbUrl = resolveNetlifyPbProxyTarget()
+
+const distDir = path.join(root, 'dist')
+if (!fs.existsSync(distDir)) {
+  console.warn('[write-netlify-redirects] dist/ not found — skipping')
+  process.exit(0)
+}
+
+const redirects = `# Auto-generated — do not edit
+# PocketBase API proxy (required for auth, including Google OAuth)
+/api/pocketbase/*  ${pbUrl}/:splat  200
+
+# SPA fallback
+/*  /index.html  200
+`
+
+fs.writeFileSync(path.join(distDir, '_redirects'), redirects)
+console.log(`[write-netlify-redirects] PocketBase proxy → ${pbUrl}`)
