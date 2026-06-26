@@ -1,4 +1,11 @@
 import PocketBase from 'pocketbase'
+import {
+  buildOAuthStartUrl,
+  getOAuthBaseUrl,
+  getOAuthRedirectUrl,
+  stashOAuthSession,
+  type OAuthProvider,
+} from './oauth'
 
 // In production (Vercel), use the serverless proxy to avoid Mixed Content errors
 // In development, connect directly to PocketBase
@@ -123,11 +130,8 @@ export const authHelpers = {
   },
   async loginWithGoogle() {
     try {
-      const oauthBaseUrl = import.meta.env.PROD
-        ? `${window.location.origin}/api/pocketbase`
-        : (import.meta.env.VITE_POCKETBASE_URL?.replace(/\/$/, '') || 'http://localhost:8096')
+      const oauthBaseUrl = getOAuthBaseUrl()
 
-      // Fail fast with a clear message if the API proxy returns HTML (misconfigured Netlify/Vercel)
       const methodsRes = await fetch(`${oauthBaseUrl}/api/collections/users/auth-methods`)
       const contentType = methodsRes.headers.get('content-type') || ''
       if (!contentType.includes('application/json')) {
@@ -136,8 +140,21 @@ export const authHelpers = {
         )
       }
       const methods = await methodsRes.json()
-      if (!methods?.oauth2?.providers?.some((p: { name: string }) => p.name === 'google')) {
+      const provider = methods?.oauth2?.providers?.find(
+        (p: OAuthProvider) => p.name === 'google'
+      ) as OAuthProvider | undefined
+      if (!provider) {
         throw new Error('Google sign-in is not enabled on the server.')
+      }
+
+      const redirectURL = getOAuthRedirectUrl(oauthBaseUrl)
+
+      // Production proxies (Netlify/nginx) cannot stream PocketBase realtime/SSE.
+      // Use full-page redirect + oauth-callback.html instead of authWithOAuth2 popup.
+      if (import.meta.env.PROD) {
+        stashOAuthSession(provider, redirectURL)
+        window.location.href = buildOAuthStartUrl(provider, redirectURL)
+        return { success: true, data: null, redirecting: true as const }
       }
 
       const result = await pb.collection('users').authWithOAuth2({

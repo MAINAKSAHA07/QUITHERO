@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signing in…</title>
+    <style>
+      body {
+        font-family: Inter, system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #f8fafc;
+        color: #334155;
+      }
+      .box { text-align: center; padding: 2rem; }
+      .err { color: #b91c1c; max-width: 28rem; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <p id="status">Completing Google sign-in…</p>
+      <p id="error" class="err" hidden></p>
+    </div>
+    <script>
+      (async function () {
+        const status = document.getElementById('status')
+        const errorEl = document.getElementById('error')
+        const params = new URLSearchParams(location.search)
+
+        function fail(msg) {
+          status.hidden = true
+          errorEl.hidden = false
+          errorEl.textContent = msg
+        }
+
+        const oauthError = params.get('error')
+        if (oauthError) {
+          fail('Google sign-in was cancelled or denied.')
+          return
+        }
+
+        const code = params.get('code')
+        const state = params.get('state')
+        const verifier = sessionStorage.getItem('pb_oauth_verifier')
+        const redirectURL =
+          sessionStorage.getItem('pb_oauth_redirect') ||
+          location.origin + '/api/pocketbase/api/oauth2-redirect'
+        const expectedState = sessionStorage.getItem('pb_oauth_state')
+
+        if (!code || !verifier) {
+          fail('Missing OAuth data. Please try signing in again.')
+          return
+        }
+        if (expectedState && state && expectedState !== state) {
+          fail('OAuth state mismatch. Please try again.')
+          return
+        }
+
+        const pbBase = location.origin + '/api/pocketbase'
+
+        try {
+          const res = await fetch(pbBase + '/api/collections/users/auth-with-oauth2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              provider: 'google',
+              code,
+              codeVerifier: verifier,
+              redirectURL,
+            }),
+          })
+
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            fail(data.message || 'Could not complete sign-in.')
+            return
+          }
+
+          localStorage.setItem(
+            'pocketbase_auth',
+            JSON.stringify({ token: data.token, record: data.record })
+          )
+          sessionStorage.removeItem('pb_oauth_verifier')
+          sessionStorage.removeItem('pb_oauth_redirect')
+          sessionStorage.removeItem('pb_oauth_state')
+
+          location.replace('/home')
+        } catch (e) {
+          fail(e.message || 'Network error during sign-in.')
+        }
+      })()
+    </script>
+  </body>
+</html>

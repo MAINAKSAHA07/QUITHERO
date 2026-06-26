@@ -34,7 +34,10 @@ if (!fs.existsSync(distDir)) {
 }
 
 const redirects = `# Auto-generated — do not edit
-# PocketBase API proxy (required for auth, including Google OAuth)
+# OAuth return page (avoids PocketBase popup+SSE flow that breaks behind Netlify)
+/api/pocketbase/api/oauth2-redirect  /oauth-callback.html  200
+
+# PocketBase API proxy
 /api/pocketbase/*  ${pbUrl}/:splat  200
 
 # SPA fallback

@@ -68,6 +68,7 @@ export default function Login() {
     setLoading(true)
     try {
       const result = await authHelpers.loginWithGoogle()
+      if (result.redirecting) return
       if (result.success && result.data) {
         setIsAuthenticated(true)
         const record = result.data.record
