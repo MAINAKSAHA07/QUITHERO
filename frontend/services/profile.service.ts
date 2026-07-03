@@ -59,17 +59,14 @@ export class ProfileService extends BaseService {
       
       // Handle quit_date validation error specifically
       if (errorData.quit_date) {
-        const quitDateError = errorData.quit_date.message || JSON.stringify(errorData.quit_date)
-        console.error('Quit date validation error:', quitDateError, { userId, data })
+        const quitDateError = errorData.quit_date.message || 'invalid'
         return { 
           success: false, 
           error: `Quit date is required: ${quitDateError}` 
         }
       }
       
-      // Handle other validation errors
       const errorMessage = errorData.message || error.message || 'An error occurred'
-      console.error('Profile upsert error:', errorData, { userId, data })
       return { 
         success: false, 
         error: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage) 

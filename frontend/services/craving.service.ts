@@ -37,12 +37,6 @@ export class CravingService extends BaseService {
           error.response?.data?.message?.includes('not found')) {
         return { success: true, data: [] }
       }
-      // For other errors, still return empty array to prevent app breakage
-      // Only log if there's a meaningful error message
-      const errorMessage = error?.message || error?.response?.data?.message || ''
-      if (errorMessage && errorMessage !== '{}') {
-        console.warn('Error fetching cravings:', errorMessage)
-      }
       return { success: true, data: [] }
     }
   }
@@ -129,8 +123,6 @@ export class CravingService extends BaseService {
           error.message?.includes('No records')) {
         return { success: true, data: 0 }
       }
-      // Log error for debugging
-      console.warn('Error fetching cravings count:', error.message || error)
       return { success: true, data: 0 }
     }
   }

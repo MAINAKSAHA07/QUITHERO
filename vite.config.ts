@@ -20,7 +20,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Ensure proper handling of SPA routes
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
@@ -35,6 +34,10 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 600,
+    minify: 'esbuild',
+  },
+  esbuild: {
+    drop: ['console', 'debugger'],
   },
   // Copy public files to dist
   publicDir: 'public',

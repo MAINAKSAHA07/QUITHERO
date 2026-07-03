@@ -87,7 +87,6 @@ export class ProgressService extends BaseService {
 
       return { success: true, data: calculation }
     } catch (error: any) {
-      console.error('Error calculating progress:', error)
       return { success: false, error: error.message }
     }
   }

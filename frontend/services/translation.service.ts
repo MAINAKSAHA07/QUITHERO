@@ -49,9 +49,7 @@ export class TranslationService {
       this.cache.set(cacheKey, translatedText)
       
       return translatedText
-    } catch (error) {
-      console.error('Translation service error:', error)
-      // Return original text on error
+    } catch {
       return text
     }
   }

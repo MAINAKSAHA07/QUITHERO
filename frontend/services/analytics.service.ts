@@ -23,8 +23,6 @@ export class AnalyticsService extends BaseService {
       })
       return event
     } catch (error: any) {
-      // Analytics failures should not break the app
-      console.warn('Analytics tracking failed:', error)
       return { success: false, error: error.message }
     }
   }

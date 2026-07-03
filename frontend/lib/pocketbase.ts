@@ -19,10 +19,8 @@ export const pb = new PocketBase(PB_URL)
 export const recentSort = (collection: string) =>
   collection === 'users' ? '-created' : '-id'
 
-// Always log the URL to help debug deployment issues
-console.log('[Frontend] PocketBase URL:', PB_URL)
-if (!import.meta.env.PROD && !import.meta.env.VITE_POCKETBASE_URL) {
-  console.warn('[Frontend] ⚠️ WARNING: Using default localhost URL. Set VITE_POCKETBASE_URL in environment variables!')
+if (import.meta.env.DEV) {
+  console.log('[Frontend] PocketBase URL:', PB_URL)
 }
 
 // Enable auto cancellation for all pending requests
@@ -42,7 +40,6 @@ export const authHelpers = {
       await pb.collection('users').authWithPassword(email, password)
       return { success: true, data: { record } }
     } catch (error: any) {
-      console.error('User registration failed:', error)
       
       // Extract detailed error information
       let errorMessage = 'Registration failed'
@@ -72,9 +69,6 @@ export const authHelpers = {
       const result = await pb.collection('users').authWithPassword(email, password)
       return { success: true, data: result }
     } catch (error: any) {
-      console.error('User login failed:', error)
-      
-      // Extract more detailed error information from PocketBase ClientResponseError
       let errorMessage = 'Login failed'
       
       // PocketBase ClientResponseError has a specific structure
@@ -167,7 +161,6 @@ export const authHelpers = {
       })
       return { success: true, data: result }
     } catch (error: any) {
-      console.error('Google login failed:', error)
       return { success: false, error: error.message || 'Google authentication failed' }
     }
   },
