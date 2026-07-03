@@ -18,6 +18,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return
+  if (!e.request.url.startsWith('http')) return
   if (e.request.url.includes('/api/')) return
 
   const isNavigate = e.request.mode === 'navigate'
@@ -25,7 +26,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        if (res && res.status === 200) {
+        if (res && res.status === 200 && e.request.url.startsWith(self.location.origin)) {
           const clone = res.clone()
           caches.open(CACHE).then((c) => c.put(e.request, clone))
         }
