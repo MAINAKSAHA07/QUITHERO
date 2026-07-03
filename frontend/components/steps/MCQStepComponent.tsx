@@ -20,7 +20,7 @@ export default function MCQStepComponent({ step, onNext }: MCQStepComponentProps
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-text-primary">
+      <h3 className="text-xl font-bold text-text-primary leading-snug">
         {content.question}
       </h3>
       <div className="space-y-3">

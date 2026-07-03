@@ -2,3 +2,5 @@
 alwaysApply: true
 ---
 everytime you make any changes you should not create a .md file for the same 
+
+Never mention any hidden thirdparty app name in the code 

@@ -11,8 +11,8 @@ import { initPocketBase, getPocketBaseURL, loadEnv } from './utils.js'
 loadEnv()
 
 const PB_URL = getPocketBaseURL()
-const BACKOFFICE_ADMIN_EMAIL = process.env.AWS_PB_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL || 'mainak.tln@gmail.com'
-const ADMIN_PASSWORD = process.env.AWS_PB_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD || '8104760831'
+const BACKOFFICE_ADMIN_EMAIL = process.env.BACKOFFICE_ADMIN_EMAIL || 'admin@backoffice.com'
+const BACKOFFICE_ADMIN_PASSWORD = process.env.BACKOFFICE_ADMIN_PASSWORD || 'Admin123!'
 
 async function verifyAccess() {
   console.log('🔍 Verifying Backoffice Access to PocketBase...\n');
@@ -26,7 +26,7 @@ async function verifyAccess() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         identity: BACKOFFICE_ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
+        password: BACKOFFICE_ADMIN_PASSWORD,
       }),
     });
 
@@ -99,7 +99,7 @@ async function verifyAccess() {
     console.log('\nNext steps:');
     console.log('1. Make sure backoffice is running: cd backoffice && npm run dev');
     console.log('2. Open: http://localhost:5176');
-    console.log('3. Login with: mainak.tln@gmail.com');
+    console.log('3. Login with: admin@backoffice.com / Admin123!')
     console.log('4. You should see all the data in the dashboard!\n');
 
   } catch (error) {

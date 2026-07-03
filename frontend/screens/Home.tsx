@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Cigarette, DollarSign, Droplet, FileText, Wind, ArrowRight, Syringe, RefreshCw } from 'lucide-react'
+import { Calendar, Cigarette, DollarSign, Droplet, FileText, Wind, ArrowRight, Quote, RefreshCw } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
@@ -238,16 +238,16 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <GlassCard className="p-6 mb-6 bg-gradient-to-br from-white/15 to-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-text-primary">
-                <TranslatedText text="Since you joined" />
+          <GlassCard className="p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-text-primary">
+                <TranslatedText text="Your Progress" />
               </h2>
               {(isRefreshing || progressLoading) && (
                 <RefreshCw className="w-4 h-4 text-text-primary/50 animate-spin" />
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {displayStats.map((stat, index) => {
                 const Icon = stat.icon
                 return (
@@ -255,27 +255,19 @@ export default function Home() {
                     key={index}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="glass-subtle p-4 rounded-xl"
+                    transition={{ delay: index * 0.08 }}
+                    className="glass-subtle p-3.5 rounded-xl flex items-center gap-3"
                   >
-                    <Icon className={`w-6 h-6 ${stat.color} mb-2`} />
-                    <div className="text-2xl font-bold text-text-primary">{stat.value}</div>
-                    <div className="text-xs text-text-primary/70">
-                      <TranslatedText text={stat.label} />
+                    <Icon className={`w-5 h-5 ${stat.color} flex-shrink-0`} />
+                    <div className="min-w-0">
+                      <div className="text-lg font-bold text-text-primary leading-tight">{stat.value}</div>
+                      <div className="text-[11px] text-text-primary/60 leading-tight">
+                        <TranslatedText text={stat.label} />
+                      </div>
                     </div>
                   </motion.div>
                 )
               })}
-            </div>
-            <div className="flex justify-center gap-1 mt-4">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    i === 0 ? 'bg-brand-primary' : 'bg-text-primary/30'
-                  }`}
-                />
-              ))}
             </div>
           </GlassCard>
         </motion.div>
@@ -319,14 +311,14 @@ export default function Home() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="mb-6"
         >
-          <GlassCard className="p-6 bg-gradient-to-br from-info/10 to-info/5">
-            <div className="flex items-start gap-4">
-              <Syringe className="w-8 h-8 text-error flex-shrink-0" />
+          <GlassCard className="p-5 bg-gradient-to-br from-brand-primary/5 to-brand-accent/5">
+            <div className="flex items-start gap-3">
+              <Quote className="w-6 h-6 text-brand-primary flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-text-primary font-medium mb-2">
+                <p className="text-text-primary font-medium text-[15px] leading-snug mb-1">
                   {motivationalQuote.text}
                 </p>
-                <p className="text-text-primary/70 text-sm whitespace-pre-line">
+                <p className="text-text-primary/60 text-sm whitespace-pre-line leading-relaxed">
                   {motivationalQuote.details}
                 </p>
               </div>

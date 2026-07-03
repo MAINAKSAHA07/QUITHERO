@@ -360,20 +360,20 @@ export default function Session() {
 
         {/* Step content */}
         <GlassCard className="p-6 mb-6">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-text-primary mb-2">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-text-primary mb-1">
               {programDay.title}
             </h2>
             {programDay.subtitle && (
-              <p className="text-text-primary/70 mb-4">{programDay.subtitle}</p>
+              <p className="text-sm text-text-primary/60 mb-3">{programDay.subtitle}</p>
             )}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle">
               <span className="text-xs font-medium text-text-primary/70">
-                {currentStep.type === StepType.TEXT && '📄 Reading'}
-                {currentStep.type === StepType.QUESTION_MCQ && '❓ Multiple Choice'}
-                {currentStep.type === StepType.QUESTION_OPEN && '✍️ Open Question'}
-                {currentStep.type === StepType.EXERCISE && '🧘 Exercise'}
-                {currentStep.type === StepType.VIDEO && '🎥 Video'}
+                {currentStep.type === StepType.TEXT && 'Reading'}
+                {currentStep.type === StepType.QUESTION_MCQ && 'Quiz'}
+                {currentStep.type === StepType.QUESTION_OPEN && 'Reflection'}
+                {currentStep.type === StepType.EXERCISE && 'Exercise'}
+                {currentStep.type === StepType.VIDEO && 'Video'}
               </span>
             </div>
           </div>
@@ -427,7 +427,7 @@ export default function Session() {
             : 0
         }
         stepsCompleted={steps.length}
-        hasNextDay={(programDay.day_number || 0) < 10}
+        hasNextDay={(programDay.day_number || 0) < 30}
         onNextDay={() => {
           setShowCompletionModal(false)
           navigate('/sessions')

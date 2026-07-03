@@ -147,7 +147,7 @@ export default function Sessions() {
   if (isLoading || loading) {
     return (
       <div className="min-h-screen pb-24">
-        <TopNavigation left="menu" center="10-Day Program" right="" />
+        <TopNavigation left="menu" center="30-Day Program" right="" />
         <div className="max-w-md mx-auto px-4 pt-6 pb-8">
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
             <img
@@ -167,7 +167,7 @@ export default function Sessions() {
     <div className="min-h-screen pb-24">
       <TopNavigation
         left="menu"
-        center="10-Day Program"
+        center="30-Day Program"
         right={
           <button onClick={loadSessions} className="p-2">
             <RefreshCw className="w-5 h-5 text-text-primary" />
@@ -182,10 +182,10 @@ export default function Sessions() {
           className="mb-6"
         >
           <h1 className="text-2xl font-bold text-text-primary mb-2">
-            Your 10-Day Transformation
+            Your 30-Day Reset
           </h1>
           <p className="text-text-primary/70">
-            Complete daily sessions to build lasting habits
+            Complete daily sessions to rewire your brain and break free
           </p>
         </motion.div>
 
@@ -268,7 +268,7 @@ export default function Sessions() {
           <GlassCard className="p-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
             <div className="text-center">
               <div className="text-3xl font-bold text-brand-primary mb-2">
-                {completedCount}/{daysWithProgress.length || 10}
+                {completedCount}/{daysWithProgress.length || 30}
               </div>
               <div className="text-sm text-text-primary/70 mb-4">Sessions Completed</div>
               <div className="h-2 glass rounded-full overflow-hidden">

@@ -50,5 +50,11 @@ frontend/.netlify/
 *.sln
 *.sw?
 
+# Cursor AI
+.cursor/
+
 # Vite
 *.local
+
+# Document sources
+*.docx

@@ -16,43 +16,40 @@ export default function ExerciseComponent({ step, onNext }: ExerciseComponentPro
 
   const handleComplete = () => {
     setCompleted(true)
-    setTimeout(() => {
-      onNext()
-    }, 1000)
+    setTimeout(onNext, 1200)
   }
 
   return (
-    <div className="space-y-6 text-center">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-text-primary">
-          Exercise
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <h3 className="text-xl font-bold text-text-primary">
+          {content.title || 'Exercise'}
         </h3>
-        <p className="text-text-primary/90 whitespace-pre-line leading-relaxed">
-          {content.instructions}
+        <p className="text-text-primary/90 whitespace-pre-line leading-relaxed text-[15px]">
+          {content.instructions || content.text}
         </p>
       </div>
 
-      {content.duration_seconds && (
+      {content.duration_seconds && !completed && (
         <motion.div
-          className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-info to-info/50 flex items-center justify-center"
-          animate={{
-            scale: completed ? [1, 1.2, 1] : [1, 1.1, 1],
-          }}
-          transition={{
-            duration: content.duration_seconds || 5,
-            repeat: completed ? 0 : Infinity,
-            ease: 'easeInOut',
-          }}
+          className="w-28 h-28 mx-auto rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center"
+          animate={{ scale: [1, 1.08, 1] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         >
-          {completed ? (
-            <CheckCircle className="w-16 h-16 text-white" />
-          ) : (
-            <span className="text-white font-bold text-xl">Breathe</span>
-          )}
+          <span className="text-white font-bold text-lg">Breathe</span>
         </motion.div>
       )}
 
-      {!completed && (
+      {completed ? (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="flex flex-col items-center gap-2 py-4"
+        >
+          <CheckCircle className="w-14 h-14 text-success" />
+          <span className="text-success font-semibold">Done!</span>
+        </motion.div>
+      ) : (
         <GlassButton onClick={handleComplete} fullWidth className="py-4">
           Mark Complete
         </GlassButton>

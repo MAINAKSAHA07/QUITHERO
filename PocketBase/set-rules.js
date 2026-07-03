@@ -9,6 +9,7 @@ const adminRule = '@request.auth.collectionName = "admin_users"'
 // helper to set owner rule based on a user field name
 const ownerRule = (field) => `@request.auth.id = ${field}`
 const ownerOrNullRule = (field) => `(${field} = null) || (@request.auth.id = ${field})`
+const adminOrOwner = (field) => `${adminRule} || @request.auth.id = ${field}`
 
 const configs = [
   // built-in auth users collection
@@ -25,26 +26,27 @@ const configs = [
     // Only admin_users can delete users
     delete: adminRule,
   },
-  // user-owned collections
-  { name: 'user_profiles', rule: ownerRule('user') },
-  { name: 'user_sessions', rule: ownerRule('user') },
-  { name: 'session_progress', rule: ownerRule('user') },
-  { name: 'step_responses', rule: ownerRule('user') },
-  { name: 'cravings', rule: ownerRule('user') },
-  { name: 'journal_entries', rule: ownerRule('user') },
-  { name: 'progress_stats', rule: ownerRule('user') },
-  { name: 'user_achievements', rule: ownerRule('user') },
-  { name: 'analytics_events', rule: ownerOrNullRule('user') },
-  { name: 'support_tickets', rule: ownerRule('user') },
+  // user-owned collections — admins can read/write all for backoffice dashboards
+  { name: 'user_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'user_sessions', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'session_progress', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'step_responses', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'cravings', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'journal_entries', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'progress_stats', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'user_achievements', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'analytics_events', list: `${adminRule} || ${ownerOrNullRule('user')}`, view: `${adminRule} || ${ownerOrNullRule('user')}`, create: ownerOrNullRule('user'), update: adminRule, delete: adminRule },
+  { name: 'support_tickets', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
 
-  // public-readable, admin-writable
+  // public-readable (mobile app), admin-writable
   { name: 'programs', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'program_days', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'steps', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'achievements', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'content_items', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
+  { name: 'content_chunks', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'quotes', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
-  { name: 'media', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
+  { name: 'media', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'api_keys', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'webhooks', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'notification_templates', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },

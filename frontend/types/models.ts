@@ -72,6 +72,7 @@ export interface ProgramDay {
 
 // Step Content JSON structures
 export interface TextStepContent {
+  title?: string
   text: string
   image_url?: string
   video_url?: string
@@ -89,7 +90,9 @@ export interface OpenStepContent {
 }
 
 export interface ExerciseStepContent {
+  title?: string
   instructions: string
+  text?: string
   duration_seconds?: number
 }
 
