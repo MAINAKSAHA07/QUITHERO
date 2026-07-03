@@ -3,7 +3,7 @@
  * Allows HTTPS frontends to communicate with HTTP PocketBase backend.
  */
 
-const PB_URL = (process.env.VITE_POCKETBASE_URL || process.env.POCKETBASE_URL || 'http://54.153.95.239/api/pocketbase').replace(/\/$/, '')
+const PB_URL = (process.env.POCKETBASE_URL || process.env.VITE_POCKETBASE_URL || 'http://54.153.95.239:8096').replace(/\/$/, '')
 
 function getPbPath(req) {
   const segments = req.query.path
