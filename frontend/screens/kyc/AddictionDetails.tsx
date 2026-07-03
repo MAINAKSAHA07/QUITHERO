@@ -155,6 +155,7 @@ export default function AddictionDetails({ step, totalSteps, onNext, onBack }: A
 
             <GlassInput
               type="text"
+              inputMode="numeric"
               label="How much per day?"
               placeholder="e.g., 10 cigarettes"
               value={amount}

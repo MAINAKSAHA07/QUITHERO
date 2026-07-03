@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import WhyWeAsk from '../../components/WhyWeAsk'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 
@@ -93,7 +94,8 @@ export default function FearIndex({
           <div className="text-center mb-8">
             <div className="text-4xl mb-3">❤️‍🔥</div>
             <h2 className="text-2xl font-bold text-text-primary mb-2">
-              How Afraid Are You?
+              How Afraid Are You?{' '}
+              <WhyWeAsk explanation="Your fear level helps us calibrate the right amount of motivation vs. reassurance. There's no wrong answer — honesty helps the program work better." />
             </h2>
             <p className="text-text-primary/70">
               On a scale of 0 to 10, how afraid are you of the health consequences of

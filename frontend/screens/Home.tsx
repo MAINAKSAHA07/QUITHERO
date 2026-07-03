@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Cigarette, DollarSign, Droplet, FileText, Wind, ArrowRight, Quote, RefreshCw } from 'lucide-react'
+import { Calendar, Cigarette, DollarSign, Droplet, Wind, ArrowRight, Quote, RefreshCw, Shield, Plus } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Progress } from '../components/ui/progress'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
+import MilestoneModal from '../components/MilestoneModal'
 import TranslatedText from '../components/TranslatedText'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
@@ -14,7 +15,10 @@ import { useSessions } from '../hooks/useSessions'
 import { cravingService } from '../services/craving.service'
 import { programService } from '../services/program.service'
 import { analyticsService } from '../services/analytics.service'
-import { contentService } from '../services/content.service'
+import { CravingType, CravingTrigger } from '../types/enums'
+import { haptic, hapticPatterns } from '../utils/haptic'
+
+const MILESTONE_DAYS = [3, 7, 14, 30]
 
 const motivationalQuotes = [
   { text: "There are only three steps to quit smoking:", details: "1. Make the decision\n2. Get support\n3. Stay committed" },
@@ -31,6 +35,10 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
   const [slipsCount, setSlipsCount] = useState(0)
+  const [todayCravings, setTodayCravings] = useState(0)
+  const [todaySlips, setTodaySlips] = useState(0)
+  const [milestoneDay, setMilestoneDay] = useState<number | null>(null)
+  const [quickLogging, setQuickLogging] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!user?.id) return
@@ -42,12 +50,54 @@ export default function Home() {
       await fetchCurrentSession()
       const today = new Date().getDate()
       setMotivationalQuote(motivationalQuotes[today % motivationalQuotes.length])
+
+      // H4: Today's craving/slip counts
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+      const todayCravingsResult = await cravingService.getAll({
+        filter: `user="${user.id}" && created>="${todayStart.toISOString()}"`,
+      })
+      if (todayCravingsResult.success && todayCravingsResult.data) {
+        const items = todayCravingsResult.data
+        setTodayCravings(items.filter((c: any) => c.type === 'craving').length)
+        setTodaySlips(items.filter((c: any) => c.type === 'slip').length)
+      }
     } catch {
       setSlipsCount(0)
     } finally {
       setIsRefreshing(false)
     }
   }, [user?.id, refreshProgressData, fetchCurrentSession])
+
+  // H3: Check for milestone celebrations
+  useEffect(() => {
+    const days = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    if (days > 0) {
+      const shownKey = `milestone_shown_${days}`
+      const alreadyShown = sessionStorage.getItem(shownKey)
+      if (!alreadyShown && MILESTONE_DAYS.includes(days)) {
+        setMilestoneDay(days)
+        sessionStorage.setItem(shownKey, '1')
+      }
+    }
+  }, [calculation, stats])
+
+  // H6: Quick log craving from home
+  const handleQuickResist = async () => {
+    if (!user?.id || quickLogging) return
+    setQuickLogging(true)
+    haptic(hapticPatterns.success)
+    try {
+      await cravingService.create({
+        user: user.id,
+        type: CravingType.CRAVING,
+        intensity: 3,
+        trigger: CravingTrigger.HABIT,
+      })
+      setTodayCravings(prev => prev + 1)
+      analyticsService.trackCravingLogged(user.id, 'craving', 'habit')
+    } catch { /* silent */ }
+    setQuickLogging(false)
+  }
 
   useEffect(() => {
     if (user?.id) {
@@ -135,28 +185,49 @@ export default function Home() {
           </Card>
         </motion.div>
 
+        {/* H4: Today's Activity Counter */}
+        {(todayCravings > 0 || todaySlips > 0) && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
+            <Card className="border-muted">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Today</p>
+                <div className="flex gap-4">
+                  {todayCravings > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-success" />
+                      <span className="text-sm font-semibold text-foreground">{todayCravings} resisted</span>
+                    </div>
+                  )}
+                  {todaySlips > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Cigarette className="w-4 h-4 text-destructive" />
+                      <span className="text-sm font-semibold text-foreground">{todaySlips} slipped</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
           <h3 className="text-base font-semibold text-foreground mb-3">
             <TranslatedText text="Quick Actions" />
           </h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <QuickAction
-              icon={FileText}
-              label="Article"
-              color="text-info"
-              bg="bg-info/10"
-              onClick={async () => {
-                analyticsService.trackEvent('quick_action_clicked', { action: 'article_of_day' }, user?.id)
-                const result = await contentService.getArticleOfTheDay()
-                alert(result.success && result.data ? result.data.title : 'Coming soon!')
-              }}
+              icon={Shield}
+              label="I Resisted"
+              color="text-success"
+              bg="bg-success/10"
+              onClick={handleQuickResist}
             />
             <QuickAction
               icon={Wind}
               label="Breathe"
-              color="text-success"
-              bg="bg-success/10"
+              color="text-info"
+              bg="bg-info/10"
               onClick={() => { analyticsService.trackEvent('quick_action_clicked', { action: 'breathing' }, user?.id); navigate('/breathing') }}
             />
             <QuickAction
@@ -165,6 +236,13 @@ export default function Home() {
               color="text-destructive"
               bg="bg-destructive/10"
               onClick={() => { analyticsService.trackEvent('quick_action_clicked', { action: 'log_slip' }, user?.id); navigate('/craving?slip=true') }}
+            />
+            <QuickAction
+              icon={Plus}
+              label="Craving"
+              color="text-primary"
+              bg="bg-primary/10"
+              onClick={() => { navigate('/craving') }}
             />
           </div>
         </motion.div>
@@ -184,6 +262,13 @@ export default function Home() {
           </Card>
         </motion.div>
       </div>
+
+      {/* H3: Streak Milestone Celebration */}
+      <MilestoneModal
+        isOpen={milestoneDay !== null}
+        days={milestoneDay || 0}
+        onClose={() => setMilestoneDay(null)}
+      />
 
       <BottomNavigation />
     </div>

@@ -93,11 +93,13 @@ export default function PersonalInfo({ step, totalSteps, onNext, onBack }: Perso
         <GlassCard className="p-6 space-y-4">
           <GlassInput
             type="number"
+            inputMode="numeric"
             label="Age"
             placeholder="Enter your age"
             value={age}
             onChange={(e) => setAge(e.target.value)}
             icon={<Calendar className="w-5 h-5" />}
+            autoFocus
           />
 
           <div>

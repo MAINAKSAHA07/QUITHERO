@@ -25,7 +25,7 @@ import GlassButton from '../components/GlassButton'
 import GlassInput from '../components/GlassInput'
 import TranslatedText from '../components/TranslatedText'
 import { useApp } from '../context/AppContext'
-import { authHelpers } from '../lib/pocketbase'
+import pb, { authHelpers } from '../lib/pocketbase'
 import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
 
@@ -371,9 +371,31 @@ export default function Profile() {
           animate={{ opacity: 1, y: 0 }}
         >
           <GlassCard className="p-6 mb-6 text-center">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full glass-strong border-4 border-brand-primary/20 flex items-center justify-center">
-              <User className="w-12 h-12 text-brand-primary" />
-            </div>
+            <label className="relative w-24 h-24 mx-auto mb-4 rounded-full glass-strong border-4 border-brand-primary/20 flex items-center justify-center cursor-pointer group">
+              {user?.avatar ? (
+                <img src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-12 h-12 text-brand-primary" />
+              )}
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Edit className="w-5 h-5 text-white" />
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file || !user?.id) return
+                  try {
+                    const formData = new FormData()
+                    formData.append('avatar', file)
+                    await pb.collection('users').update(user.id, formData)
+                    fetchUserProfile()
+                  } catch { /* silent */ }
+                }}
+              />
+            </label>
             {isEditing ? (
               <div className="space-y-4">
                 <GlassInput
@@ -627,11 +649,19 @@ export default function Profile() {
                   <TranslatedText text="Quit date" />
                 </span>
               </div>
-              <span className="text-text-primary/70 text-sm">
-                {userProfile?.quit_date
-                  ? new Date(userProfile.quit_date).toLocaleDateString()
-                  : <TranslatedText text="Not set" />}
-              </span>
+              <input
+                type="date"
+                value={userProfile?.quit_date ? new Date(userProfile.quit_date).toISOString().split('T')[0] : ''}
+                onChange={async (e) => {
+                  if (!user?.id || !e.target.value) return
+                  try {
+                    const { profileService } = await import('../services/profile.service')
+                    await profileService.upsert(user.id, { quit_date: e.target.value })
+                    fetchUserProfile()
+                  } catch { /* silent */ }
+                }}
+                className="text-sm text-text-primary/70 bg-transparent border-none outline-none cursor-pointer"
+              />
             </div>
             <button
               onClick={handleDownloadCertificate}
@@ -731,11 +761,12 @@ export default function Profile() {
           </GlassCard>
         </motion.div>
 
-        {/* Logout */}
+        {/* Logout + Delete Account */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
+          className="space-y-3"
         >
           <GlassButton
             onClick={handleLogout}
@@ -746,6 +777,25 @@ export default function Profile() {
             <LogOut className="w-5 h-5 inline mr-2" />
             <TranslatedText text="Logout" />
           </GlassButton>
+
+          <button
+            onClick={async () => {
+              if (!user?.id) return
+              const confirmed = window.confirm(
+                'Are you sure you want to delete your account? This action is permanent and cannot be undone.'
+              )
+              if (!confirmed) return
+              try {
+                await pb.collection('users').delete(user.id)
+                handleLogout()
+              } catch {
+                alert('Failed to delete account. Please contact support.')
+              }
+            }}
+            className="w-full py-3 text-sm text-text-primary/50 hover:text-error transition-colors"
+          >
+            Delete Account
+          </button>
         </motion.div>
       </div>
 

@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import WhyWeAsk from '../../components/WhyWeAsk'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { CravingTrigger } from '../../types/enums'
@@ -127,7 +128,8 @@ export default function TriggerSelection({
           <div className="text-center mb-6">
             <div className="text-4xl mb-3">🎯</div>
             <h2 className="text-2xl font-bold text-text-primary mb-2">
-              What Triggers Your Smoking?
+              What Triggers Your Smoking?{' '}
+              <WhyWeAsk explanation="Understanding your triggers helps us build a personalized quit plan. We use this to match you with the right coping strategies and send support at the right moments." />
             </h2>
             <p className="text-text-primary/70">
               Select all situations that make you reach for a cigarette. This helps us
@@ -141,6 +143,8 @@ export default function TriggerSelection({
               return (
                 <motion.button
                   key={trigger.value}
+                  role="checkbox"
+                  aria-checked={isSelected}
                   onClick={() => handleToggleTrigger(trigger.value)}
                   className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
                     isSelected

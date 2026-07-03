@@ -5,6 +5,7 @@ import { Calendar, Users, Heart, MessageCircle } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
+import { useTouchSwipe } from '../hooks/useTouchSwipe'
 
 const slides = [
   {
@@ -49,6 +50,12 @@ export default function Onboarding() {
     navigate('/login')
   }
 
+  const handlePrev = () => {
+    if (currentSlide > 0) setCurrentSlide(currentSlide - 1)
+  }
+
+  const swipeHandlers = useTouchSwipe(handleNext, handlePrev)
+
   const Icon = slides[currentSlide].icon
 
   return (
@@ -66,7 +73,7 @@ export default function Onboarding() {
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-12">
+      <div className="max-w-md mx-auto px-4 pt-12" {...swipeHandlers}>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}

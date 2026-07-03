@@ -21,7 +21,7 @@ export default function BottomNavigation() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-white/30">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-white/30" aria-label="Main navigation">
       <div className="max-w-md mx-auto flex items-center justify-around px-4 py-3 safe-area-bottom">
         {navItems.map((item) => {
           const Icon = item.icon
@@ -33,6 +33,7 @@ export default function BottomNavigation() {
                 key={item.path}
                 to={item.path}
                 className="relative -mt-8"
+                aria-label={item.label}
               >
                 <motion.div
                   className="w-16 h-16 rounded-full glass-button-primary flex items-center justify-center shadow-glass-lg"
@@ -64,6 +65,8 @@ export default function BottomNavigation() {
               key={item.path}
               to={item.path}
               className="flex flex-col items-center gap-1 flex-1"
+              aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
             >
               <div className="relative">
                 <Icon

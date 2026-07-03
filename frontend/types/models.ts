@@ -275,3 +275,100 @@ export interface SupportTicket {
   updated?: string
 }
 
+// ─── OKF Behavioral AI Types ───────────────────────────────────────────────
+
+export type LearningPhase = 'observing' | 'active'
+export type IntensityTrend = 'rising' | 'stable' | 'falling'
+export type MoodTrend = 'improving' | 'stable' | 'declining'
+export type NotificationStyle = 'motivational' | 'grounding' | 'factual' | 'challenge'
+export type NotificationTriggerType = 'scheduled' | 'craving_spike' | 'missed_session' | 'slip'
+
+export interface UserBehaviorProfile {
+  id?: string
+  user: string
+
+  // Timing patterns
+  peak_active_hour: number
+  peak_active_hour_2?: number
+  craving_peak_hour?: number
+
+  // Engagement patterns
+  avg_session_minutes: number
+  preferred_step_types: StepType[]
+  typical_dropout_step?: number
+
+  // Emotional patterns
+  dominant_trigger: CravingTrigger
+  avg_craving_intensity: number
+  intensity_trend: IntensityTrend
+  mood_trend: MoodTrend
+
+  // Archetype confidence
+  assigned_archetype: QuitArchetype
+  behavioral_archetype: QuitArchetype
+  archetype_confidence: number
+
+  // Notification response
+  best_notification_hour?: number
+  best_notification_style: NotificationStyle
+  notification_open_rate: number
+
+  // Learning state
+  learning_phase: LearningPhase
+  days_observed: number
+  last_updated: string
+
+  created?: string
+  updated?: string
+}
+
+export interface NotificationEvent {
+  id?: string
+  user: string
+  trigger_type: NotificationTriggerType
+  message_title: string
+  message_body: string
+  archetype_at_send: QuitArchetype
+  day_number: number
+  sent_at: string
+  opened_at?: string
+  led_to_session: boolean
+  created?: string
+  updated?: string
+}
+
+export interface PersonalizationLog {
+  id?: string
+  user: string
+  day_number: number
+  request_type: 'session_content' | 'notification' | 'behavior_update'
+  archetype_used: QuitArchetype
+  okf_docs_loaded: string[]
+  ai_response_summary: string
+  content_fit_score?: number
+  created?: string
+}
+
+export interface BehaviorSignal {
+  type: 'page_view' | 'session_complete' | 'craving_logged' | 'step_dropped' |
+        'notification_opened' | 'notification_sent' | 'journal_entry' | 'slip'
+  timestamp: string
+  meta: Record<string, any>
+}
+
+export interface PersonalizedContent {
+  session_intro?: string
+  module_reframes?: Record<number, string>
+  exercise_motivation?: string
+  closing_reflection?: string
+  journal_prompt?: string
+}
+
+export interface NotificationMessage {
+  title: string
+  body: string
+  trigger_type: NotificationTriggerType
+  archetype: QuitArchetype
+  rationale?: string
+}
+

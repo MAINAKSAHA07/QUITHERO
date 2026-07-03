@@ -7,6 +7,7 @@ import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import MotivationalQuoteModal from '../components/MotivationalQuoteModal'
 import CravingHistoryModal from '../components/CravingHistoryModal'
+import SlipRecovery from '../components/SlipRecovery'
 import { useApp } from '../context/AppContext'
 import { useCravings } from '../hooks/useCravings'
 import { analyticsService } from '../services/analytics.service'
@@ -382,7 +383,12 @@ export default function CravingSupport() {
     )
   }
 
-  // Encouragement message overlay
+  // Slip recovery — compassionate full-screen experience
+  if (showEncouragement && slipped) {
+    return <SlipRecovery daysFree={0} onDismiss={() => navigate('/home')} />
+  }
+
+  // Craving resisted — celebratory overlay
   if (showEncouragement) {
     return (
       <div className="min-h-screen pb-20 flex items-center justify-center">
@@ -398,10 +404,10 @@ export default function CravingSupport() {
               transition={{ delay: 0.2, type: 'spring' }}
               className="text-6xl mb-4"
             >
-              {slipped ? '💪' : '🎉'}
+              🎉
             </motion.div>
             <h2 className="text-2xl font-bold text-text-primary mb-4">
-              {slipped ? "It's Okay!" : 'Great Job!'}
+              Great Job!
             </h2>
             <p className="text-text-primary/80 text-lg mb-6">
               {encouragementMessage}

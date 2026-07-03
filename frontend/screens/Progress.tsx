@@ -246,6 +246,20 @@ export default function Progress() {
           </GlassCard>
         </motion.div>
 
+        {/* H5: Dynamic Insights */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+        >
+          <GlassCard className="p-6 mb-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-3">
+              <TranslatedText text="Insights" />
+            </h3>
+            <WeeklyInsights cravingTrend={cravingTrend} achievements={formattedAchievements} />
+          </GlassCard>
+        </motion.div>
+
         {/* Craving Patterns Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -405,7 +419,7 @@ export default function Progress() {
           )}
         </motion.div>
 
-        {/* Health Improvements */}
+        {/* M5: Health Improvements with dynamic percentages */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -413,29 +427,44 @@ export default function Progress() {
         >
           <GlassCard className="p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              <TranslatedText text="Health Improvements" />
+              <TranslatedText text="Health Recovery" />
             </h3>
             <div className="space-y-3">
-              {healthMilestones.map((milestone, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-4 glass-subtle p-3 rounded-xl"
-                >
-                  {milestone.completed ? (
-                    <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-success text-lg">✓</span>
+              {healthMilestones.map((milestone, index) => {
+                const daysSmokeFree = overallStats.daysSmokeFree
+                const progress = milestone.completed
+                  ? 100
+                  : milestone.days > 0 ? Math.min(99, Math.round((daysSmokeFree / milestone.days) * 100)) : 100
+                return (
+                  <div key={index} className="glass-subtle p-3 rounded-xl">
+                    <div className="flex items-center gap-3 mb-1">
+                      {milestone.completed ? (
+                        <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-success text-sm">✓</span>
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-text-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-text-primary/40 text-xs">{progress}%</span>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-text-primary">{milestone.title}</div>
+                        <div className="text-xs text-text-primary/60">{milestone.time}</div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-text-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-text-primary/30 text-lg">○</span>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">{milestone.title}</div>
-                    <div className="text-xs text-text-primary/70">{milestone.time}</div>
+                    {!milestone.completed && (
+                      <div className="ml-9 mt-1">
+                        <div className="h-1.5 bg-text-primary/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-brand-primary/60 rounded-full transition-all"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </GlassCard>
         </motion.div>
@@ -446,3 +475,50 @@ export default function Progress() {
   )
 }
 
+function WeeklyInsights({ cravingTrend, achievements }: { cravingTrend: any[]; achievements: any[] }) {
+  const thisWeekTotal = cravingTrend.slice(-7).reduce((s, d) => s + (d.cravings || 0), 0)
+  const lastWeekTotal = cravingTrend.slice(-14, -7).reduce((s, d) => s + (d.cravings || 0), 0)
+  const diff = lastWeekTotal > 0 ? Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100) : 0
+
+  const nextAchievement = achievements.find(a => !a.unlocked)
+
+  return (
+    <div className="space-y-3">
+      {cravingTrend.length >= 7 && (
+        <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
+          <span className="text-sm text-text-primary/80">7-day cravings</span>
+          <span className="text-sm font-bold text-text-primary">
+            {thisWeekTotal}{' '}
+            {diff !== 0 && (
+              <span className={diff < 0 ? 'text-success' : 'text-error'}>
+                ({diff > 0 ? '+' : ''}{diff}%)
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+      {lastWeekTotal > 0 && (
+        <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
+          <span className="text-sm text-text-primary/80">vs. last week</span>
+          <span className={`text-sm font-bold ${diff <= 0 ? 'text-success' : 'text-error'}`}>
+            {diff <= 0 ? 'Improving' : 'Needs attention'}
+          </span>
+        </div>
+      )}
+      {nextAchievement && (
+        <div className="p-3 glass-subtle rounded-lg">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm text-text-primary/80">Next: {nextAchievement.title}</span>
+            <Trophy className="w-4 h-4 text-brand-primary" />
+          </div>
+          <div className="h-1.5 bg-text-primary/10 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-primary rounded-full" style={{ width: '40%' }} />
+          </div>
+        </div>
+      )}
+      {cravingTrend.length === 0 && !nextAchievement && (
+        <p className="text-sm text-text-primary/50 text-center py-2">Log cravings to see insights here</p>
+      )}
+    </div>
+  )
+}

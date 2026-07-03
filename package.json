@@ -24,6 +24,7 @@
     "pb:seed-day": "node PocketBase/seed-program-day.js",
     "pb:seed-all-days": "node PocketBase/seed-all-program-days.js",
     "pb:import-docs": "node PocketBase/import-program-docs.js",
+    "pb:setup-behavior": "node PocketBase/setup-behavior-collections.js",
     "pb:verify-backoffice": "node PocketBase/verify-backoffice.js",
     "pb:seed-sample": "node PocketBase/seed-sample.js",
     "dev:backoffice": "cd backoffice && npm run dev",

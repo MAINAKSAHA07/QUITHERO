@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import WhyWeAsk from '../../components/WhyWeAsk'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { EmotionalState } from '../../types/enums'
@@ -145,7 +146,8 @@ export default function EmotionalStates({
           <div className="text-center mb-6">
             <div className="text-4xl mb-3">💭</div>
             <h2 className="text-2xl font-bold text-text-primary mb-2">
-              How Do You Feel When You Smoke?
+              How Do You Feel When You Smoke?{' '}
+              <WhyWeAsk explanation="Your emotional patterns reveal which coping skills will work best for you. This data stays private and helps us adapt the program to your needs." />
             </h2>
             <p className="text-text-primary/70">
               Select all emotions you commonly experience right before or while smoking.
@@ -159,6 +161,8 @@ export default function EmotionalStates({
               return (
                 <motion.button
                   key={state.value}
+                  role="checkbox"
+                  aria-checked={isSelected}
                   onClick={() => handleToggleState(state.value)}
                   className={`p-4 rounded-xl border-2 transition-all text-center ${
                     isSelected

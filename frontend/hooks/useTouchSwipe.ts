@@ -1,0 +1,24 @@
+import { useRef, useCallback } from 'react'
+
+const SWIPE_THRESHOLD = 60
+
+interface SwipeHandlers {
+  onTouchStart: (e: React.TouchEvent) => void
+  onTouchEnd: (e: React.TouchEvent) => void
+}
+
+export function useTouchSwipe(onSwipeLeft?: () => void, onSwipeRight?: () => void): SwipeHandlers {
+  const startX = useRef(0)
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX
+  }, [])
+
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    const delta = e.changedTouches[0].clientX - startX.current
+    if (delta < -SWIPE_THRESHOLD && onSwipeLeft) onSwipeLeft()
+    if (delta > SWIPE_THRESHOLD && onSwipeRight) onSwipeRight()
+  }, [onSwipeLeft, onSwipeRight])
+
+  return { onTouchStart, onTouchEnd }
+}

@@ -16,8 +16,11 @@ import { programService } from '../services/program.service'
 import { sessionService } from '../services/session.service'
 import { achievementService } from '../services/achievement.service'
 import { analyticsService } from '../services/analytics.service'
+import { aiService } from '../services/ai.service'
+import { behaviorTracker } from '../services/behavior-tracker.service'
+import { useTouchSwipe } from '../hooks/useTouchSwipe'
 import { StepType, SessionStatus } from '../types/enums'
-import { ProgramDay, Step, SessionProgress } from '../types/models'
+import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types/models'
 
 export default function Session() {
   const { dayId } = useParams<{ dayId: string }>()
@@ -31,12 +34,32 @@ export default function Session() {
   const [isSaving, setIsSaving] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
+  const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
+
+  const swipeHandlers = useTouchSwipe(
+    () => { if (currentStepIndex < steps.length - 1) moveToNextStep() },
+    () => { if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1) }
+  )
 
   useEffect(() => {
     if (user?.id && dayId) {
       loadSession()
+      behaviorTracker.init(user.id)
     }
   }, [user?.id, dayId])
+
+  // Track step drop-off when user leaves mid-session
+  useEffect(() => {
+    return () => {
+      if (user?.id && programDay && currentStepIndex < steps.length - 1 && steps.length > 0) {
+        behaviorTracker.trackStepDropped(
+          programDay.day_number || 1,
+          currentStepIndex,
+          steps[currentStepIndex]?.type || 'unknown'
+        )
+      }
+    }
+  }, [currentStepIndex])
 
   const loadSession = async () => {
     if (!user?.id || !dayId) return
@@ -58,6 +81,14 @@ export default function Session() {
         setSteps(stepsResult.data.sort((a, b) => a.order - b.order))
       } else {
         console.error('Failed to fetch steps:', stepsResult.error)
+      }
+
+      // AI Personalization: Load personalized content for Day 6+
+      const dayNum = dayResult.data.day_number || 1
+      if (dayNum >= 6 && user?.id) {
+        aiService.getPersonalizedSessionContent(user.id, dayNum)
+          .then(content => { if (content) setPersonalizedContent(content) })
+          .catch(() => { /* graceful fallback to static */ })
       }
 
       // Fetch or create session progress
@@ -345,7 +376,7 @@ export default function Session() {
         right=""
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+      <div className="max-w-md mx-auto px-4 pt-6 pb-8" {...swipeHandlers}>
         {/* Progress bar */}
         <div className="mb-6">
           <div className="h-2 glass rounded-full overflow-hidden">
@@ -357,6 +388,15 @@ export default function Session() {
             />
           </div>
         </div>
+
+        {/* AI Personalized Intro (Day 6+, first step only) */}
+        {personalizedContent?.session_intro && currentStepIndex === 0 && (
+          <GlassCard className="p-5 mb-4 border-l-4 border-brand-primary/50">
+            <p className="text-text-primary/90 text-sm leading-relaxed italic">
+              {personalizedContent.session_intro}
+            </p>
+          </GlassCard>
+        )}
 
         {/* Step content */}
         <GlassCard className="p-6 mb-6">
@@ -378,10 +418,31 @@ export default function Session() {
             </div>
           </div>
 
+          {/* AI Exercise Motivation (before exercise steps) */}
+          {personalizedContent?.exercise_motivation && currentStep.type === StepType.EXERCISE && (
+            <p className="text-text-primary/80 text-sm mb-3 italic">
+              {personalizedContent.exercise_motivation}
+            </p>
+          )}
+
           <div className="mt-4">
             {renderStepComponent()}
           </div>
         </GlassCard>
+
+        {/* AI Closing Reflection (last step only) */}
+        {personalizedContent?.closing_reflection && isLastStep && (
+          <GlassCard className="p-5 mb-4 border-l-4 border-brand-accent/50">
+            <p className="text-text-primary/90 text-sm leading-relaxed italic">
+              {personalizedContent.closing_reflection}
+            </p>
+            {personalizedContent.journal_prompt && (
+              <p className="text-brand-accent text-xs mt-3 font-medium">
+                Journal prompt: {personalizedContent.journal_prompt}
+              </p>
+            )}
+          </GlassCard>
+        )}
 
         {/* Navigation */}
         <div className="flex gap-3 w-full">

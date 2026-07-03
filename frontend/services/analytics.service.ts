@@ -103,6 +103,32 @@ export class AnalyticsService extends BaseService {
   async trackProfileUpdated(userId: string): Promise<void> {
     await this.trackEvent('profile_updated', {}, userId)
   }
+
+  // ─── OKF Behavioral AI Events ─────────────────────────────────────────────
+
+  async trackNotificationSent(userId: string, triggerType: string, messageTitle: string): Promise<void> {
+    await this.trackEvent('notification_sent', { trigger_type: triggerType, message_title: messageTitle }, userId)
+  }
+
+  async trackNotificationOpened(userId: string, notificationId: string, triggerType: string): Promise<void> {
+    await this.trackEvent('notification_opened', { notification_id: notificationId, trigger_type: triggerType }, userId)
+  }
+
+  async trackStepDropped(userId: string, dayNumber: number, stepIndex: number, stepType: string): Promise<void> {
+    await this.trackEvent('step_dropped', { day_number: dayNumber, step_index: stepIndex, step_type: stepType }, userId)
+  }
+
+  async trackArchetypeRevised(userId: string, from: string, to: string, confidence: number): Promise<void> {
+    await this.trackEvent('archetype_revised', { from_archetype: from, to_archetype: to, confidence }, userId)
+  }
+
+  async trackBehaviorProfileUpdated(userId: string, phase: string): Promise<void> {
+    await this.trackEvent('behavior_profile_updated', { learning_phase: phase }, userId)
+  }
+
+  async trackPersonalizationServed(userId: string, dayNumber: number, archetype: string): Promise<void> {
+    await this.trackEvent('personalization_served', { day_number: dayNumber, archetype }, userId)
+  }
 }
 
 export const analyticsService = new AnalyticsService()

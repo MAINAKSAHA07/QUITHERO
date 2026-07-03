@@ -58,7 +58,14 @@ export default function SplashScreen() {
         >
           <SmonoLogo size="xl" />
         </motion.div>
-        <p className="text-text-primary/70 text-center text-lg mt-4 font-medium">Your Journey to Freedom</p>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="text-text-primary/70 text-center text-lg mt-4 font-medium"
+        >
+          Your Journey to Freedom
+        </motion.p>
       </motion.div>
 
       {/* Loading indicator */}
