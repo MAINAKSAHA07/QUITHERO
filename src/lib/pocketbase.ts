@@ -14,18 +14,8 @@ export const pb = new PocketBase(PB_URL)
 export const recentSort = (collection: string) =>
   collection === 'users' ? '-created' : '-id'
 
-// Always log the URL to help debug deployment issues
-console.log('[Backoffice] PocketBase URL:', PB_URL)
-console.log('[Backoffice] Environment check:', {
-  VITE_POCKETBASE_URL: import.meta.env.VITE_POCKETBASE_URL || 'NOT SET',
-  VITE_BACKOFFICE_PB_URL: import.meta.env.VITE_BACKOFFICE_PB_URL || 'NOT SET',
-  MODE: import.meta.env.MODE,
-  PROD: import.meta.env.PROD
-})
-if (!import.meta.env.VITE_POCKETBASE_URL && !import.meta.env.VITE_BACKOFFICE_PB_URL) {
-  console.error('[Backoffice] ❌ ERROR: VITE_POCKETBASE_URL is not set!')
-  console.error('[Backoffice] ⚠️ Using default localhost URL. This will NOT work in production!')
-  console.error('[Backoffice] 📝 Fix: Set VITE_POCKETBASE_URL=http://54.153.95.239:8096 in Vercel environment variables and redeploy!')
+if (import.meta.env.DEV) {
+  console.log('[Backoffice] PocketBase URL:', PB_URL)
 }
 
 // Enable auto cancellation for all pending requests
@@ -38,7 +28,6 @@ export const adminAuthHelpers = {
       const result = await pb.collection('admin_users').authWithPassword(email, password)
       return { success: true, data: result }
     } catch (error: any) {
-      console.error('Admin login failed:', error)
       return { success: false, error: error?.message || 'Login failed' }
     }
   },
@@ -73,7 +62,6 @@ export const adminCollectionHelpers = {
       })
       return { success: true, data: records }
     } catch (error: any) {
-      console.error(`Error fetching ${collectionName}:`, error)
       return { success: false, error: error.message, data: [] }
     }
   },
@@ -97,7 +85,6 @@ export const adminCollectionHelpers = {
       // Return the full result so callers can access items/total from data
       return { success: true, data: result }
     } catch (error: any) {
-      console.error(`Error fetching ${collectionName}:`, error)
       return { success: false, error: error.message, data: [], totalItems: 0, totalPages: 0 }
     }
   },
@@ -116,7 +103,6 @@ export const adminCollectionHelpers = {
       })
       return { success: true, data: record }
     } catch (error: any) {
-      console.error(`Error fetching ${collectionName}/${id}:`, error)
       return { success: false, error: error.message }
     }
   },
@@ -129,7 +115,6 @@ export const adminCollectionHelpers = {
       const record = await pb.collection(collectionName).create(data)
       return { success: true, data: record }
     } catch (error: any) {
-      console.error(`Error creating ${collectionName}:`, error)
       return { success: false, error: error.message }
     }
   },
@@ -142,7 +127,6 @@ export const adminCollectionHelpers = {
       const record = await pb.collection(collectionName).update(id, data)
       return { success: true, data: record }
     } catch (error: any) {
-      console.error(`Error updating ${collectionName}/${id}:`, error)
       return { success: false, error: error.message }
     }
   },
@@ -155,8 +139,6 @@ export const adminCollectionHelpers = {
       await pb.collection(collectionName).delete(id)
       return { success: true }
     } catch (error: any) {
-      console.error(`Error deleting ${collectionName}/${id}:`, error)
-      // Extract more detailed error information
       const errorMessage = error?.response?.message || error?.message || error?.data?.message || 'Unknown error'
       const errorStatus = error?.status || error?.response?.status
       return { 
@@ -181,7 +163,6 @@ export const adminCollectionHelpers = {
       })
       return { success: true, data: record }
     } catch (error: any) {
-      console.error(`Error fetching first ${collectionName}:`, error)
       return { success: false, error: error.message }
     }
   },
