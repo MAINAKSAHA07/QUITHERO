@@ -125,31 +125,6 @@ export default function Sessions() {
           </Card>
         </motion.div>
 
-        {/* Day Grid — inspired by smono prototype's day selector */}
-        <div className="grid grid-cols-5 gap-2 mb-6">
-          {daysWithProgress.map((d) => {
-            const isCompleted = d.status === SessionStatus.COMPLETED
-            const isInProgress = d.status === SessionStatus.IN_PROGRESS
-            const isCurrent = !d.isLocked && !isCompleted && !isInProgress
-            return (
-              <button
-                key={d.day.id}
-                onClick={() => handleDayClick(d)}
-                disabled={d.isLocked}
-                className={`aspect-square rounded-lg flex items-center justify-center text-sm font-semibold transition-all ${
-                  isCompleted ? 'bg-success/20 text-success' :
-                  isInProgress ? 'bg-primary/20 text-primary ring-2 ring-primary' :
-                  isCurrent ? 'bg-muted text-foreground hover:bg-primary/10' :
-                  'bg-muted/50 text-muted-foreground cursor-not-allowed'
-                }`}
-              >
-                {isCompleted ? <CheckCircle className="w-4 h-4" /> :
-                 d.isLocked ? <Lock className="w-3 h-3" /> :
-                 d.day.day_number}
-              </button>
-            )
-          })}
-        </div>
 
         {/* Day List */}
         <div className="space-y-2">
