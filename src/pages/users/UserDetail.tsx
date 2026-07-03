@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
-import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity } from 'lucide-react'
+import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
-type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity'
+type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity' | 'ai_insights'
 
 export const UserDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -73,6 +73,23 @@ export const UserDetail = () => {
     enabled: !!id,
   })
 
+  const { data: behaviorProfileData } = useQuery({
+    queryKey: ['user_behavior_profile', id],
+    queryFn: () => adminCollectionHelpers.getFullList('user_behavior_profiles', {
+      filter: `user = "${id}"`,
+    }),
+    enabled: !!id && activeTab === 'ai_insights',
+  })
+
+  const { data: personalizationLogsData } = useQuery({
+    queryKey: ['personalization_logs', id],
+    queryFn: () => adminCollectionHelpers.getList('personalization_logs', 1, 20, {
+      filter: `user = "${id}"`,
+      sort: '-created',
+    }),
+    enabled: !!id && activeTab === 'ai_insights',
+  })
+
   const user = userData?.data
   const profile = profileData
   const sessions = sessionsData?.data || []
@@ -89,6 +106,7 @@ export const UserDetail = () => {
     { id: 'achievements', label: 'Achievements', icon: Award },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'activity', label: 'Activity Log', icon: Activity },
+    { id: 'ai_insights', label: 'AI Insights', icon: Brain },
   ]
 
   if (userLoading) {
@@ -626,6 +644,120 @@ export const UserDetail = () => {
             <p className="text-neutral-500">Activity timeline will be displayed here</p>
         </div>
         )}
+
+        {activeTab === 'ai_insights' && (() => {
+          const bp = behaviorProfileData?.data?.[0]
+          const rawData = personalizationLogsData?.data as any
+          const logs = rawData?.items || rawData || []
+          return (
+            <div className="space-y-6">
+              {/* Behavioral Profile */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-600" />
+                  Behavioral Profile
+                </h2>
+                {!bp ? (
+                  <p className="text-neutral-500">No behavioral profile computed yet (user in observation phase or insufficient data).</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Learning Phase</div>
+                      <div className={`text-sm font-semibold ${bp.learning_phase === 'active' ? 'text-green-600' : 'text-amber-600'}`}>
+                        {bp.learning_phase === 'active' ? '🟢 Active' : '🟡 Observing'}
+                      </div>
+                      <div className="text-xs text-neutral-400">{bp.days_observed} days observed</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Assigned Archetype</div>
+                      <div className="text-sm font-semibold capitalize">{bp.assigned_archetype?.replace('_', ' ')}</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Behavioral Archetype</div>
+                      <div className="text-sm font-semibold capitalize">{bp.behavioral_archetype?.replace('_', ' ')}</div>
+                      <div className="text-xs text-neutral-400">Confidence: {((bp.archetype_confidence || 0) * 100).toFixed(0)}%</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Dominant Trigger</div>
+                      <div className="text-sm font-semibold capitalize">{bp.dominant_trigger}</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Intensity Trend</div>
+                      <div className={`text-sm font-semibold ${bp.intensity_trend === 'falling' ? 'text-green-600' : bp.intensity_trend === 'rising' ? 'text-red-600' : 'text-neutral-600'}`}>
+                        {bp.intensity_trend === 'falling' ? '↓ Falling' : bp.intensity_trend === 'rising' ? '↑ Rising' : '→ Stable'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Mood Trend</div>
+                      <div className={`text-sm font-semibold ${bp.mood_trend === 'improving' ? 'text-green-600' : bp.mood_trend === 'declining' ? 'text-red-600' : 'text-neutral-600'}`}>
+                        {bp.mood_trend === 'improving' ? '↑ Improving' : bp.mood_trend === 'declining' ? '↓ Declining' : '→ Stable'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Peak Active Hour</div>
+                      <div className="text-sm font-semibold">{bp.peak_active_hour}:00</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Avg Session Time</div>
+                      <div className="text-sm font-semibold">{bp.avg_session_minutes} min</div>
+                    </div>
+                    <div className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 mb-1">Notification Open Rate</div>
+                      <div className="text-sm font-semibold">{((bp.notification_open_rate || 0) * 100).toFixed(0)}%</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Personalization Log */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-4">Personalization Log (Last 7 Days)</h2>
+                {(logs as any[]).length === 0 ? (
+                  <p className="text-neutral-500">No personalization events yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="pb-2 text-neutral-500 font-medium">Date</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Type</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Day</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Archetype</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Score</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Docs Loaded</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(logs as any[]).map((log: any) => (
+                          <tr key={log.id} className="border-b last:border-0">
+                            <td className="py-2 text-neutral-600">{log.created ? formatDistanceToNow(new Date(log.created), { addSuffix: true }) : '-'}</td>
+                            <td className="py-2">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                log.request_type === 'session_content' ? 'bg-blue-50 text-blue-700' :
+                                log.request_type === 'notification' ? 'bg-purple-50 text-purple-700' :
+                                'bg-neutral-100 text-neutral-600'
+                              }`}>{log.request_type}</span>
+                            </td>
+                            <td className="py-2 text-neutral-600">Day {log.day_number}</td>
+                            <td className="py-2 capitalize text-neutral-600">{log.archetype_used?.replace('_', ' ')}</td>
+                            <td className="py-2">
+                              {log.content_fit_score != null ? (
+                                <span className={`font-medium ${log.content_fit_score >= 8 ? 'text-green-600' : log.content_fit_score >= 6 ? 'text-amber-600' : 'text-red-600'}`}>
+                                  {log.content_fit_score}/10
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="py-2 text-xs text-neutral-400">{(log.okf_docs_loaded || []).length} docs</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
