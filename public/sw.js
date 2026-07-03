@@ -1,5 +1,5 @@
 // ponytail: minimal service worker for PWA installability + offline shell
-const CACHE = 'smono-v1'
+const CACHE = 'smono-v2'
 const SHELL = ['/', '/index.html']
 
 self.addEventListener('install', (e) => {
@@ -35,7 +35,11 @@ self.addEventListener('fetch', (e) => {
       .catch(() =>
         caches.match(e.request).then((cached) => {
           if (cached) return cached
-          if (isNavigate) return caches.match('/index.html')
+          if (isNavigate) {
+            return caches.match('/index.html').then(
+              (html) => html || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/html' } })
+            )
+          }
           return new Response('', { status: 408, statusText: 'Offline' })
         })
       )
