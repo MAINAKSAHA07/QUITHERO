@@ -344,11 +344,10 @@ Respond with JSON:
   }
 
   private async getRecentCravings(userId: string): Promise<any[]> {
-    const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
     try {
       return await pb.collection('cravings').getFullList({
-        filter: `user="${userId}" && created>="${since}"`,
-        sort: '-created',
+        filter: `user="${userId}"`,
+        sort: '-id',
       })
     } catch { return [] }
   }

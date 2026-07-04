@@ -66,42 +66,38 @@ class BehaviorProfileService {
 
   // ─── Private Computation Methods ───────────────────────────────────────────
 
-  private async getRecentEvents(userId: string, days: number) {
-    const since = new Date(Date.now() - days * 86400000).toISOString()
+  private async getRecentEvents(userId: string, _days: number) {
     try {
       return await pb.collection('analytics_events').getFullList({
-        filter: `user="${userId}" && created>="${since}"`,
-        sort: '-created',
+        filter: `user="${userId}"`,
+        sort: '-id',
       })
     } catch { return [] }
   }
 
-  private async getRecentCravings(userId: string, days: number) {
-    const since = new Date(Date.now() - days * 86400000).toISOString()
+  private async getRecentCravings(userId: string, _days: number) {
     try {
       return await pb.collection('cravings').getFullList({
-        filter: `user="${userId}" && created>="${since}"`,
-        sort: '-created',
+        filter: `user="${userId}"`,
+        sort: '-id',
       })
     } catch { return [] }
   }
 
-  private async getRecentJournals(userId: string, days: number) {
-    const since = new Date(Date.now() - days * 86400000).toISOString()
+  private async getRecentJournals(userId: string, _days: number) {
     try {
       return await pb.collection('journal_entries').getFullList({
-        filter: `user="${userId}" && created>="${since}"`,
-        sort: '-created',
+        filter: `user="${userId}"`,
+        sort: '-id',
       })
     } catch { return [] }
   }
 
-  private async getRecentSessions(userId: string, days: number) {
-    const since = new Date(Date.now() - days * 86400000).toISOString()
+  private async getRecentSessions(userId: string, _days: number) {
     try {
       return await pb.collection('session_progress').getFullList({
-        filter: `user="${userId}" && created>="${since}"`,
-        sort: '-created',
+        filter: `user="${userId}"`,
+        sort: '-id',
       })
     } catch { return [] }
   }

@@ -51,16 +51,18 @@ export default function Home() {
       const today = new Date().getDate()
       setMotivationalQuote(motivationalQuotes[today % motivationalQuotes.length])
 
-      // H4: Today's craving/slip counts
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-      const todayCravingsResult = await cravingService.getAll({
-        filter: `user="${user.id}" && created>="${todayStart.toISOString()}"`,
-      })
-      if (todayCravingsResult.success && todayCravingsResult.data) {
-        const items = todayCravingsResult.data
-        setTodayCravings(items.filter((c: any) => c.type === 'craving').length)
-        setTodaySlips(items.filter((c: any) => c.type === 'slip').length)
-      }
+      // H4: Today's craving/slip counts — fetch all and filter client-side
+      // (cravings collection may lack `created` system field)
+      try {
+        const allCravingsResult = await cravingService.getAll({
+          filter: `user="${user.id}"`,
+        })
+        if (allCravingsResult.success && allCravingsResult.data) {
+          const items = allCravingsResult.data
+          setTodayCravings(items.filter((c: any) => c.type === 'craving').length)
+          setTodaySlips(items.filter((c: any) => c.type === 'slip').length)
+        }
+      } catch { /* graceful fallback */ }
     } catch {
       setSlipsCount(0)
     } finally {
