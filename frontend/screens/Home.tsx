@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Cigarette, DollarSign, Droplet, Wind, ArrowRight, Quote, RefreshCw, Shield, Plus } from 'lucide-react'
+import { Calendar, Cigarette, Droplet, Wind, ArrowRight, Quote, RefreshCw, Shield, Plus } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Progress } from '../components/ui/progress'
@@ -17,7 +17,7 @@ import { programService } from '../services/program.service'
 import { analyticsService } from '../services/analytics.service'
 import { CravingType, CravingTrigger } from '../types/enums'
 import { haptic, hapticPatterns } from '../utils/haptic'
-import { formatMoney } from '../utils/currency'
+import { formatMoney, getCountryConfig } from '../utils/currency'
 
 const MILESTONE_DAYS = [3, 7, 14, 30]
 
@@ -114,7 +114,8 @@ export default function Home() {
     const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
     const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
-    return { daysSmokeFree, moneySaved, moneySavedFormatted, slipsCount, nicotineNotConsumed }
+    const currencySymbol = getCountryConfig(userProfile?.country).symbol
+    return { daysSmokeFree, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed }
   }, [stats, calculation, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
@@ -160,7 +161,7 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 <StatBlock icon={Calendar} value={displayStats.daysSmokeFree > 0 ? displayStats.daysSmokeFree.toString() : `Day ${currentDay}`} label={displayStats.daysSmokeFree > 0 ? "Days Smoke-Free" : "Program"} color="text-info" />
                 <StatBlock icon={Cigarette} value={displayStats.slipsCount.toString()} label="Cigarettes" color="text-destructive" />
-                <StatBlock icon={DollarSign} value={displayStats.moneySavedFormatted} label="Money Saved" color="text-success" />
+                <StatBlock iconText={displayStats.currencySymbol} value={displayStats.moneySavedFormatted} label="Money Saved" color="text-success" />
                 <StatBlock icon={Droplet} value={`${Math.round(displayStats.nicotineNotConsumed)}mg`} label="Nicotine Avoided" color="text-primary" />
               </div>
             </CardContent>
@@ -279,10 +280,14 @@ export default function Home() {
   )
 }
 
-function StatBlock({ icon: Icon, value, label, color }: { icon: any; value: string; label: string; color: string }) {
+function StatBlock({ icon: Icon, iconText, value, label, color }: { icon?: any; iconText?: string; value: string; label: string; color: string }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-      <Icon className={`w-5 h-5 ${color} flex-shrink-0`} />
+      {Icon ? (
+        <Icon className={`w-5 h-5 ${color} flex-shrink-0`} />
+      ) : iconText ? (
+        <span className={`text-lg font-bold ${color} flex-shrink-0 w-5 text-center`}>{iconText}</span>
+      ) : null}
       <div className="min-w-0">
         <div className="text-lg font-bold text-foreground leading-tight">{value}</div>
         <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
