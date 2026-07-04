@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw } from 'lucide-react'
+import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, CalendarCheck, Shield, Target } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
@@ -10,7 +10,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
 import { useCravings } from '../hooks/useCravings'
+import { useSessions } from '../hooks/useSessions'
 import { useAchievements } from '../hooks/useAchievements'
+import { profileService } from '../services/profile.service'
+import { cravingService } from '../services/craving.service'
 import { analyticsService } from '../services/analytics.service'
 import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
@@ -40,6 +43,7 @@ export default function Progress() {
   const { user } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const { getTrend, getTriggerBreakdown } = useCravings()
+  const { currentSession } = useSessions()
   const { achievements, isUnlocked, checkAndUnlock } = useAchievements()
   
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('week')
@@ -48,6 +52,15 @@ export default function Progress() {
   const [loading, setLoading] = useState(false)
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null)
   const [showNotification, setShowNotification] = useState(false)
+  const [preQuitData, setPreQuitData] = useState<{
+    isPreQuit: boolean
+    daysUntilQuit: number
+    quitDateStr: string
+    totalCravings: number
+    totalResisted: number
+    programDay: number
+    programPercent: number
+  } | null>(null)
 
   // Load data on mount
   useEffect(() => {
@@ -63,6 +76,33 @@ export default function Progress() {
     try {
       // Refresh progress
       await refreshProgressData()
+
+      // Check if user is in pre-quit phase
+      try {
+        const profileResult = await profileService.getByUserId(user.id)
+        if (profileResult.success && profileResult.data) {
+          const quitDate = profileResult.data.quit_date ? new Date(profileResult.data.quit_date) : null
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (quitDate && quitDate.getTime() > today.getTime()) {
+            const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            const allCravings = await cravingService.getAll({ filter: `user="${user.id}"` })
+            const items = allCravings.success && allCravings.data ? allCravings.data : []
+            const day = currentSession?.current_day || 1
+            setPreQuitData({
+              isPreQuit: true,
+              daysUntilQuit: daysUntil,
+              quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              totalCravings: items.length,
+              totalResisted: items.filter((c: any) => c.type === 'craving').length,
+              programDay: day,
+              programPercent: Math.round((day / 30) * 100),
+            })
+          } else {
+            setPreQuitData(null)
+          }
+        }
+      } catch { /* continue with normal flow */ }
 
       // Get craving trend
       const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
@@ -189,62 +229,125 @@ export default function Progress() {
       )}
 
       <div className="app-container px-3 sm:px-4 pt-6 pb-8">
-        {/* Overall Stats Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <GlassCard className="p-6 mb-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
-            <div className="text-center mb-6">
-              <div className="text-5xl font-bold text-brand-primary mb-2">
-                {overallStats.daysSmokeFree}
+        {/* Pre-Quit Countdown Card */}
+        {preQuitData?.isPreQuit && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <GlassCard className="p-6 mb-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
+              <div className="text-center mb-6">
+                <div className="text-5xl font-bold text-brand-primary mb-2">
+                  {preQuitData.daysUntilQuit}
+                </div>
+                <div className="text-lg font-semibold text-text-primary mb-1">
+                  <TranslatedText text="DAYS UNTIL QUIT DATE" />
+                </div>
+                <p className="text-sm text-text-primary/60">
+                  Your quit date: {preQuitData.quitDateStr}
+                </p>
               </div>
-              <div className="text-lg font-semibold text-text-primary mb-1">
-                <TranslatedText text="DAYS SMOKE-FREE" />
-              </div>
-              <Trophy className="w-8 h-8 text-brand-primary mx-auto" />
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="glass-subtle p-4 rounded-xl text-center">
-                <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
-                <div className="text-xl font-bold text-text-primary">
-                  ₹{overallStats.moneySaved}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <Target className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    Day {preQuitData.programDay}
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Program" />
+                  </div>
                 </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Money saved" />
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {preQuitData.programPercent}%
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Complete" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <Shield className="w-6 h-6 text-success mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {preQuitData.totalResisted}
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Cravings resisted" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <CalendarCheck className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {preQuitData.totalCravings}
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Total logged" />
+                  </div>
                 </div>
               </div>
-              <div className="glass-subtle p-4 rounded-xl text-center">
-                <Cigarette className="w-6 h-6 text-info mx-auto mb-2" />
-                <div className="text-xl font-bold text-text-primary">
-                  {overallStats.cigarettesNotSmoked}
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {/* Overall Stats Card (post-quit) */}
+        {!preQuitData?.isPreQuit && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <GlassCard className="p-6 mb-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
+              <div className="text-center mb-6">
+                <div className="text-5xl font-bold text-brand-primary mb-2">
+                  {overallStats.daysSmokeFree}
                 </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Not smoked" />
+                <div className="text-lg font-semibold text-text-primary mb-1">
+                  <TranslatedText text="DAYS SMOKE-FREE" />
+                </div>
+                <Trophy className="w-8 h-8 text-brand-primary mx-auto" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    ₹{overallStats.moneySaved}
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Money saved" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <Cigarette className="w-6 h-6 text-info mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {overallStats.cigarettesNotSmoked}
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Not smoked" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <Clock className="w-6 h-6 text-success mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {overallStats.lifeRegained}h
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Life regained" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    +{overallStats.healthImprovement}%
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Lung capacity" />
+                  </div>
                 </div>
               </div>
-              <div className="glass-subtle p-4 rounded-xl text-center">
-                <Clock className="w-6 h-6 text-success mx-auto mb-2" />
-                <div className="text-xl font-bold text-text-primary">
-                  {overallStats.lifeRegained}h
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Life regained" />
-                </div>
-              </div>
-              <div className="glass-subtle p-4 rounded-xl text-center">
-                <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
-                <div className="text-xl font-bold text-text-primary">
-                  +{overallStats.healthImprovement}%
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Lung capacity" />
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
+            </GlassCard>
+          </motion.div>
+        )}
 
         {/* H5: Dynamic Insights */}
         <motion.div

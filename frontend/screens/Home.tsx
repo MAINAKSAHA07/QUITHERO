@@ -156,7 +156,7 @@ export default function Home() {
           <Card>
             <CardContent className="p-5">
               <div className="grid grid-cols-2 gap-4">
-                <StatBlock icon={Calendar} value={displayStats.daysSmokeFree.toString()} label="Days Tracked" color="text-info" />
+                <StatBlock icon={Calendar} value={displayStats.daysSmokeFree > 0 ? displayStats.daysSmokeFree.toString() : `Day ${currentDay}`} label={displayStats.daysSmokeFree > 0 ? "Days Smoke-Free" : "Program"} color="text-info" />
                 <StatBlock icon={Cigarette} value={displayStats.slipsCount.toString()} label="Cigarettes" color="text-destructive" />
                 <StatBlock icon={DollarSign} value={`₹${Math.round(displayStats.moneySaved)}`} label="Money Saved" color="text-success" />
                 <StatBlock icon={Droplet} value={`${Math.round(displayStats.nicotineNotConsumed)}mg`} label="Nicotine Avoided" color="text-primary" />
