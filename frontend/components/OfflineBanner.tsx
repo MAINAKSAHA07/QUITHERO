@@ -27,7 +27,7 @@ export default function OfflineBanner() {
           exit={{ y: -100 }}
           className="fixed top-0 left-0 right-0 z-50 bg-error/90 backdrop-blur-sm text-white py-2 px-4"
         >
-          <div className="max-w-md mx-auto flex items-center justify-center gap-2">
+          <div className="app-container flex items-center justify-center gap-2">
             <WifiOff className="w-4 h-4" />
             <span className="text-sm font-medium">You're offline. Some features may be unavailable.</span>
           </div>

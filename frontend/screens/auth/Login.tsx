@@ -107,7 +107,7 @@ export default function Login() {
     <div className="min-h-screen pb-20">
       <TopNavigation left="logo" center="" right="" />
 
-      <div className="max-w-md mx-auto px-4 pt-8">
+      <div className="app-container px-3 sm:px-4 pt-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

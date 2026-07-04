@@ -83,7 +83,7 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
     <>
       <TopNavigation left="back" center={`Step ${step}/${totalSteps}`} right="" />
       
-      <div className="max-w-md mx-auto px-4 pt-8">
+      <div className="app-container px-3 sm:px-4 pt-8">
         <div className="mb-8">
           <div className="flex gap-2 mb-2">
             {Array.from({ length: totalSteps }).map((_, i) => (

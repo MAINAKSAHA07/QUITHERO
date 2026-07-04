@@ -89,22 +89,22 @@ export default function TopNavigation({
   return (
     <>
       <nav
-        className={`sticky top-0 z-40 ${
+        className={`sticky top-0 z-40 safe-area-top ${
           showGlass ? 'glass-strong border-b border-white/30' : ''
         }`}
       >
-        <div className="max-w-md mx-auto flex items-center justify-between px-4 py-3">
-          <div className="flex-1 flex items-center">{renderLeft()}</div>
-          <div className="flex-1 text-center">
+        <div className="app-container flex items-center justify-between px-3 sm:px-4 py-3">
+          <div className="flex-shrink-0 flex items-center">{renderLeft()}</div>
+          <div className="flex-1 text-center min-w-0 px-2">
             {typeof center === 'string' ? (
-              <h1 className="text-lg font-semibold text-text-primary truncate">
+              <h1 className="text-base sm:text-lg font-semibold text-text-primary truncate">
                 <TranslatedText text={center} />
               </h1>
             ) : (
               center
             )}
           </div>
-          <div className="flex-1 flex justify-end items-center">{renderRight()}</div>
+          <div className="flex-shrink-0 flex justify-end items-center">{renderRight()}</div>
         </div>
       </nav>
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

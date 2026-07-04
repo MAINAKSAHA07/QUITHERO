@@ -147,7 +147,7 @@ export default function Progress() {
   }, [achievements, isUnlocked])
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen min-h-[100dvh] pb-24">
       <TopNavigation
         left="menu"
         center="Your Progress"
@@ -188,7 +188,7 @@ export default function Progress() {
         />
       )}
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
         {/* Overall Stats Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

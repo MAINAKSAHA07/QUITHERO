@@ -251,7 +251,7 @@ export default function CravingSupport() {
           right=""
         />
 
-        <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+        <div className="app-container px-3 sm:px-4 pt-6 pb-8">
           <GlassCard className="p-6 mb-6">
             {slipped && (
               <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-xl">
@@ -395,7 +395,7 @@ export default function CravingSupport() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md mx-auto px-4"
+          className="app-container px-3 sm:px-4"
         >
           <GlassCard className="p-8 text-center">
             <motion.div
@@ -433,7 +433,7 @@ export default function CravingSupport() {
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

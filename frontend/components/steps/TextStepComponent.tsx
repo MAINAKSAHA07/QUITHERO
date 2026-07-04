@@ -23,7 +23,6 @@ function formatText(text: string) {
         </ul>
       )
     }
-    // ponytail: simple numbered list detection for "1. …" lines
     const isNumbered = lines.length > 1 && lines.every(l => /^\d+[.)]\s/.test(l) || l.trim() === '')
     if (isNumbered) {
       return (
@@ -63,15 +62,15 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
           />
         </div>
       )}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {content.title && (
-          <h3 className="text-xl font-bold text-text-primary leading-snug">{content.title}</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-text-primary leading-snug">{content.title}</h3>
         )}
-        <div className="text-text-primary/90 leading-relaxed space-y-4 text-[15px]">
+        <div className="text-text-primary/90 leading-relaxed space-y-3 sm:space-y-4 text-sm sm:text-[15px]">
           {formatText(content.text || '')}
         </div>
       </div>
-      <div className="pt-4">
+      <div className="pt-3 sm:pt-4">
         <GlassButton
           onClick={(e?: React.MouseEvent) => {
             e?.preventDefault()
@@ -79,7 +78,7 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
             onNext()
           }}
           fullWidth
-          className="py-4"
+          className="py-3.5 sm:py-4 touch-target"
           type="button"
         >
           Continue

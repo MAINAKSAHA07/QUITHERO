@@ -333,16 +333,16 @@ export default function Session() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pb-20">
+      <div className="min-h-screen min-h-[100dvh] pb-20">
         <TopNavigation left="back" center="Loading..." right="" />
-        <div className="max-w-md mx-auto px-4 pt-6">
+        <div className="app-container px-3 sm:px-4 pt-6">
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
             <img
               src="/mascot.png"
               alt="Loading..."
-              className="w-48 h-48 object-contain animate-bounce"
+              className="w-32 h-32 sm:w-48 sm:h-48 object-contain animate-bounce"
             />
-            <p className="text-text-primary/70 text-base font-medium">Loading session...</p>
+            <p className="text-text-primary/70 text-sm sm:text-base font-medium">Loading session...</p>
           </div>
         </div>
       </div>
@@ -351,9 +351,9 @@ export default function Session() {
 
   if (!programDay || steps.length === 0) {
     return (
-      <div className="min-h-screen pb-20">
+      <div className="min-h-screen min-h-[100dvh] pb-20">
         <TopNavigation left="back" center="Session" right="" />
-        <div className="max-w-md mx-auto px-4 pt-6">
+        <div className="app-container px-3 sm:px-4 pt-6">
           <GlassCard className="p-6 text-center">
             <p className="text-text-primary">Session not found</p>
             <GlassButton onClick={() => navigate('/sessions')} className="mt-4">
@@ -369,17 +369,17 @@ export default function Session() {
   const isLastStep = currentStepIndex === steps.length - 1
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen min-h-[100dvh] pb-24">
       <TopNavigation
         left="back"
         center={`Day ${programDay.day_number}: Step ${currentStepIndex + 1}/${steps.length}`}
         right=""
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8" {...swipeHandlers}>
+      <div className="app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8" {...swipeHandlers}>
         {/* Progress bar */}
-        <div className="mb-6">
-          <div className="h-2 glass rounded-full overflow-hidden">
+        <div className="mb-4 sm:mb-6">
+          <div className="h-1.5 sm:h-2 glass rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-brand-primary to-brand-accent"
               initial={{ width: 0 }}
@@ -399,16 +399,16 @@ export default function Session() {
         )}
 
         {/* Step content */}
-        <GlassCard className="p-6 mb-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold text-text-primary mb-1">
+        <GlassCard className="p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
               {programDay.title}
             </h2>
             {programDay.subtitle && (
-              <p className="text-sm text-text-primary/60 mb-3">{programDay.subtitle}</p>
+              <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{programDay.subtitle}</p>
             )}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-subtle">
-              <span className="text-xs font-medium text-text-primary/70">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full glass-subtle">
+              <span className="text-[11px] sm:text-xs font-medium text-text-primary/70">
                 {currentStep.type === StepType.TEXT && 'Reading'}
                 {currentStep.type === StepType.QUESTION_MCQ && 'Quiz'}
                 {currentStep.type === StepType.QUESTION_OPEN && 'Reflection'}

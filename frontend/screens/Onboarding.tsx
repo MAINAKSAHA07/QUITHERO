@@ -73,7 +73,7 @@ export default function Onboarding() {
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-12" {...swipeHandlers}>
+      <div className="app-container px-3 sm:px-4 pt-12" {...swipeHandlers}>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}

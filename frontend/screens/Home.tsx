@@ -137,18 +137,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-background">
+    <div className="min-h-screen min-h-[100dvh] pb-24 bg-background">
       <TopNavigation
         left="menu"
         center="smono"
         right={
-          <button onClick={loadData} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-muted transition-colors">
+          <button onClick={loadData} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-muted transition-colors touch-target">
             <RefreshCw className={`w-5 h-5 text-foreground ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
           </button>
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8 space-y-5">
+      <div className="app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8 space-y-4 sm:space-y-5">
         {/* Hero Stats — inspired by smono prototype stat counters */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <Card>

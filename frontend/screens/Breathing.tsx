@@ -259,7 +259,7 @@ export default function Breathing() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md mx-auto px-4 w-full"
+          className="app-container px-3 sm:px-4 w-full"
         >
           <GlassCard className="p-8 text-center">
             <motion.div
@@ -328,7 +328,7 @@ export default function Breathing() {
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
         {!isPlaying ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

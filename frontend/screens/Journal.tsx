@@ -185,7 +185,7 @@ export default function Journal() {
   }
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen min-h-[100dvh] pb-24">
       <TopNavigation
         left="menu"
         center="Your Journal"
@@ -204,7 +204,7 @@ export default function Journal() {
         }
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6 pb-8">
+      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
         {/* Date Filter */}
         <div className="mb-6">
           <div className="flex gap-2">

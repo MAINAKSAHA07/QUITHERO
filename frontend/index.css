@@ -111,6 +111,22 @@ html {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* App shell — ensures proper centering on tablets/desktop while full-width on mobile */
+.app-container {
+  @apply w-full mx-auto;
+  max-width: 480px;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 420px;
+  }
+}
+
 /* Button group alignment */
 .button-group {
   @apply flex gap-3 w-full;
@@ -118,5 +134,18 @@ html {
 
 .button-group > * {
   @apply flex-1 min-w-0;
+}
+
+/* Responsive text scaling for small devices */
+@media (max-width: 359px) {
+  .responsive-text {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Touch targets — ensure minimum 44px on all devices */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 

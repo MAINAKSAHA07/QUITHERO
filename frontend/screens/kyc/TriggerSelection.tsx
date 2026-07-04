@@ -111,7 +111,7 @@ export default function TriggerSelection({
         right=""
       />
 
-      <div className="max-w-md mx-auto px-4 pt-6">
+      <div className="app-container px-3 sm:px-4 pt-6">
         {/* Progress bar */}
         <div className="mb-6">
           <div className="h-2 glass rounded-full overflow-hidden">

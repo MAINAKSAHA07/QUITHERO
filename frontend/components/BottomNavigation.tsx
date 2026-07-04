@@ -22,7 +22,7 @@ export default function BottomNavigation() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-white/30" aria-label="Main navigation">
-      <div className="max-w-md mx-auto flex items-center justify-around px-4 py-3 safe-area-bottom">
+      <div className="app-container flex items-center justify-around px-2 sm:px-4 py-2 sm:py-3 safe-area-bottom">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)
