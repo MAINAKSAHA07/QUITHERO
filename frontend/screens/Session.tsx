@@ -83,12 +83,14 @@ export default function Session() {
         console.error('Failed to fetch steps:', stepsResult.error)
       }
 
-      // AI Personalization: Load personalized content for Day 6+
+      // AI Personalization: Active from Day 1 using onboarding data.
+      // Days 1-5: uses onboarding profile (triggers, motivations, fear index, consumption).
+      // Days 6+: additionally uses behavioral signals once learning_phase = 'active'.
       const dayNum = dayResult.data.day_number || 1
-      if (dayNum >= 6 && user?.id) {
+      if (user?.id) {
         aiService.getPersonalizedSessionContent(user.id, dayNum)
           .then(content => { if (content) setPersonalizedContent(content) })
-          .catch(() => { /* graceful fallback to static */ })
+          .catch(() => { /* graceful fallback to static content */ })
       }
 
       // Fetch or create session progress
