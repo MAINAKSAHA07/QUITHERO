@@ -26,6 +26,7 @@ export interface UserProfile {
   age?: number
   gender?: Gender
   language?: Language
+  country?: string
   quit_date: string // Date string
   daily_reminder_time?: string // Format: "HH:MM"
   nicotine_forms?: string[] // JSON array

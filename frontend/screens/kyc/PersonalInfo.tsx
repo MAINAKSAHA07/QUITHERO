@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Calendar, MapPin } from 'lucide-react'
+import { Calendar, Globe } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
@@ -7,6 +7,7 @@ import GlassInput from '../../components/GlassInput'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { Gender, Language } from '../../types/enums'
+import { getCountryList } from '../../utils/currency'
 
 interface PersonalInfoProps {
   step: number
@@ -15,11 +16,13 @@ interface PersonalInfoProps {
   onBack: () => void
 }
 
+const countries = getCountryList()
+
 export default function PersonalInfo({ step, totalSteps, onNext, onBack }: PersonalInfoProps) {
   const { user, updateUserProfile, language } = useApp()
   const [age, setAge] = useState('')
   const [gender, setGender] = useState<Gender | ''>('')
-  const [location, setLocation] = useState('')
+  const [country, setCountry] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,7 +48,7 @@ export default function PersonalInfo({ step, totalSteps, onNext, onBack }: Perso
         age: parseInt(age),
         gender: gender as Gender,
         language: userLanguage,
-        ...(location && { location }),
+        ...(country && { country }),
       })
 
       if (result.success && result.data) {
@@ -127,14 +130,21 @@ export default function PersonalInfo({ step, totalSteps, onNext, onBack }: Perso
             </div>
           </div>
 
-          <GlassInput
-            type="text"
-            label="Location (Optional)"
-            placeholder="City, Country"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            icon={<MapPin className="w-5 h-5" />}
-          />
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              <Globe className="w-4 h-4 inline mr-1" /> Country
+            </label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full glass-input py-3 px-4 rounded-xl text-text-primary bg-white/10 border border-white/20 focus:ring-2 focus:ring-brand-primary"
+            >
+              <option value="">Select your country</option>
+              {countries.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </GlassCard>
 
         <div className="flex gap-3 mt-8 w-full">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, CalendarCheck, Shield, Target } from 'lucide-react'
+import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
@@ -17,6 +17,7 @@ import { cravingService } from '../services/craving.service'
 import { analyticsService } from '../services/analytics.service'
 import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
+import { formatMoney } from '../utils/currency'
 
 // Health milestones configuration
 const HEALTH_MILESTONES = [
@@ -52,6 +53,7 @@ export default function Progress() {
   const [loading, setLoading] = useState(false)
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null)
   const [showNotification, setShowNotification] = useState(false)
+  const [userCountry, setUserCountry] = useState<string | undefined>(undefined)
   const [preQuitData, setPreQuitData] = useState<{
     isPreQuit: boolean
     daysUntilQuit: number
@@ -60,6 +62,8 @@ export default function Progress() {
     totalResisted: number
     programDay: number
     programPercent: number
+    moneySaved: string
+    nicotineAvoided: number
   } | null>(null)
 
   // Load data on mount
@@ -81,6 +85,7 @@ export default function Progress() {
       try {
         const profileResult = await profileService.getByUserId(user.id)
         if (profileResult.success && profileResult.data) {
+          setUserCountry(profileResult.data.country)
           const quitDate = profileResult.data.quit_date ? new Date(profileResult.data.quit_date) : null
           const today = new Date()
           today.setHours(0, 0, 0, 0)
@@ -88,15 +93,20 @@ export default function Progress() {
             const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
             const allCravings = await cravingService.getAll({ filter: `user="${user.id}"` })
             const items = allCravings.success && allCravings.data ? allCravings.data : []
+            const resisted = items.filter((c: any) => c.type === 'craving').length
             const day = currentSession?.current_day || 1
+            const { getCountryConfig } = await import('../utils/currency')
+            const config = getCountryConfig(profileResult.data.country)
             setPreQuitData({
               isPreQuit: true,
               daysUntilQuit: daysUntil,
               quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
               totalCravings: items.length,
-              totalResisted: items.filter((c: any) => c.type === 'craving').length,
+              totalResisted: resisted,
               programDay: day,
               programPercent: Math.round((day / 30) * 100),
+              moneySaved: formatMoney(resisted * config.pricePerCigarette, profileResult.data.country),
+              nicotineAvoided: Math.round(resisted * config.nicotinePerCigarette * 10) / 10,
             })
           } else {
             setPreQuitData(null)
@@ -259,15 +269,6 @@ export default function Progress() {
                   </div>
                 </div>
                 <div className="glass-subtle p-4 rounded-xl text-center">
-                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {preQuitData.programPercent}%
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Complete" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
                   <Shield className="w-6 h-6 text-success mx-auto mb-2" />
                   <div className="text-xl font-bold text-text-primary">
                     {preQuitData.totalResisted}
@@ -277,12 +278,21 @@ export default function Progress() {
                   </div>
                 </div>
                 <div className="glass-subtle p-4 rounded-xl text-center">
-                  <CalendarCheck className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                  <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
                   <div className="text-xl font-bold text-text-primary">
-                    {preQuitData.totalCravings}
+                    {preQuitData.moneySaved}
                   </div>
                   <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Total logged" />
+                    <TranslatedText text="Money saved" />
+                  </div>
+                </div>
+                <div className="glass-subtle p-4 rounded-xl text-center">
+                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
+                  <div className="text-xl font-bold text-text-primary">
+                    {preQuitData.nicotineAvoided}mg
+                  </div>
+                  <div className="text-xs text-text-primary/70">
+                    <TranslatedText text="Nicotine avoided" />
                   </div>
                 </div>
               </div>
@@ -308,15 +318,15 @@ export default function Progress() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    ₹{overallStats.moneySaved}
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Money saved" />
-                  </div>
+              <div className="glass-subtle p-4 rounded-xl text-center">
+                <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                <div className="text-xl font-bold text-text-primary">
+                  {formatMoney(overallStats.moneySaved, userCountry)}
                 </div>
+                <div className="text-xs text-text-primary/70">
+                  <TranslatedText text="Money saved" />
+                </div>
+              </div>
                 <div className="glass-subtle p-4 rounded-xl text-center">
                   <Cigarette className="w-6 h-6 text-info mx-auto mb-2" />
                   <div className="text-xl font-bold text-text-primary">

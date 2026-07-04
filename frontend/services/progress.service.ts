@@ -4,6 +4,7 @@ import { ApiResponse } from '../types/api'
 import { pb } from '../lib/pocketbase'
 import { profileService } from './profile.service'
 import { cravingService } from './craving.service'
+import { getCountryConfig } from '../utils/currency'
 
 export class ProgressService extends BaseService {
   constructor() {
@@ -51,6 +52,8 @@ export class ProgressService extends BaseService {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
+      const countryConfig = getCountryConfig(userProfile.country)
+
       // Calculate days smoke-free
       const daysSmokeFree = Math.max(0, Math.floor((today.getTime() - quitDate.getTime()) / (1000 * 60 * 60 * 24)))
 
@@ -58,20 +61,30 @@ export class ProgressService extends BaseService {
       const slipsResult = await cravingService.getCountByType(userId, 'slip')
       const cigarettesSmoked = slipsResult.success ? (slipsResult.data || 0) : 0
 
-      // Calculate cigarettes not smoked
+      // Fetch cravings resisted
+      const resistedResult = await cravingService.getCountByType(userId, 'craving')
+      const cravingsResisted = resistedResult.success ? (resistedResult.data || 0) : 0
+
       const dailyConsumption = userProfile.daily_consumption || 0
-      const cigarettesNotSmoked = Math.max(0, daysSmokeFree * dailyConsumption - cigarettesSmoked)
 
-      // Calculate money saved (assuming ₹8 per cigarette, can be configurable)
-      const pricePerCigarette = 8
-      const moneySaved = cigarettesNotSmoked * pricePerCigarette
+      let cigarettesNotSmoked: number
+      let moneySaved: number
+      let nicotineNotConsumed: number
 
-      // Calculate life regained (11 minutes per cigarette)
+      if (daysSmokeFree > 0) {
+        // Post-quit: calculate based on days * daily consumption minus slips
+        cigarettesNotSmoked = Math.max(0, daysSmokeFree * dailyConsumption - cigarettesSmoked)
+        moneySaved = cigarettesNotSmoked * countryConfig.pricePerCigarette
+        nicotineNotConsumed = cigarettesNotSmoked * countryConfig.nicotinePerCigarette
+      } else {
+        // Pre-quit: each resisted craving = 1 cigarette not smoked
+        cigarettesNotSmoked = cravingsResisted
+        moneySaved = cravingsResisted * countryConfig.pricePerCigarette
+        nicotineNotConsumed = cravingsResisted * countryConfig.nicotinePerCigarette
+      }
+
+      // Life regained: 11 minutes per cigarette not smoked
       const lifeRegainedHours = (cigarettesNotSmoked * 11) / 60
-
-      // Calculate nicotine not consumed (assuming 0.8mg per cigarette)
-      const nicotinePerCigarette = 0.8
-      const nicotineNotConsumed = cigarettesNotSmoked * nicotinePerCigarette
 
       const calculation: ProgressCalculation = {
         days_smoke_free: daysSmokeFree,

@@ -17,6 +17,7 @@ import { programService } from '../services/program.service'
 import { analyticsService } from '../services/analytics.service'
 import { CravingType, CravingTrigger } from '../types/enums'
 import { haptic, hapticPatterns } from '../utils/haptic'
+import { formatMoney } from '../utils/currency'
 
 const MILESTONE_DAYS = [3, 7, 14, 30]
 
@@ -29,7 +30,7 @@ const motivationalQuotes = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user } = useApp()
+  const { user, userProfile } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const { currentSession, loading: sessionLoading, fetchCurrentSession } = useSessions()
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -112,8 +113,9 @@ export default function Home() {
     const daysSmokeFree = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
-    return { daysSmokeFree, moneySaved, slipsCount, nicotineNotConsumed }
-  }, [stats, calculation, slipsCount])
+    const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
+    return { daysSmokeFree, moneySaved, moneySavedFormatted, slipsCount, nicotineNotConsumed }
+  }, [stats, calculation, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
   const programProgress = Math.round((currentDay / 30) * 100)
@@ -158,7 +160,7 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 <StatBlock icon={Calendar} value={displayStats.daysSmokeFree > 0 ? displayStats.daysSmokeFree.toString() : `Day ${currentDay}`} label={displayStats.daysSmokeFree > 0 ? "Days Smoke-Free" : "Program"} color="text-info" />
                 <StatBlock icon={Cigarette} value={displayStats.slipsCount.toString()} label="Cigarettes" color="text-destructive" />
-                <StatBlock icon={DollarSign} value={`₹${Math.round(displayStats.moneySaved)}`} label="Money Saved" color="text-success" />
+                <StatBlock icon={DollarSign} value={displayStats.moneySavedFormatted} label="Money Saved" color="text-success" />
                 <StatBlock icon={Droplet} value={`${Math.round(displayStats.nicotineNotConsumed)}mg`} label="Nicotine Avoided" color="text-primary" />
               </div>
             </CardContent>
