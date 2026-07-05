@@ -8,9 +8,10 @@ import { CheckCircle, Play, Pause, RotateCcw } from 'lucide-react'
 interface ExerciseComponentProps {
   step: Step
   onNext: () => void
+  focusLabel?: string
 }
 
-export default function ExerciseComponent({ step, onNext }: ExerciseComponentProps) {
+export default function ExerciseComponent({ step, onNext, focusLabel }: ExerciseComponentProps) {
   const content = step.content_json as ExerciseStepContent
   const duration = content.duration_seconds || 0
   
@@ -55,6 +56,9 @@ export default function ExerciseComponent({ step, onNext }: ExerciseComponentPro
 
   return (
     <div className="space-y-6">
+      {focusLabel && (
+        <p className="text-xs font-semibold text-brand-primary uppercase tracking-wide">{focusLabel}</p>
+      )}
       <div className="space-y-2">
         <h3 className="text-lg sm:text-xl font-black text-text-primary">
           {content.title || 'Exercise'}

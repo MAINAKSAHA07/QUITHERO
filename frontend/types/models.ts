@@ -394,6 +394,7 @@ export interface PersonalizationLog {
   archetype_used: QuitArchetype
   okf_docs_loaded: string[]
   ai_response_summary: string
+  content_payload?: PersonalizedContent
   content_fit_score?: number
   created?: string
 }
@@ -405,12 +406,27 @@ export interface BehaviorSignal {
   meta: Record<string, any>
 }
 
+export interface TriggerCheckContent {
+  question: string
+  options: string[]
+}
+
+export interface ComprehensionCheckContent {
+  question: string
+  options: string[]
+  correct_index: number
+  thought_of_the_day: [string, string]
+  reread_hint: string
+}
+
 export interface PersonalizedContent {
   session_intro?: string
   module_reframes?: Record<number, string>
   exercise_motivation?: string
   closing_reflection?: string
   journal_prompt?: string
+  trigger_check?: TriggerCheckContent
+  comprehension_check?: ComprehensionCheckContent
 }
 
 export interface NotificationMessage {

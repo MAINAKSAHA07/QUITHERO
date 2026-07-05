@@ -11,4 +11,5 @@ export { AchievementService, achievementService } from './achievement.service'
 export { ContentService, contentService } from './content.service'
 export { AnalyticsService, analyticsService } from './analytics.service'
 export { TranslationService, translationService } from './translation.service'
+export { sessionPersonalizationService } from './session-personalization.service'
 

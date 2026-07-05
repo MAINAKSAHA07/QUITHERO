@@ -25,14 +25,18 @@
     "pb:seed-all-days": "node PocketBase/seed-all-program-days.js",
     "pb:import-docs": "node PocketBase/import-program-docs.js",
     "pb:setup-behavior": "node PocketBase/setup-behavior-collections.js",
+    "pb:setup-ai-memory": "node PocketBase/setup-ai-memory.js",
     "pb:verify-backoffice": "node PocketBase/verify-backoffice.js",
     "pb:seed-sample": "node PocketBase/seed-sample.js",
     "dev:backoffice": "cd backoffice && npm run dev",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backoffice\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backoffice\"",
+    "ai-proxy": "node scripts/ai-proxy-server.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@tanstack/react-query": "^5.90.12",
+    "baseline-browser-mapping": "^2.10.42",
+    "caniuse-lite": "^1.0.30001800",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

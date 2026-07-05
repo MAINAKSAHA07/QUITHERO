@@ -6,6 +6,7 @@ import GlassButton from '../GlassButton'
 interface OpenQuestionComponentProps {
   step: Step
   onNext: (response: any) => void
+  aiPlaceholder?: string
 }
 
 // Remove emojis from text - comprehensive regex pattern
@@ -35,7 +36,7 @@ const removeEmojis = (text: string): string => {
     .trim()
 }
 
-export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComponentProps) {
+export default function OpenQuestionComponent({ step, onNext, aiPlaceholder }: OpenQuestionComponentProps) {
   const content = step.content_json as OpenStepContent
   const [answer, setAnswer] = useState('')
 
@@ -45,8 +46,9 @@ export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComp
     }
   }
 
-  // Clean placeholder text to remove emojis
-  const cleanPlaceholder = removeEmojis(content.placeholder || 'Type your reflection here...') || 'Type your reflection here...'
+  const stepPlaceholder = content.placeholder?.trim()
+  const rawPlaceholder = stepPlaceholder || aiPlaceholder || 'Type your reflection here...'
+  const cleanPlaceholder = removeEmojis(rawPlaceholder) || 'Type your reflection here...'
   
   // Calculate word count
   const wordCount = answer.trim() ? answer.trim().split(/\s+/).length : 0

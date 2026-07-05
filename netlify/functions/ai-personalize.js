@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 const MODEL = 'claude-haiku-4-5'
-const MAX_TOKENS = 600
+const MAX_TOKENS = 900
 const TEMPERATURE = 0.7
 
 // ─── Per-user rate limiting (in-memory, resets on cold start) ────────────────
@@ -46,6 +46,8 @@ ${context.onboardingContext}
 ARCHETYPE: ${context.archetype}
 ${context.behavioralSection}
 
+${context.sessionHistory || 'SESSION MEMORY:\n- No prior session history yet.'}
+
 ${context.personalizationRules}
 
 TASK: Generate personalized content insertions for Day ${context.dayNumber}.
@@ -63,15 +65,43 @@ TOKEN BUDGET:
 - exercise_motivation: max 40 words
 - closing_reflection: max 60 words
 - journal_prompt: max 20 words
-- Total response must be valid JSON under 500 tokens
+- trigger_check.question: max 25 words
+- trigger_check.options: exactly 4 short options
+- comprehension_check.question: max 30 words — tests if user understood today's core lesson (not trivia)
+- comprehension_check.options: exactly 4 options, one clearly correct based on the day theme
+- comprehension_check.correct_index: 0-3 index of the correct option
+- comprehension_check.thought_of_the_day: exactly 2 short inspiring lines shown if they answer wrong
+- comprehension_check.reread_hint: max 20 words — gentle nudge to re-read earlier content
+- Total response must be valid JSON under 700 tokens
 - Be concise. Brevity is a feature, not a limitation.
+
+TASK ADDITION — trigger_check:
+Generate a brief check-in question about the user's primary trigger (from onboardingContext).
+Ask when they last experienced a craving related to their primary trigger.
+Options must be exactly: "Today", "Yesterday", "This week", "Not recently"
+
+TASK ADDITION — comprehension_check:
+Generate ONE multiple-choice question that checks whether the user understood the main lesson of Program Day ${context.dayNumber} (see KNOWLEDGE CONTEXT day theme).
+The wrong options should be plausible misconceptions smokers believe. The correct option reflects the day's CBT insight.
+Include a 2-line thought_of_the_day (motivational, personalized to their archetype tone) shown when they pick wrong.
 
 Respond with ONLY valid JSON (no markdown, no preamble):
 {
   "session_intro": "...",
   "exercise_motivation": "...",
   "closing_reflection": "...",
-  "journal_prompt": "..."
+  "journal_prompt": "...",
+  "trigger_check": {
+    "question": "...",
+    "options": ["Today", "Yesterday", "This week", "Not recently"]
+  },
+  "comprehension_check": {
+    "question": "...",
+    "options": ["...", "...", "...", "..."],
+    "correct_index": 0,
+    "thought_of_the_day": ["First line.", "Second line."],
+    "reread_hint": "..."
+  }
 }`
 }
 
@@ -170,7 +200,7 @@ export default async function handler(request) {
     return Response.json({ error: 'rate_limited', fallback: true }, { status: 429 })
   }
 
-  console.log(`[AI] ${requestType} for user ${userId.slice(0, 8)}... day ${context.dayNumber}`)
+  console.error(`[AI] ${requestType} for user ${userId.slice(0, 8)}... day ${context.dayNumber}`)
 
   // ── Build prompt ────────────────────────────────────────────────────────
   const systemPrompt = requestType === 'session_content'

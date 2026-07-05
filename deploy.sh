@@ -21,6 +21,7 @@
 #   PB_PORT          PocketBase port (default: 8096)
 #   FRONTEND_PORT    nginx port for user app (default: 80)
 #   BACKOFFICE_PORT  nginx port for admin app (default: 8080)
+#   AI_PROXY_PORT    Local AI proxy port (default: 8787)
 #   PUBLIC_URL       Public base URL for builds (default: http://<server-ip>)
 #   SKIP_PB_SETUP    Set to 1 to skip PocketBase schema setup scripts
 #   PB_DATA_DIR      Persistent DB path on server (default: /var/lib/quithero/pb_data)
@@ -35,6 +36,7 @@ GIT_BRANCH="${GIT_BRANCH:-main}"
 PB_PORT="${PB_PORT:-8096}"
 FRONTEND_PORT="${FRONTEND_PORT:-80}"
 BACKOFFICE_PORT="${BACKOFFICE_PORT:-8080}"
+AI_PROXY_PORT="${AI_PROXY_PORT:-8787}"
 NGINX_SITE_NAME="${NGINX_SITE_NAME:-quithero}"
 SKIP_PB_SETUP="${SKIP_PB_SETUP:-0}"
 
@@ -441,6 +443,50 @@ build_backoffice() {
   npm run build
 }
 
+setup_ai_proxy() {
+  require_command node
+  local node_bin service_file
+  node_bin="$(command -v node)"
+
+  if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+    warn "ANTHROPIC_API_KEY not set — AI proxy will return 503 until .env is updated"
+  fi
+
+  log "Configuring AI proxy (systemd + port ${AI_PROXY_PORT})"
+
+  service_file="/etc/systemd/system/quithero-ai-proxy.service"
+  sudo tee "$service_file" >/dev/null <<EOF
+[Unit]
+Description=Quit Hero AI personalization proxy
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=${APP_DIR}
+Environment=AI_PROXY_PORT=${AI_PROXY_PORT}
+EnvironmentFile=-${APP_DIR}/.env
+ExecStart=${node_bin} ${APP_DIR}/scripts/ai-proxy-server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable quithero-ai-proxy.service
+  sudo systemctl restart quithero-ai-proxy.service
+
+  # ponytail: single health probe — fails deploy if proxy won't start
+  sleep 1
+  if ! sudo systemctl is-active --quiet quithero-ai-proxy.service; then
+    sudo journalctl -u quithero-ai-proxy.service -n 20 --no-pager || true
+    die "quithero-ai-proxy failed to start"
+  fi
+
+  log "AI proxy running at 127.0.0.1:${AI_PROXY_PORT}"
+}
+
 write_nginx_config() {
   log "Configuring nginx"
 
@@ -492,6 +538,18 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Authorization \$http_authorization;
+    }
+
+    # AI personalization proxy (Node — same handler as Netlify function)
+    location = /api/ai/personalize {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/ai/personalize;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
     }
 
     location /assets/ {
@@ -571,6 +629,7 @@ EOF
   echo "  Backoffice: ${public_url%/}:${BACKOFFICE_PORT}"
   echo "  PocketBase: ${public_url%/}:${PB_PORT}"
   echo "  PB Admin:   ${public_url%/}:${PB_PORT}/_/"
+  echo "  AI Proxy:   ${public_url%/}/api/ai/personalize → 127.0.0.1:${AI_PROXY_PORT}"
   echo ""
 }
 
@@ -608,6 +667,7 @@ deploy_all() {
   run_oauth_setup
   build_frontend
   build_backoffice
+  setup_ai_proxy
   write_nginx_config
   open_firewall_ports
 
@@ -637,7 +697,7 @@ Examples:
   EC2_HOST=ubuntu@54.153.95.239 ./deploy.sh --remote
 
 Environment:
-  APP_DIR, EC2_HOST, EC2_SSH_KEY, GIT_BRANCH, PB_PORT, FRONTEND_PORT, BACKOFFICE_PORT
+  APP_DIR, EC2_HOST, EC2_SSH_KEY, GIT_BRANCH, PB_PORT, FRONTEND_PORT, BACKOFFICE_PORT, AI_PROXY_PORT
   PUBLIC_URL, SKIP_PB_SETUP, PB_DATA_DIR, PB_BACKUP_DIR, PB_ENCRYPTION_KEY
 USAGE
 }

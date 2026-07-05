@@ -6,18 +6,36 @@ import {
   NotificationMessage,
   NotificationTriggerType,
   PersonalizationLog,
+  TriggerCheckContent,
+  ComprehensionCheckContent,
 } from '../types/models'
 import { QuitArchetype, CravingTrigger, EmotionalState } from '../types/enums'
 import { behaviorProfileService } from './behavior-profile.service'
 import { profileService } from './profile.service'
+import { buildFallbackTriggerCheck, buildFallbackComprehensionCheck } from '../utils/sessionPersonalization'
+import { sessionPersonalizationService } from './session-personalization.service'
 
 // ─── Onboarding Context Builder ────────────────────────────────────────────────
+
+function hasMotivation(profile: UserProfile, ...keywords: string[]): boolean {
+  return (profile.motivations ?? []).some(m =>
+    keywords.some(k => m.toLowerCase().includes(k.toLowerCase()))
+  )
+}
 
 function buildOnboardingContext(profile: UserProfile): string {
   const lines: string[] = ['ONBOARDING PROFILE:']
 
   if (profile.onboarding_name) {
     lines.push(`- Preferred Name: ${profile.onboarding_name}`)
+  }
+
+  if (profile.language) {
+    lines.push(`- Preferred language: ${profile.language}`)
+  }
+
+  if (profile.nicotine_forms && profile.nicotine_forms.length > 0) {
+    lines.push(`- Nicotine forms: ${profile.nicotine_forms.join(', ')}`)
   }
 
   if (profile.daily_consumption) {
@@ -110,6 +128,86 @@ function buildOnboardingContext(profile: UserProfile): string {
     lines.push(`- Motivations to quit: ${profile.motivations.join(', ')}`)
   }
 
+  if (profile.primary_motivation) {
+    lines.push(`- Primary motivation: ${profile.primary_motivation}`)
+  }
+
+  if (profile.priority_goal) {
+    lines.push(`- Priority goal: ${profile.priority_goal}`)
+  }
+
+  if (profile.quit_goal_style) {
+    lines.push(`- Quit goal style: ${profile.quit_goal_style}`)
+  }
+
+  if (profile.quit_confidence) {
+    lines.push(`- Quit confidence: ${profile.quit_confidence}`)
+  }
+
+  if (profile.tried_quitting_before) {
+    lines.push(`- Previous quit attempts: ${profile.tried_quitting_before}`)
+  }
+
+  if (profile.previous_attempt_difficulty && profile.previous_attempt_difficulty.length > 0) {
+    lines.push(`- Past quit barriers: ${profile.previous_attempt_difficulty.join(', ')}`)
+  }
+
+  if (profile.quit_attempt_count) {
+    lines.push(`- Quit attempt count: ${profile.quit_attempt_count}`)
+  }
+
+  if (profile.past_quit_tools && profile.past_quit_tools.length > 0) {
+    lines.push(`- Past quit tools tried: ${profile.past_quit_tools.join(', ')}`)
+  }
+
+  if (profile.cravings_worry) {
+    lines.push(`- Cravings worry: ${profile.cravings_worry}`)
+  }
+
+  if (profile.relapse_worry) {
+    lines.push(`- Relapse worry: ${profile.relapse_worry}`)
+  }
+
+  if (profile.withdrawal_worry) {
+    lines.push(`- Withdrawal worry: ${profile.withdrawal_worry}`)
+  }
+
+  if (profile.household_smokers) {
+    lines.push(`- Household smoking environment: ${profile.household_smokers}`)
+  }
+
+  if (profile.occupation_style) {
+    lines.push(`- Occupation style: ${profile.occupation_style}`)
+  }
+
+  if (profile.support_preference) {
+    lines.push(`- Support preference: ${profile.support_preference}`)
+  }
+
+  if (profile.checkin_time_preference) {
+    lines.push(`- Preferred check-in time: ${profile.checkin_time_preference}`)
+  }
+
+  if (profile.success_outcome) {
+    lines.push(`- Personal success definition: ${profile.success_outcome}`)
+  }
+
+  if (profile.commitment_statement) {
+    lines.push(`- Commitment statement: ${profile.commitment_statement}`)
+  }
+
+  if (profile.readiness_score !== undefined && profile.readiness_score !== null) {
+    lines.push(`- Readiness score: ${profile.readiness_score}/100`)
+  }
+
+  if (profile.relapse_risk_score !== undefined && profile.relapse_risk_score !== null) {
+    lines.push(`- Relapse risk score: ${profile.relapse_risk_score}/100`)
+  }
+
+  if (profile.support_intensity_score !== undefined && profile.support_intensity_score !== null) {
+    lines.push(`- Support intensity needed: ${profile.support_intensity_score}/100`)
+  }
+
   if (profile.quit_reason && profile.quit_reason.trim()) {
     const reason = profile.quit_reason.trim().slice(0, 200)
     lines.push(`- In their own words: "${reason}"`)
@@ -137,15 +235,18 @@ function buildOnboardingContext(profile: UserProfile): string {
 function buildPersonalizationRules(profile: UserProfile): string {
   const rules: string[] = ['PERSONALIZATION RULES (derived from onboarding):']
 
-  if (profile.first_use_after_waking === 'within 5 minutes' || profile.first_use_after_waking === '6-30 minutes') {
+  const firstUse = profile.first_use_after_waking?.toLowerCase() ?? ''
+  if (firstUse.includes('within 5 minutes') || firstUse.includes('within 30 minutes')) {
     rules.push('- HIGH PHYSICAL DEPENDENCY: First cigarette soon after waking. Focus on physical withdrawal, early morning cravings, and somatic grounding.')
   }
 
-  if (profile.daily_stress_level === 'high' || profile.daily_stress_level === 'very high') {
+  const stress = profile.daily_stress_level?.toLowerCase() ?? ''
+  if (stress.includes('high stress') || stress.includes('overwhelming')) {
     rules.push('- HIGH DAILY STRESS: Offer quick, action-oriented stress-relief and mindfulness coping mechanisms.')
   }
 
-  if (profile.guilt_frequency === 'often' || profile.guilt_frequency === 'always') {
+  const guilt = profile.guilt_frequency?.toLowerCase() ?? ''
+  if (guilt.includes('every single time') || guilt.includes('frequently')) {
     rules.push('- HIGH GUILT: Keep tone extremely compassionate and gentle. De-escalate self-blame and emphasize recovery.')
   }
 
@@ -159,6 +260,56 @@ function buildPersonalizationRules(profile: UserProfile): string {
         '- LOW FEAR: User is confident. Skip over-reassurance. Match their energy — direct, capable framing.'
       )
     }
+  }
+
+  if (profile.cravings_worry === 'Very worried' || profile.relapse_worry === 'Very worried' || profile.withdrawal_worry === 'Very worried') {
+    rules.push('- HIGH WORRY (cravings/relapse/withdrawal): Lead with reassurance and concrete coping tools before any challenge.')
+  }
+
+  if (profile.quit_confidence === 'Extremely anxious') {
+    rules.push('- EXTREMELY ANXIOUS ABOUT QUITTING: Extra reassurance. Small steps. Never use pressure or countdown language.')
+  } else if (profile.quit_confidence === 'A bit nervous / hesitant') {
+    rules.push('- NERVOUS ABOUT QUITTING: Validate hesitation as normal. Emphasize support is available.')
+  } else if (profile.quit_confidence === 'Very confident') {
+    rules.push('- HIGH CONFIDENCE: Match their energy — direct, capable framing without over-reassurance.')
+  }
+
+  if (profile.tried_quitting_before === 'Yes, multiple times') {
+    rules.push('- REPEAT ATTEMPTER: Frame past attempts as learning, not failure. Build on what they already know.')
+  } else if (profile.tried_quitting_before === 'No, this is my first time') {
+    rules.push('- FIRST-TIME QUITTER: Explain concepts clearly. Normalize uncertainty without overwhelming detail.')
+  }
+
+  if (profile.household_smokers && profile.household_smokers !== 'No, smoke-free household') {
+    rules.push('- LIVES WITH SMOKERS: Include boundary-setting and environmental cue management. Acknowledge extra difficulty.')
+  }
+
+  if (profile.quit_goal_style === 'I want to reduce first, then quit') {
+    rules.push('- GRADUAL QUIT GOAL: Celebrate reduction milestones. Avoid all-or-nothing abstinence framing.')
+  } else if (profile.quit_goal_style === 'I have already quit and want to stay smoke-free') {
+    rules.push('- ALREADY QUIT: Focus on maintenance, relapse prevention, and identity reinforcement.')
+  }
+
+  if (profile.readiness_score !== undefined && profile.readiness_score !== null) {
+    if (profile.readiness_score < 40) {
+      rules.push('- LOW READINESS: Gentle pacing. Focus on awareness before action.')
+    } else if (profile.readiness_score >= 70) {
+      rules.push('- HIGH READINESS: User is primed for action. Can handle more direct challenge.')
+    }
+  }
+
+  if (profile.relapse_risk_score !== undefined && profile.relapse_risk_score >= 60) {
+    rules.push('- ELEVATED RELAPSE RISK: Emphasize slip recovery framing. Compassionate re-engagement over guilt.')
+  }
+
+  if (profile.support_intensity_score !== undefined && profile.support_intensity_score >= 70) {
+    rules.push('- HIGH SUPPORT NEED: More encouragement, check-in language, and explicit validation.')
+  }
+
+  if (profile.support_preference?.includes('Quiet')) {
+    rules.push('- QUIET PREFERENCE: Keep messages concise and self-directed. No extra cheerleading.')
+  } else if (profile.support_preference?.includes('Max support')) {
+    rules.push('- MAX SUPPORT PREFERENCE: Warm, encouraging tone with explicit offers of help.')
   }
 
   if (profile.smoking_triggers?.includes(CravingTrigger.STRESS)) {
@@ -192,13 +343,14 @@ function buildPersonalizationRules(profile: UserProfile): string {
     rules.push('- LONG-TERM SMOKER (10+ years): Acknowledge this is woven into identity. Patient framing.')
   }
 
-  if (profile.motivations?.includes('health')) {
+  const primaryMot = profile.primary_motivation?.toLowerCase() ?? ''
+  if (primaryMot.includes('health') || primaryMot.includes('breathing') || hasMotivation(profile, 'health', 'energetic')) {
     rules.push('- HEALTH MOTIVATION: Safe to reference health improvements and recovery milestones.')
   }
-  if (profile.motivations?.includes('family')) {
+  if (primaryMot.includes('family') || hasMotivation(profile, 'family')) {
     rules.push('- FAMILY MOTIVATION: "The people who matter to you" framing resonates.')
   }
-  if (profile.motivations?.includes('money') || profile.motivations?.includes('financial')) {
+  if (primaryMot.includes('financial') || primaryMot.includes('savings') || hasMotivation(profile, 'money', 'save')) {
     rules.push('- FINANCIAL MOTIVATION: Safe to reference money saved and cost of smoking.')
   }
 
@@ -226,18 +378,29 @@ class AIPersonalizationService {
    */
   async getPersonalizedSessionContent(
     userId: string,
-    dayNumber: number
+    dayNumber: number,
+    programDayId?: string
   ): Promise<PersonalizedContent | null> {
     this.currentUserId = userId
 
     const key = this.cacheKey(userId, dayNumber)
     if (this.contentCache.has(key)) {
-      return this.contentCache.get(key)!
+      const cached = this.contentCache.get(key)!
+      sessionPersonalizationService.saveContentPayload(userId, dayNumber, cached, 'cache', programDayId).catch(() => {})
+      return cached
     }
 
-    const [userProfileResult, behaviorProfile] = await Promise.all([
+    const stored = await sessionPersonalizationService.getStoredPersonalization(userId, dayNumber)
+    if (stored) {
+      this.contentCache.set(key, stored)
+      return stored
+    }
+
+    const [userProfileResult, behaviorProfile, sessionHistory, comprehensionStats] = await Promise.all([
       profileService.getByUserId(userId),
       behaviorProfileService.getProfile(userId),
+      sessionPersonalizationService.buildSessionHistoryContext(userId, dayNumber),
+      sessionPersonalizationService.getComprehensionStats(userId),
     ])
 
     const userProfile = userProfileResult.success ? userProfileResult.data : null
@@ -254,6 +417,15 @@ class AIPersonalizationService {
     const okfContext = await this.loadOKFContext(archetype, dayNumber, 'session_content')
     const behavioralSection = this.buildBehavioralSection(behaviorProfile)
 
+    const comprehensionHint =
+      comprehensionStats.attempts > 0
+        ? `User comprehension history: ${comprehensionStats.passes}/${comprehensionStats.attempts} checks passed. ${
+            comprehensionStats.passes / comprehensionStats.attempts < 0.5
+              ? 'Use simpler language and clearer wrong-option distractors.'
+              : 'User engages well with checks.'
+          }`
+        : ''
+
     try {
       const response = await this.callProxy('session_content', {
         dayNumber,
@@ -262,11 +434,20 @@ class AIPersonalizationService {
         personalizationRules: buildPersonalizationRules(userProfile),
         okfContext: okfContext.context,
         behavioralSection,
+        sessionHistory: [sessionHistory, comprehensionHint].filter(Boolean).join('\n\n'),
       })
 
       const content = this.parseSessionResponse(response)
 
-      if (content.session_intro) {
+      // ponytail: client-side fallback when AI omits optional checks
+      if (!content.trigger_check) {
+        content.trigger_check = buildFallbackTriggerCheck(userProfile)
+      }
+      if (!content.comprehension_check) {
+        content.comprehension_check = buildFallbackComprehensionCheck(dayNumber)
+      }
+
+      if (content.session_intro || content.trigger_check || content.comprehension_check) {
         this.contentCache.set(key, content)
         if (this.contentCache.size > 5) {
           const firstKey = this.contentCache.keys().next().value
@@ -274,9 +455,12 @@ class AIPersonalizationService {
         }
       }
 
-      await this.logPersonalization(userId, dayNumber, 'session_content', archetype, okfContext.docsLoaded)
+      await sessionPersonalizationService.saveContentPayload(userId, dayNumber, content, 'ai', programDayId)
+      await this.logPersonalization(userId, dayNumber, 'session_content', archetype, okfContext.docsLoaded, content)
       return content
     } catch {
+      const dbFallback = await sessionPersonalizationService.getStoredPersonalization(userId, dayNumber)
+      if (dbFallback) return dbFallback
       return null
     }
   }
@@ -517,11 +701,46 @@ class AIPersonalizationService {
   private parseSessionResponse(raw: string): PersonalizedContent {
     try {
       const parsed = JSON.parse(raw)
+      let trigger_check: TriggerCheckContent | undefined
+      if (parsed.trigger_check?.question && Array.isArray(parsed.trigger_check.options)) {
+        const options = parsed.trigger_check.options
+          .filter((o: unknown) => typeof o === 'string')
+          .slice(0, 4)
+        if (options.length >= 2) {
+          trigger_check = {
+            question: String(parsed.trigger_check.question).slice(0, 200),
+            options,
+          }
+        }
+      }
+
+      let comprehension_check: ComprehensionCheckContent | undefined
+      const cc = parsed.comprehension_check
+      if (cc?.question && Array.isArray(cc.options) && cc.options.length >= 2) {
+        const options = cc.options.filter((o: unknown) => typeof o === 'string').slice(0, 4)
+        const correct_index = Number(cc.correct_index)
+        const thoughtRaw = cc.thought_of_the_day
+        const thought: [string, string] = Array.isArray(thoughtRaw) && thoughtRaw.length >= 2
+          ? [String(thoughtRaw[0]).slice(0, 120), String(thoughtRaw[1]).slice(0, 120)]
+          : ['Pause. Breathe.', 'Understanding grows when you give it a second pass.']
+        if (options.length >= 2 && correct_index >= 0 && correct_index < options.length) {
+          comprehension_check = {
+            question: String(cc.question).slice(0, 250),
+            options,
+            correct_index,
+            thought_of_the_day: thought,
+            reread_hint: String(cc.reread_hint || 'Re-read the earlier sections before continuing.').slice(0, 150),
+          }
+        }
+      }
+
       return {
         session_intro: parsed.session_intro || undefined,
         exercise_motivation: parsed.exercise_motivation || undefined,
         closing_reflection: parsed.closing_reflection || undefined,
         journal_prompt: parsed.journal_prompt || undefined,
+        trigger_check,
+        comprehension_check,
       }
     } catch {
       return {}
@@ -569,7 +788,8 @@ class AIPersonalizationService {
     dayNumber: number,
     requestType: 'session_content' | 'notification' | 'behavior_update',
     archetype: QuitArchetype,
-    docsLoaded: string[]
+    docsLoaded: string[],
+    contentPayload?: PersonalizedContent
   ): Promise<void> {
     try {
       await pb.collection('personalization_logs').create({
@@ -579,7 +799,8 @@ class AIPersonalizationService {
         archetype_used: archetype,
         okf_docs_loaded: docsLoaded,
         ai_response_summary: `Generated ${requestType} for ${archetype} on day ${dayNumber}`,
-      } satisfies Omit<PersonalizationLog, 'id' | 'created' | 'content_fit_score'>)
+        ...(contentPayload ? { content_payload: contentPayload } : {}),
+      } satisfies Omit<PersonalizationLog, 'id' | 'created' | 'content_fit_score'> & { content_payload?: PersonalizedContent })
     } catch { /* non-critical */ }
   }
 }

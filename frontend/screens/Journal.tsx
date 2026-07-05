@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Edit, Trash2, X, Calendar, Loader2 } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
@@ -29,6 +30,7 @@ const moodOptions = [
 
 export default function Journal() {
   const { user } = useApp()
+  const location = useLocation()
   const { entries, loading, createEntry, updateEntry, deleteEntry, fetchEntries } = useJournal()
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null)
@@ -43,6 +45,19 @@ export default function Journal() {
   const [cbtFields, setCbtFields] = useState({ antecedent: '', thought: '', response: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const state = location.state as { prompt?: string; openModal?: boolean } | null
+    if (state?.openModal && state.prompt) {
+      setFormData({
+        mood: Mood.HAPPY,
+        title: 'Session reflection',
+        content: state.prompt,
+      })
+      setShowAddModal(true)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   useEffect(() => {
     if (user?.id) {

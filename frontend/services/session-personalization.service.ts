@@ -1,0 +1,183 @@
+import { pb } from '../lib/pocketbase'
+import { PersonalizedContent } from '../types/models'
+
+export type SessionAiRecordType =
+  | 'personalization'
+  | 'trigger_check'
+  | 'comprehension_check'
+  | 'comprehension_reread'
+
+export type SessionAiSource = 'ai' | 'fallback' | 'cache' | 'db'
+
+interface SessionAiMemoryRow {
+  id: string
+  user: string
+  day_number: number
+  program_day?: string
+  record_type: SessionAiRecordType
+  payload_json: Record<string, unknown>
+  is_correct?: boolean
+  source?: string
+  created: string
+}
+
+class SessionPersonalizationService {
+  async saveContentPayload(
+    userId: string,
+    dayNumber: number,
+    content: PersonalizedContent,
+    source: SessionAiSource,
+    programDayId?: string
+  ): Promise<void> {
+    try {
+      const existing = await pb.collection('session_ai_memory').getFirstListItem(
+        `user = "${userId}" && day_number = ${dayNumber} && record_type = "personalization"`
+      ).catch(() => null)
+
+      const data = {
+        user: userId,
+        day_number: dayNumber,
+        record_type: 'personalization',
+        payload_json: content as unknown as Record<string, unknown>,
+        source,
+        ...(programDayId ? { program_day: programDayId } : {}),
+      }
+
+      if (existing) {
+        await pb.collection('session_ai_memory').update(existing.id, data)
+      } else {
+        await pb.collection('session_ai_memory').create(data)
+      }
+    } catch (e) {
+      console.warn('[SessionPersonalization] saveContentPayload failed:', e)
+    }
+  }
+
+  async getStoredPersonalization(
+    userId: string,
+    dayNumber: number
+  ): Promise<PersonalizedContent | null> {
+    try {
+      const row = await pb.collection('session_ai_memory').getFirstListItem(
+        `user = "${userId}" && day_number = ${dayNumber} && record_type = "personalization"`
+      ) as unknown as SessionAiMemoryRow
+      return (row.payload_json || null) as PersonalizedContent | null
+    } catch {
+      return null
+    }
+  }
+
+  async saveTriggerCheck(
+    userId: string,
+    dayNumber: number,
+    programDayId: string | undefined,
+    payload: {
+      question: string
+      options: string[]
+      selected: string
+      selected_index?: number
+    }
+  ): Promise<void> {
+    await this.appendRecord(userId, dayNumber, programDayId, 'trigger_check', payload)
+  }
+
+  async saveComprehensionCheck(
+    userId: string,
+    dayNumber: number,
+    programDayId: string | undefined,
+    payload: {
+      question: string
+      options: string[]
+      selected_index: number
+      selected: string
+      correct_index: number
+      is_correct: boolean
+      thought_of_the_day?: [string, string]
+    }
+  ): Promise<void> {
+    await this.appendRecord(userId, dayNumber, programDayId, 'comprehension_check', payload, payload.is_correct)
+  }
+
+  async saveComprehensionReread(
+    userId: string,
+    dayNumber: number,
+    programDayId?: string
+  ): Promise<void> {
+    await this.appendRecord(userId, dayNumber, programDayId, 'comprehension_reread', { action: 'reread_requested' })
+  }
+
+  async buildSessionHistoryContext(userId: string, currentDay: number): Promise<string> {
+    try {
+      const rows = await pb.collection('session_ai_memory').getList(1, 30, {
+        filter: `user = "${userId}" && record_type != "personalization"`,
+        sort: '-created',
+      })
+
+      if (!rows.items.length) {
+        return 'SESSION MEMORY:\n- No prior check-in history yet.'
+      }
+
+      const lines: string[] = ['SESSION MEMORY (prior interactions — maintain tone continuity, never repeat verbatim):']
+
+      for (const raw of rows.items as unknown as SessionAiMemoryRow[]) {
+        if (raw.day_number >= currentDay) continue
+        const p = raw.payload_json || {}
+        if (raw.record_type === 'trigger_check') {
+          lines.push(`- Day ${raw.day_number} trigger check: answered "${p.selected || 'unknown'}"`)
+        } else if (raw.record_type === 'comprehension_check') {
+          const status = raw.is_correct ? 'PASSED' : 'FAILED'
+          lines.push(`- Day ${raw.day_number} comprehension: ${status} (picked "${p.selected || 'unknown'}")`)
+        } else if (raw.record_type === 'comprehension_reread') {
+          lines.push(`- Day ${raw.day_number}: user re-read content after comprehension miss`)
+        }
+      }
+
+      if (lines.length === 1) {
+        lines.push('- No prior check-in history on earlier days.')
+      }
+
+      return lines.join('\n')
+    } catch {
+      return 'SESSION MEMORY:\n- Unavailable.'
+    }
+  }
+
+  async getComprehensionStats(userId: string): Promise<{ attempts: number; passes: number }> {
+    try {
+      const rows = await pb.collection('session_ai_memory').getList(1, 50, {
+        filter: `user = "${userId}" && record_type = "comprehension_check"`,
+      })
+      const items = rows.items as unknown as SessionAiMemoryRow[]
+      return {
+        attempts: items.length,
+        passes: items.filter(r => r.is_correct).length,
+      }
+    } catch {
+      return { attempts: 0, passes: 0 }
+    }
+  }
+
+  private async appendRecord(
+    userId: string,
+    dayNumber: number,
+    programDayId: string | undefined,
+    recordType: SessionAiRecordType,
+    payload: Record<string, unknown>,
+    isCorrect?: boolean
+  ): Promise<void> {
+    try {
+      await pb.collection('session_ai_memory').create({
+        user: userId,
+        day_number: dayNumber,
+        record_type: recordType,
+        payload_json: payload,
+        ...(programDayId ? { program_day: programDayId } : {}),
+        ...(isCorrect !== undefined ? { is_correct: isCorrect } : {}),
+      })
+    } catch (e) {
+      console.warn(`[SessionPersonalization] ${recordType} save failed:`, e)
+    }
+  }
+}
+
+export const sessionPersonalizationService = new SessionPersonalizationService()

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
@@ -6,6 +6,9 @@ import TopNavigation from '../components/TopNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import CompletionModal from '../components/CompletionModal'
+import SessionStatCard from '../components/SessionStatCard'
+import TriggerCheckMCQ from '../components/TriggerCheckMCQ'
+import ComprehensionCheck from '../components/ComprehensionCheck'
 import TextStepComponent from '../components/steps/TextStepComponent'
 import MCQStepComponent from '../components/steps/MCQStepComponent'
 import OpenQuestionComponent from '../components/steps/OpenQuestionComponent'
@@ -17,6 +20,7 @@ import { sessionService } from '../services/session.service'
 import { achievementService } from '../services/achievement.service'
 import { analyticsService } from '../services/analytics.service'
 import { aiService } from '../services/ai.service'
+import { sessionPersonalizationService } from '../services/session-personalization.service'
 import { behaviorTracker } from '../services/behavior-tracker.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
 import { beliefService } from '../services/belief.service'
@@ -24,11 +28,20 @@ import { BeliefAssessment } from '../components/BeliefAssessment'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
 import { StepType, SessionStatus } from '../types/enums'
 import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types/models'
+import {
+  getSessionStatCard,
+  injectTriggerBranchSteps,
+  buildFallbackTriggerCheck,
+  buildFallbackComprehensionCheck,
+  getComprehensionCheckpointIndex,
+  isInjectedStep,
+  getTriggerExerciseHint,
+} from '../utils/sessionPersonalization'
 
 export default function Session() {
   const { dayId } = useParams<{ dayId: string }>()
   const navigate = useNavigate()
-  const { user, refreshProgress, isPremium } = useApp()
+  const { user, userProfile, progressStats, refreshProgress, isPremium } = useApp()
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [, setSessionProgress] = useState<SessionProgress | null>(null)
@@ -40,6 +53,27 @@ export default function Session() {
   const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
   const [showBeliefAssessment, setShowBeliefAssessment] = useState(false)
   const [beliefDay, setBeliefDay] = useState<0 | 15 | 30>(15)
+  const [triggerCheckDone, setTriggerCheckDone] = useState(false)
+  const [showTriggerCheck, setShowTriggerCheck] = useState(false)
+  const [comprehensionCheckDone, setComprehensionCheckDone] = useState(false)
+  const [showComprehensionCheck, setShowComprehensionCheck] = useState(false)
+
+  const dayNumber = programDay?.day_number || 1
+
+  const comprehensionCheckpoint = useMemo(
+    () => getComprehensionCheckpointIndex(steps.length),
+    [steps.length]
+  )
+
+  const statCard = useMemo(() => {
+    if (!userProfile || !programDay?.day_number) return null
+    return getSessionStatCard(userProfile, programDay.day_number, progressStats)
+  }, [userProfile, programDay?.day_number, progressStats])
+
+  const triggerExerciseHint = useMemo(() => {
+    if (!userProfile || !programDay?.day_number) return undefined
+    return getTriggerExerciseHint(userProfile, programDay.day_number)
+  }, [userProfile, programDay?.day_number])
 
   const swipeHandlers = useTouchSwipe(
     () => { if (currentStepIndex < steps.length - 1) moveToNextStep() },
@@ -51,9 +85,8 @@ export default function Session() {
       loadSession()
       behaviorTracker.init(user.id)
     }
-  }, [user?.id, dayId])
+  }, [user?.id, dayId, userProfile?.id])
 
-  // Track step drop-off when user leaves mid-session
   useEffect(() => {
     return () => {
       if (user?.id && programDay && currentStepIndex < steps.length - 1 && steps.length > 0) {
@@ -70,8 +103,11 @@ export default function Session() {
     if (!user?.id || !dayId) return
 
     setIsLoading(true)
+    setTriggerCheckDone(false)
+    setShowTriggerCheck(false)
+    setComprehensionCheckDone(false)
+    setShowComprehensionCheck(false)
     try {
-      // Fetch program day, steps, and session progress in parallel to maximize speed
       const [dayResult, stepsResult, progressResult] = await Promise.all([
         programService.getProgramDayById(dayId),
         programService.getSteps(dayId),
@@ -85,21 +121,25 @@ export default function Session() {
       }
       setProgramDay(dayResult.data)
 
+      const dayNum = dayResult.data.day_number || 1
+      let sortedStepCount = 0
+
       if (stepsResult.success && stepsResult.data) {
-        setSteps(stepsResult.data.sort((a, b) => a.order - b.order))
+        let sorted = stepsResult.data.sort((a, b) => a.order - b.order)
+        if (userProfile) {
+          sorted = injectTriggerBranchSteps(sorted, userProfile, dayNum)
+        }
+        sortedStepCount = sorted.length
+        setSteps(sorted)
       } else {
         console.error('Failed to fetch steps:', stepsResult.error)
       }
 
-      const dayNum = dayResult.data.day_number || 1
-
-      // Freemium lock: Days 2-30 require premium
       if (dayNum > 1 && !isPremium) {
         navigate('/paywall')
         return
       }
 
-      // Gate Day 15 and 30 behind belief assessment
       if ((dayNum === 15 || dayNum === 30) && user?.id) {
         const hasAssessment = await beliefService.hasAssessmentForDay(user.id, dayNum)
         if (!hasAssessment) {
@@ -108,23 +148,52 @@ export default function Session() {
         }
       }
 
-      // AI Personalization context loading (non-blocking background task)
       if (user?.id) {
-        aiService.getPersonalizedSessionContent(user.id, dayNum)
-          .then(content => { if (content) setPersonalizedContent(content) })
-          .catch(() => { /* graceful fallback */ })
+        const saveFallback = (content: PersonalizedContent) => {
+          setPersonalizedContent(content)
+          sessionPersonalizationService.saveContentPayload(user.id, dayNum, content, 'fallback', dayId).catch(() => {})
+        }
+
+        aiService.getPersonalizedSessionContent(user.id, dayNum, dayId)
+          .then(content => {
+            if (content) {
+              setPersonalizedContent(content)
+            } else if (userProfile) {
+              saveFallback({
+                trigger_check: buildFallbackTriggerCheck(userProfile),
+                comprehension_check: buildFallbackComprehensionCheck(dayNum, dayResult.data?.title),
+              })
+            }
+          })
+          .catch(() => {
+            if (userProfile) {
+              saveFallback({
+                trigger_check: buildFallbackTriggerCheck(userProfile),
+                comprehension_check: buildFallbackComprehensionCheck(dayNum, dayResult.data?.title),
+              })
+            }
+          })
       }
 
-      // Handle session progress state
       let progress: SessionProgress | null = null
       if (progressResult.success) {
         progress = progressResult.data || null
         if (progress && progress.id) {
           setSessionProgress(progress)
           setCurrentStepIndex(progress.last_step_index || 0)
-          
+          if (progress.last_step_index && progress.last_step_index > 0) {
+            setTriggerCheckDone(true)
+          }
+          const checkpoint = getComprehensionCheckpointIndex(sortedStepCount)
+          if (
+            checkpoint !== null &&
+            progress.last_step_index != null &&
+            progress.last_step_index > checkpoint
+          ) {
+            setComprehensionCheckDone(true)
+          }
+
           if (progress.status === SessionStatus.NOT_STARTED) {
-            // Update to IN_PROGRESS directly
             const updateResult = await sessionService.upsertSessionProgress(user.id, dayId, {
               status: SessionStatus.IN_PROGRESS,
             })
@@ -133,11 +202,9 @@ export default function Session() {
             }
             analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
           }
-          
-          // Set start time for tracking
+
           setSessionStartTime(new Date())
         } else {
-          // Create new session progress directly as IN_PROGRESS
           const newProgressResult = await sessionService.upsertSessionProgress(user.id, dayId, {
             status: SessionStatus.IN_PROGRESS,
             last_step_index: 0,
@@ -158,14 +225,25 @@ export default function Session() {
     }
   }
 
-  const moveToNextStep = async (stepResponse?: any) => {
+  const proceedToNextStepIndex = async () => {
+    if (!user?.id || !dayId) return
+
+    if (currentStepIndex === steps.length - 1) {
+      await completeSession()
+    } else {
+      const nextIndex = currentStepIndex + 1
+      setCurrentStepIndex(nextIndex)
+      await sessionService.upsertSessionProgress(user.id, dayId, {
+        last_step_index: nextIndex,
+      })
+    }
+  }
+
+  const advanceFromStep = async (stepResponse?: unknown) => {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return
 
-    // Ensure session is started and start time is set
     if (!sessionStartTime) {
-      const startTime = new Date()
-      setSessionStartTime(startTime)
-      // Also ensure session progress is marked as in progress
+      setSessionStartTime(new Date())
       try {
         await sessionService.upsertSessionProgress(user.id, dayId, {
           status: SessionStatus.IN_PROGRESS,
@@ -180,21 +258,26 @@ export default function Session() {
     try {
       const currentStep = steps[currentStepIndex]
 
-      // Save step response if provided
-      if (stepResponse) {
-        await sessionService.saveStepResponse(user.id, currentStep.id!, stepResponse)
+      if (stepResponse && currentStep.id && !isInjectedStep(currentStep.id)) {
+        await sessionService.saveStepResponse(user.id, currentStep.id, stepResponse)
       }
 
-      // Check if this is the last step
+      const needsComprehension =
+        comprehensionCheckpoint !== null &&
+        currentStepIndex === comprehensionCheckpoint &&
+        !comprehensionCheckDone &&
+        personalizedContent?.comprehension_check
+
+      if (needsComprehension) {
+        setShowComprehensionCheck(true)
+        return
+      }
+
       if (currentStepIndex === steps.length - 1) {
-        // Complete session
         await completeSession()
       } else {
-        // Move to next step
         const nextIndex = currentStepIndex + 1
         setCurrentStepIndex(nextIndex)
-
-        // Update session progress
         await sessionService.upsertSessionProgress(user.id, dayId, {
           last_step_index: nextIndex,
         })
@@ -207,6 +290,73 @@ export default function Session() {
     }
   }
 
+  const moveToNextStep = async (stepResponse?: unknown) => {
+    if (!user?.id || !dayId || !steps[currentStepIndex]) return
+
+    const needsTriggerCheck =
+      currentStepIndex === 0 &&
+      !triggerCheckDone &&
+      personalizedContent?.trigger_check &&
+      !showTriggerCheck
+
+    if (needsTriggerCheck) {
+      setShowTriggerCheck(true)
+      return
+    }
+
+    await advanceFromStep(stepResponse)
+  }
+
+  const handleComprehensionPass = async (result: { selected_index: number; selected: string }) => {
+    setComprehensionCheckDone(true)
+    setShowComprehensionCheck(false)
+    if (user?.id && personalizedContent?.comprehension_check) {
+      const check = personalizedContent.comprehension_check
+      sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
+        question: check.question,
+        options: check.options,
+        selected_index: result.selected_index,
+        selected: result.selected,
+        correct_index: check.correct_index,
+        is_correct: true,
+        thought_of_the_day: check.thought_of_the_day,
+      }).catch(() => {})
+      analyticsService.trackEvent('comprehension_check_passed', { day: dayNumber }, user.id).catch(() => {})
+    }
+    await proceedToNextStepIndex()
+  }
+
+  const handleComprehensionReview = () => {
+    setShowComprehensionCheck(false)
+    setCurrentStepIndex(0)
+    if (user?.id && dayId) {
+      sessionPersonalizationService.saveComprehensionReread(user.id, dayNumber, dayId).catch(() => {})
+      sessionService.upsertSessionProgress(user.id, dayId, { last_step_index: 0 }).catch(() => {})
+      analyticsService.trackEvent('comprehension_reread_requested', { day: dayNumber }, user.id).catch(() => {})
+    }
+  }
+
+  const handleTriggerCheckComplete = async (selected: string) => {
+    setTriggerCheckDone(true)
+    setShowTriggerCheck(false)
+    if (user?.id && personalizedContent?.trigger_check) {
+      const check = personalizedContent.trigger_check
+      const selectedIndex = check.options.indexOf(selected)
+      sessionPersonalizationService.saveTriggerCheck(user.id, dayNumber, dayId, {
+        question: check.question,
+        options: check.options,
+        selected,
+        ...(selectedIndex >= 0 ? { selected_index: selectedIndex } : {}),
+      }).catch(() => {})
+      analyticsService.trackEvent('trigger_check_answered', {
+        day: dayNumber,
+        answer: selected,
+        trigger: userProfile?.primary_trigger,
+      }, user.id).catch(() => {})
+    }
+    await advanceFromStep()
+  }
+
   const completeSession = async () => {
     if (!user?.id || !dayId) {
       console.warn('Cannot complete session: missing required data', { user: user?.id, dayId })
@@ -216,34 +366,22 @@ export default function Session() {
     setIsSaving(true)
     try {
       const endTime = new Date()
-      // Use sessionStartTime if available, otherwise use current time (fallback)
-      // This handles cases where sessionStartTime wasn't properly set
       const startTime = sessionStartTime || new Date()
       const timeSpentMinutes = Math.max(1, Math.round(
         (endTime.getTime() - startTime.getTime()) / 1000 / 60
       ))
 
-      // Complete session
       const result = await sessionService.completeSession(user.id, dayId, timeSpentMinutes)
 
       if (result.success) {
-        // Check achievements
         await achievementService.checkAndUnlock(user.id)
-
-        // Refresh progress
         await refreshProgress()
-
-        // Track analytics
         await analyticsService.trackSessionCompleted(
           user.id,
           programDay?.day_number || 1,
           timeSpentMinutes
         )
-
-        // Recompute behavioral profile — non-blocking
         behaviorProfileService.computeAndSave(user.id).catch(() => {})
-
-        // Show completion modal
         setShowCompletionModal(true)
       } else {
         console.error('Failed to complete session:', result.error)
@@ -256,7 +394,7 @@ export default function Session() {
     }
   }
 
-  const handleStepResponse = (response: any) => {
+  const handleStepResponse = (response: unknown) => {
     moveToNextStep(response)
   }
 
@@ -273,10 +411,24 @@ export default function Session() {
         return <MCQStepComponent step={step} onNext={handleStepResponse} />
 
       case StepType.QUESTION_OPEN:
-        return <OpenQuestionComponent step={step} onNext={handleStepResponse} />
+        return (
+          <OpenQuestionComponent
+            step={step}
+            onNext={handleStepResponse}
+            aiPlaceholder={personalizedContent?.journal_prompt}
+          />
+        )
 
       case StepType.EXERCISE:
-        return <ExerciseComponent step={step} onNext={() => moveToNextStep()} />
+        return (
+          <ExerciseComponent
+            step={step}
+            onNext={() => moveToNextStep()}
+            focusLabel={
+              isInjectedStep(step.id) ? triggerExerciseHint : undefined
+            }
+          />
+        )
 
       case StepType.VIDEO:
         return <VideoPlayerComponent step={step} onNext={() => moveToNextStep()} />
@@ -347,7 +499,6 @@ export default function Session() {
       />
 
       <div className="app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8" {...swipeHandlers}>
-        {/* Progress bar */}
         <div className="mb-4 sm:mb-6">
           <div className="h-1.5 sm:h-2 glass rounded-full overflow-hidden">
             <motion.div
@@ -359,8 +510,11 @@ export default function Session() {
           </div>
         </div>
 
-        {/* AI Personalized Intro (Day 6+, first step only) */}
-        {personalizedContent?.session_intro && currentStepIndex === 0 && (
+        {statCard && currentStepIndex === 0 && !showTriggerCheck && !showComprehensionCheck && (
+          <SessionStatCard stat={statCard} />
+        )}
+
+        {personalizedContent?.session_intro && currentStepIndex === 0 && !showTriggerCheck && !showComprehensionCheck && (
           <GlassCard className="p-5 mb-4 bg-brand-primary/5 border-brand-primary/10">
             <p className="text-text-primary/90 text-sm leading-relaxed italic">
               {personalizedContent.session_intro}
@@ -368,86 +522,131 @@ export default function Session() {
           </GlassCard>
         )}
 
-        {/* Step content */}
-        <GlassCard className="p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="mb-3 sm:mb-4">
-            <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
-              {programDay.title}
-            </h2>
-            {programDay.subtitle && (
-              <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{programDay.subtitle}</p>
-            )}
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full glass-subtle">
-              <span className="text-[11px] sm:text-xs font-medium text-text-primary/70">
-                {currentStep.type === StepType.TEXT && 'Reading'}
-                {currentStep.type === StepType.QUESTION_MCQ && 'Quiz'}
-                {currentStep.type === StepType.QUESTION_OPEN && 'Reflection'}
-                {currentStep.type === StepType.EXERCISE && 'Exercise'}
-                {currentStep.type === StepType.VIDEO && 'Video'}
-              </span>
+        {showTriggerCheck && personalizedContent?.trigger_check && (
+          <TriggerCheckMCQ
+            check={personalizedContent.trigger_check}
+            onComplete={handleTriggerCheckComplete}
+          />
+        )}
+
+        {showComprehensionCheck && personalizedContent?.comprehension_check && (
+          <ComprehensionCheck
+            check={personalizedContent.comprehension_check}
+            onPass={handleComprehensionPass}
+            onReview={handleComprehensionReview}
+            onFail={(result) => {
+              if (user?.id && personalizedContent?.comprehension_check) {
+                const check = personalizedContent.comprehension_check
+                sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
+                  question: check.question,
+                  options: check.options,
+                  selected_index: result.selected_index,
+                  selected: result.selected,
+                  correct_index: check.correct_index,
+                  is_correct: false,
+                  thought_of_the_day: check.thought_of_the_day,
+                }).catch(() => {})
+                analyticsService.trackEvent('comprehension_check_failed', { day: dayNumber }, user.id).catch(() => {})
+              }
+            }}
+          />
+        )}
+
+        {!showTriggerCheck && !showComprehensionCheck && (
+          <GlassCard className="p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
+                {programDay.title}
+              </h2>
+              {programDay.subtitle && (
+                <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{programDay.subtitle}</p>
+              )}
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full glass-subtle">
+                <span className="text-[11px] sm:text-xs font-medium text-text-primary/70">
+                  {currentStep.type === StepType.TEXT && 'Reading'}
+                  {currentStep.type === StepType.QUESTION_MCQ && 'Quiz'}
+                  {currentStep.type === StepType.QUESTION_OPEN && 'Reflection'}
+                  {currentStep.type === StepType.EXERCISE && 'Exercise'}
+                  {currentStep.type === StepType.VIDEO && 'Video'}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* AI Exercise Motivation (before exercise steps) */}
-          {personalizedContent?.exercise_motivation && currentStep.type === StepType.EXERCISE && (
-            <p className="text-text-primary/80 text-sm mb-3 italic">
-              {personalizedContent.exercise_motivation}
-            </p>
-          )}
+            {personalizedContent?.exercise_motivation && currentStep.type === StepType.EXERCISE && (
+              <p className="text-text-primary/80 text-sm mb-3 italic">
+                {personalizedContent.exercise_motivation}
+              </p>
+            )}
 
-          <div className="mt-4">
-            {renderStepComponent()}
-          </div>
-        </GlassCard>
+            <div className="mt-4">
+              {renderStepComponent()}
+            </div>
+          </GlassCard>
+        )}
 
-        {/* AI Closing Reflection (last step only) */}
-        {personalizedContent?.closing_reflection && isLastStep && (
+        {personalizedContent?.closing_reflection && isLastStep && !showTriggerCheck && !showComprehensionCheck && (
           <GlassCard className="p-5 mb-4 bg-brand-accent/5 border-brand-accent/10">
             <p className="text-text-primary/90 text-sm leading-relaxed italic">
               {personalizedContent.closing_reflection}
             </p>
             {personalizedContent.journal_prompt && (
-              <p className="text-brand-accent text-xs mt-3 font-medium">
-                Journal prompt: {personalizedContent.journal_prompt}
-              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <p className="text-brand-accent text-xs font-medium">
+                  Journal prompt: {personalizedContent.journal_prompt}
+                </p>
+                <GlassButton
+                  variant="secondary"
+                  className="py-2.5 text-sm font-semibold"
+                  onClick={() =>
+                    navigate('/journal', {
+                      state: {
+                        prompt: personalizedContent.journal_prompt,
+                        openModal: true,
+                      },
+                    })
+                  }
+                >
+                  Write in Journal
+                </GlassButton>
+              </div>
             )}
           </GlassCard>
         )}
 
-        {/* Navigation */}
-        <div className="flex gap-3 w-full">
-          <GlassButton
-            variant="secondary"
-            onClick={() => {
-              if (currentStepIndex > 0) {
-                setCurrentStepIndex(currentStepIndex - 1)
-              } else {
-                navigate('/sessions')
-              }
-            }}
-            className="flex-1 py-4 flex items-center justify-center min-w-0"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </GlassButton>
-          {!isLastStep && (
+        {!showTriggerCheck && !showComprehensionCheck && (
+          <div className="flex gap-3 w-full">
             <GlassButton
-              onClick={() => moveToNextStep()}
-              disabled={isSaving}
+              variant="secondary"
+              onClick={() => {
+                if (currentStepIndex > 0) {
+                  setCurrentStepIndex(currentStepIndex - 1)
+                } else {
+                  navigate('/sessions')
+                }
+              }}
               className="flex-1 py-4 flex items-center justify-center min-w-0"
             >
-              {isSaving ? (
-                <RefreshCw className="w-5 h-5 animate-spin" />
-              ) : (
-                <span className="flex items-center justify-center gap-2 whitespace-nowrap">
-                  Next <ArrowRight className="w-5 h-5" />
-                </span>
-              )}
+              <ArrowLeft className="w-5 h-5" />
             </GlassButton>
-          )}
-        </div>
+            {!isLastStep && (
+              <GlassButton
+                onClick={() => moveToNextStep()}
+                disabled={isSaving}
+                className="flex-1 py-4 flex items-center justify-center min-w-0"
+              >
+                {isSaving ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <span className="flex items-center justify-center gap-2 whitespace-nowrap">
+                    Next <ArrowRight className="w-5 h-5" />
+                  </span>
+                )}
+              </GlassButton>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Completion Modal */}
       <CompletionModal
         isOpen={showCompletionModal}
         onClose={() => setShowCompletionModal(false)}
