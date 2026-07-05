@@ -129,8 +129,12 @@ export class BaseService {
    * Handle errors consistently
    */
   protected handleError(error: any): ApiResponse<any> {
+    console.error('[BaseService] API Error:', error, error?.response)
+    const responseData = error.response?.data || error.data
     const errorMessage =
-      error.response?.data || error.message || 'An error occurred'
+      responseData && Object.keys(responseData).length > 0
+        ? responseData
+        : error.response?.message || error.message || 'An error occurred'
     return {
       success: false,
       error: typeof errorMessage === 'object' ? JSON.stringify(errorMessage) : errorMessage,

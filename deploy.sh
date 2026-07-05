@@ -414,7 +414,7 @@ run_pb_setup() {
 
 run_oauth_setup() {
   local google_id="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-}}"
-  local google_secret="${VITE_GOOGLE_CLIENT_SECRET:-${GOOGLE_CLIENT_SECRET:-}}"
+  local google_secret="${GOOGLE_CLIENT_SECRET:-}"
 
   [[ -n "$google_id" && -n "$google_secret" ]] || return
 

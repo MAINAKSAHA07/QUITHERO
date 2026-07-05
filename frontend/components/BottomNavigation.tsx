@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Calendar, Plus, Ticket, User } from 'lucide-react'
+import { Home, Calendar, Plus, Trophy, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 import TranslatedText from './TranslatedText'
 
@@ -10,7 +10,7 @@ export default function BottomNavigation() {
     { path: '/home', icon: Home, label: 'Home' },
     { path: '/sessions', icon: Calendar, label: 'Sessions' },
     { path: '/craving', icon: Plus, label: 'Support', isFAB: true },
-    { path: '/progress', icon: Ticket, label: 'Progress' },
+    { path: '/progress', icon: Trophy, label: 'Progress' },
     { path: '/profile', icon: User, label: 'Profile' },
   ]
 
@@ -21,7 +21,7 @@ export default function BottomNavigation() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-white/30" aria-label="Main navigation">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50 glass-strong border-t border-white/30 w-full" aria-label="Main navigation">
       <div className="app-container flex items-center justify-around px-2 sm:px-4 py-2 sm:py-3 safe-area-bottom">
         {navItems.map((item) => {
           const Icon = item.icon
@@ -68,15 +68,16 @@ export default function BottomNavigation() {
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center w-5 h-5">
                 <Icon
-                  className={`w-6 h-6 transition-colors ${
-                    active ? 'text-brand-primary' : 'text-text-primary/50'
+                  strokeWidth={active ? 2.5 : 1.75}
+                  className={`w-5 h-5 transition-all ${
+                    active ? 'text-brand-primary scale-105' : 'text-text-primary/50 hover:text-text-primary/75'
                   }`}
                 />
                 {active && (
                   <motion.div
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-primary"
+                    className="absolute -bottom-1.5 left-[7px] w-1.5 h-1.5 rounded-full bg-brand-primary shadow-glow-sm"
                     layoutId="activeIndicator"
                     initial={false}
                   />

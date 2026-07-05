@@ -18,6 +18,9 @@ import { achievementService } from '../services/achievement.service'
 import { analyticsService } from '../services/analytics.service'
 import { aiService } from '../services/ai.service'
 import { behaviorTracker } from '../services/behavior-tracker.service'
+import { behaviorProfileService } from '../services/behavior-profile.service'
+import { beliefService } from '../services/belief.service'
+import { BeliefAssessment } from '../components/BeliefAssessment'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
 import { StepType, SessionStatus } from '../types/enums'
 import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types/models'
@@ -25,7 +28,7 @@ import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types
 export default function Session() {
   const { dayId } = useParams<{ dayId: string }>()
   const navigate = useNavigate()
-  const { user, refreshProgress } = useApp()
+  const { user, refreshProgress, isPremium } = useApp()
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [, setSessionProgress] = useState<SessionProgress | null>(null)
@@ -35,6 +38,8 @@ export default function Session() {
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
+  const [showBeliefAssessment, setShowBeliefAssessment] = useState(false)
+  const [beliefDay, setBeliefDay] = useState<0 | 15 | 30>(15)
 
   const swipeHandlers = useTouchSwipe(
     () => { if (currentStepIndex < steps.length - 1) moveToNextStep() },
@@ -66,8 +71,13 @@ export default function Session() {
 
     setIsLoading(true)
     try {
-      // Fetch program day by ID
-      const dayResult = await programService.getProgramDayById(dayId)
+      // Fetch program day, steps, and session progress in parallel to maximize speed
+      const [dayResult, stepsResult, progressResult] = await Promise.all([
+        programService.getProgramDayById(dayId),
+        programService.getSteps(dayId),
+        sessionService.getSessionProgress(user.id, dayId)
+      ])
+
       if (!dayResult.success || !dayResult.data) {
         console.error('Failed to fetch program day:', dayResult.error)
         navigate('/sessions')
@@ -75,135 +85,76 @@ export default function Session() {
       }
       setProgramDay(dayResult.data)
 
-      // Fetch steps for this day
-      const stepsResult = await programService.getSteps(dayId)
       if (stepsResult.success && stepsResult.data) {
         setSteps(stepsResult.data.sort((a, b) => a.order - b.order))
       } else {
         console.error('Failed to fetch steps:', stepsResult.error)
       }
 
-      // AI Personalization: Active from Day 1 using onboarding data.
-      // Days 1-5: uses onboarding profile (triggers, motivations, fear index, consumption).
-      // Days 6+: additionally uses behavioral signals once learning_phase = 'active'.
       const dayNum = dayResult.data.day_number || 1
+
+      // Freemium lock: Days 2-30 require premium
+      if (dayNum > 1 && !isPremium) {
+        navigate('/paywall')
+        return
+      }
+
+      // Gate Day 15 and 30 behind belief assessment
+      if ((dayNum === 15 || dayNum === 30) && user?.id) {
+        const hasAssessment = await beliefService.hasAssessmentForDay(user.id, dayNum)
+        if (!hasAssessment) {
+          setBeliefDay(dayNum as 15 | 30)
+          setShowBeliefAssessment(true)
+        }
+      }
+
+      // AI Personalization context loading (non-blocking background task)
       if (user?.id) {
         aiService.getPersonalizedSessionContent(user.id, dayNum)
           .then(content => { if (content) setPersonalizedContent(content) })
-          .catch(() => { /* graceful fallback to static content */ })
+          .catch(() => { /* graceful fallback */ })
       }
 
-      // Fetch or create session progress
-      const progressResult = await sessionService.getSessionProgress(user.id, dayId)
+      // Handle session progress state
       let progress: SessionProgress | null = null
-      
       if (progressResult.success) {
         progress = progressResult.data || null
         if (progress && progress.id) {
           setSessionProgress(progress)
-          // Resume from last step
           setCurrentStepIndex(progress.last_step_index || 0)
+          
+          if (progress.status === SessionStatus.NOT_STARTED) {
+            // Update to IN_PROGRESS directly
+            const updateResult = await sessionService.upsertSessionProgress(user.id, dayId, {
+              status: SessionStatus.IN_PROGRESS,
+            })
+            if (updateResult.success && updateResult.data) {
+              setSessionProgress(updateResult.data)
+            }
+            analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
+          }
+          
+          // Set start time for tracking
+          setSessionStartTime(new Date())
         } else {
-          // Create new session progress
+          // Create new session progress directly as IN_PROGRESS
           const newProgressResult = await sessionService.upsertSessionProgress(user.id, dayId, {
-            status: SessionStatus.NOT_STARTED,
+            status: SessionStatus.IN_PROGRESS,
             last_step_index: 0,
           })
           if (newProgressResult.success && newProgressResult.data) {
-            progress = newProgressResult.data
-            setSessionProgress(progress)
-          } else {
-            console.error('Failed to create session progress:', newProgressResult.error)
+            setSessionProgress(newProgressResult.data)
           }
+          setSessionStartTime(new Date())
+          analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
         }
       } else {
         console.error('Failed to fetch session progress:', progressResult.error)
-      }
-
-      // If not started, mark as in progress (programDay is already set at this point)
-      if (!progress || progress.status === SessionStatus.NOT_STARTED) {
-        await startSession()
-      } else if (progress.status === SessionStatus.IN_PROGRESS) {
-        // Session already in progress, set start time if not already set
-        // Use current time as fallback (approximate)
-        if (!sessionStartTime) {
-          setSessionStartTime(new Date())
-        }
       }
     } catch (error) {
       console.error('Failed to load session:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const startSession = async () => {
-    if (!user?.id || !dayId) return
-
-    try {
-      const dayNumber = programDay?.day_number || 1
-      const startTime = new Date()
-      
-      // Set start time immediately to ensure it's available
-      setSessionStartTime(startTime)
-      
-      // If this is Day 1, automatically set quit_date to 10 days from today
-      // This replaces the manual quit date selection in KYC flow
-      if (dayNumber === 1) {
-        try {
-          const { profileService } = await import('../services/profile.service')
-          const profileResult = await profileService.getByUserId(user.id)
-          
-          if (profileResult.success && profileResult.data) {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const quitDate = new Date(today)
-            quitDate.setDate(quitDate.getDate() + 10) // 10 days from today
-            const quitDateString = quitDate.toISOString().split('T')[0]
-            
-            // Check if quit_date is missing, or if it's today or earlier (temporary value)
-            const existingQuitDate = profileResult.data.quit_date
-            const shouldUpdate = !existingQuitDate || 
-              (existingQuitDate && new Date(existingQuitDate) <= today)
-            
-            if (shouldUpdate) {
-              // Update profile with quit_date (10 days from first lesson start)
-              await profileService.upsert(user.id, {
-                quit_date: quitDateString,
-              })
-              
-              console.log(`Quit date automatically set to ${quitDateString} (10 days from first lesson start)`)
-              
-              // Initialize progress stats with the new quit_date
-              const { progressService } = await import('../services/progress.service')
-              await progressService.calculateProgress(user.id)
-            }
-          }
-        } catch (quitDateError) {
-          console.error('Failed to set quit date automatically:', quitDateError)
-          // Don't block session start if quit_date setting fails
-        }
-      }
-      
-      const result = await sessionService.upsertSessionProgress(user.id, dayId, {
-        status: SessionStatus.IN_PROGRESS,
-        last_step_index: currentStepIndex,
-      })
-
-      if (result.success && result.data) {
-        setSessionProgress(result.data)
-        // Track analytics
-        await analyticsService.trackSessionStarted(user.id, dayNumber)
-      } else {
-        // If session creation failed, still keep the start time for completion
-        console.warn('Session progress update failed, but keeping start time')
-      }
-    } catch (error) {
-      console.error('Failed to start session:', error)
-      // Even if there's an error, set start time as fallback
-      if (!sessionStartTime) {
-        setSessionStartTime(new Date())
-      }
     }
   }
 
@@ -289,8 +240,10 @@ export default function Session() {
           timeSpentMinutes
         )
 
-        // Show completion modal - ensure it's shown
-        console.log('Showing completion modal for day', programDay?.day_number)
+        // Recompute behavioral profile — non-blocking
+        behaviorProfileService.computeAndSave(user.id).catch(() => {})
+
+        // Show completion modal
         setShowCompletionModal(true)
       } else {
         console.error('Failed to complete session:', result.error)
@@ -333,6 +286,21 @@ export default function Session() {
     }
   }
 
+  if (showBeliefAssessment && user?.id) {
+    return (
+      <div className="min-h-screen min-h-[100dvh] pb-20">
+        <TopNavigation left="back" center="Belief Check-in" right="" />
+        <div className="app-container px-3 sm:px-4 pt-6">
+          <BeliefAssessment
+            assessmentDay={beliefDay}
+            userId={user.id}
+            onComplete={() => setShowBeliefAssessment(false)}
+          />
+        </div>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen min-h-[100dvh] pb-20">
@@ -342,7 +310,7 @@ export default function Session() {
             <img
               src="/mascot.png"
               alt="Loading..."
-              className="w-32 h-32 sm:w-48 sm:h-48 object-contain animate-bounce"
+              className="w-32 h-32 sm:w-48 sm:h-48 object-contain animate-pulse"
             />
             <p className="text-text-primary/70 text-sm sm:text-base font-medium">Loading session...</p>
           </div>
@@ -393,7 +361,7 @@ export default function Session() {
 
         {/* AI Personalized Intro (Day 6+, first step only) */}
         {personalizedContent?.session_intro && currentStepIndex === 0 && (
-          <GlassCard className="p-5 mb-4 border-l-4 border-brand-primary/50">
+          <GlassCard className="p-5 mb-4 bg-brand-primary/5 border-brand-primary/10">
             <p className="text-text-primary/90 text-sm leading-relaxed italic">
               {personalizedContent.session_intro}
             </p>
@@ -434,7 +402,7 @@ export default function Session() {
 
         {/* AI Closing Reflection (last step only) */}
         {personalizedContent?.closing_reflection && isLastStep && (
-          <GlassCard className="p-5 mb-4 border-l-4 border-brand-accent/50">
+          <GlassCard className="p-5 mb-4 bg-brand-accent/5 border-brand-accent/10">
             <p className="text-text-primary/90 text-sm leading-relaxed italic">
               {personalizedContent.closing_reflection}
             </p>

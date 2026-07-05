@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, LogOut, Globe } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { authHelpers } from '../lib/pocketbase'
+import pb, { authHelpers } from '../lib/pocketbase'
 import GlassCard from './GlassCard'
 import TranslatedText from './TranslatedText'
 
@@ -86,8 +86,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               {user && (
                 <div className="p-6 border-b border-white/30 bg-white/60">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center overflow-hidden">
+                      {user.avatar ? (
+                        <img src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-white" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-text-primary truncate">{user.name || 'User'}</p>

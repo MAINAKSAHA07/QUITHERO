@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Calendar, Cigarette, Droplet, Wind, ArrowRight, Quote, RefreshCw, Shield, Plus } from 'lucide-react'
-import { Card, CardContent } from '../components/ui/card'
-import { Button } from '../components/ui/button'
+import GlassCard from '../components/GlassCard'
+import GlassButton from '../components/GlassButton'
 import { Progress } from '../components/ui/progress'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
@@ -113,9 +113,10 @@ export default function Home() {
     const daysSmokeFree = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
+    const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
     const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
     const currencySymbol = getCountryConfig(userProfile?.country).symbol
-    return { daysSmokeFree, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed }
+    return { daysSmokeFree, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed, cigarettesNotSmoked }
   }, [stats, calculation, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
@@ -142,111 +143,109 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24 bg-background">
-      <TopNavigation
-        left="menu"
-        center="smono"
-        right={
-          <button onClick={loadData} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-muted transition-colors touch-target">
-            <RefreshCw className={`w-5 h-5 text-foreground ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
-          </button>
-        }
-      />
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
+      {/* Pinned Top Navigation */}
+      <div className="flex-shrink-0">
+        <TopNavigation
+          left="menu"
+          center="smono"
+          right={
+            <button onClick={loadData} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target">
+              <RefreshCw className={`w-5 h-5 text-text-primary ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
+            </button>
+          }
+        />
+      </div>
 
-      <div className="app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8 space-y-4 sm:space-y-5">
-        {/* Hero Stats — inspired by smono prototype stat counters */}
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin space-y-5 pb-24">
+        {/* Hero Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <Card>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-2 gap-4">
-                <StatBlock icon={Calendar} value={displayStats.daysSmokeFree > 0 ? displayStats.daysSmokeFree.toString() : `Day ${currentDay}`} label={displayStats.daysSmokeFree > 0 ? "Days Smoke-Free" : "Program"} color="text-info" />
-                <StatBlock icon={Cigarette} value={displayStats.slipsCount.toString()} label="Cigarettes" color="text-destructive" />
-                <StatBlock iconText={displayStats.currencySymbol} value={displayStats.moneySavedFormatted} label="Money Saved" color="text-success" />
-                <StatBlock icon={Droplet} value={`${Math.round(displayStats.nicotineNotConsumed)}mg`} label="Nicotine Avoided" color="text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+          <GlassCard className="p-4" variant="default" gradient>
+            <div className="grid grid-cols-2 gap-3">
+              <StatBlock icon={Calendar} value={displayStats.daysSmokeFree > 0 ? displayStats.daysSmokeFree.toString() : `Day ${currentDay}`} label={displayStats.daysSmokeFree > 0 ? "Days Smoke-Free" : "Program"} color="text-brand-primary" />
+              <StatBlock icon={Cigarette} value={displayStats.cigarettesNotSmoked.toString()} label="Cigarettes Avoided" color="text-red-400" />
+              <StatBlock iconText={displayStats.currencySymbol} value={displayStats.moneySavedFormatted} label="Money Saved" color="text-emerald-400" />
+              <StatBlock icon={Droplet} value={`${Math.round(displayStats.nicotineNotConsumed * 10) / 10}mg`} label="Nicotine Avoided" color="text-brand-accent" />
+            </div>
+          </GlassCard>
         </motion.div>
 
-        {/* Program Progress — inspired by smono's day progress tracker */}
+        {/* Program Progress */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">30-Day Program</p>
-                  <p className="text-2xl font-bold text-foreground">Day {currentDay}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">{programProgress}%</p>
-                  <p className="text-xs text-muted-foreground">complete</p>
-                </div>
+          <GlassCard className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs font-semibold text-text-primary/50 uppercase tracking-wide">30-Day Program</p>
+                <p className="text-2xl font-black text-text-primary">Day {currentDay}</p>
               </div>
-              <Progress value={programProgress} className="mb-4" />
-              <Button onClick={handleContinueProgram} disabled={sessionLoading} className="w-full" size="lg">
-                {sessionLoading ? <TranslatedText text="Loading..." /> : <><TranslatedText text="Continue Program" /><ArrowRight className="w-4 h-4 ml-2" /></>}
-              </Button>
-            </CardContent>
-          </Card>
+              <div className="text-right">
+                <p className="text-2xl font-black text-brand-primary">{programProgress}%</p>
+                <p className="text-xs font-medium text-text-primary/50">complete</p>
+              </div>
+            </div>
+            <Progress value={programProgress} className="mb-4 bg-white/5 h-2" />
+            <GlassButton onClick={handleContinueProgram} disabled={sessionLoading} fullWidth className="py-3.5 text-sm font-bold">
+              {sessionLoading ? <TranslatedText text="Loading..." /> : <><TranslatedText text="Continue Program" /><ArrowRight className="w-4 h-4 ml-2" /></>}
+            </GlassButton>
+          </GlassCard>
         </motion.div>
 
-        {/* H4: Today's Activity Counter */}
+        {/* Today's Activity Counter */}
         {(todayCravings > 0 || todaySlips > 0) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
-            <Card className="border-muted">
-              <CardContent className="p-4">
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Today</p>
-                <div className="flex gap-4">
-                  {todayCravings > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-success" />
-                      <span className="text-sm font-semibold text-foreground">{todayCravings} resisted</span>
-                    </div>
-                  )}
-                  {todaySlips > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Cigarette className="w-4 h-4 text-destructive" />
-                      <span className="text-sm font-semibold text-foreground">{todaySlips} slipped</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <GlassCard className="p-4 border-white/5 bg-white/5">
+              <p className="text-[10px] font-bold text-text-primary/40 mb-2.5 uppercase tracking-wider">Today</p>
+              <div className="flex gap-4">
+                {todayCravings > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <Shield className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-semibold text-text-primary">{todayCravings} resisted</span>
+                  </div>
+                )}
+                {todaySlips > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <Cigarette className="w-4 h-4 text-red-400" />
+                    <span className="text-xs font-semibold text-text-primary">{todaySlips} slipped</span>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
           </motion.div>
         )}
 
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
-          <h3 className="text-base font-semibold text-foreground mb-3">
+          <h3 className="text-sm font-bold text-text-primary/70 mb-3 uppercase tracking-wider px-1">
             <TranslatedText text="Quick Actions" />
           </h3>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2.5">
             <QuickAction
               icon={Shield}
               label="I Resisted"
-              color="text-success"
-              bg="bg-success/10"
+              color="text-emerald-400"
+              bg="bg-emerald-500/10 border-emerald-500/10 hover:bg-emerald-500/15"
               onClick={handleQuickResist}
             />
             <QuickAction
               icon={Wind}
               label="Breathe"
-              color="text-info"
-              bg="bg-info/10"
+              color="text-brand-primary"
+              bg="bg-brand-primary/10 border-brand-primary/10 hover:bg-brand-primary/15"
               onClick={() => { analyticsService.trackEvent('quick_action_clicked', { action: 'breathing' }, user?.id); navigate('/breathing') }}
             />
             <QuickAction
               icon={Cigarette}
               label="Log Slip"
-              color="text-destructive"
-              bg="bg-destructive/10"
+              color="text-red-400"
+              bg="bg-red-500/10 border-red-500/10 hover:bg-red-500/15"
               onClick={() => { analyticsService.trackEvent('quick_action_clicked', { action: 'log_slip' }, user?.id); navigate('/craving?slip=true') }}
             />
             <QuickAction
               icon={Plus}
               label="Craving"
-              color="text-primary"
-              bg="bg-primary/10"
+              color="text-brand-accent"
+              bg="bg-brand-accent/10 border-brand-accent/10 hover:bg-brand-accent/15"
               onClick={() => { navigate('/craving') }}
             />
           </div>
@@ -254,17 +253,15 @@ export default function Home() {
 
         {/* Motivational Quote */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}>
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <Quote className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-foreground font-medium text-[15px] leading-snug mb-1">{motivationalQuote.text}</p>
-                  <p className="text-muted-foreground text-sm whitespace-pre-line leading-relaxed">{motivationalQuote.details}</p>
-                </div>
+          <GlassCard className="p-5 border-brand-primary/10 bg-brand-primary/5">
+            <div className="flex items-start gap-3">
+              <Quote className="w-5 h-5 text-brand-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-text-primary font-bold text-sm leading-snug mb-1">{motivationalQuote.text}</p>
+                <p className="text-text-primary/60 text-xs whitespace-pre-line leading-relaxed">{motivationalQuote.details}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </GlassCard>
         </motion.div>
       </div>
 
@@ -275,22 +272,36 @@ export default function Home() {
         onClose={() => setMilestoneDay(null)}
       />
 
+      {/* Pinned Bottom Navigation */}
       <BottomNavigation />
     </div>
   )
 }
 
 function StatBlock({ icon: Icon, iconText, value, label, color }: { icon?: any; iconText?: string; value: string; label: string; color: string }) {
+  let bgWrapper = 'bg-white/5 border border-white/5'
+  if (color.includes('brand-primary')) {
+    bgWrapper = 'bg-brand-primary/15 border border-brand-primary/20'
+  } else if (color.includes('red')) {
+    bgWrapper = 'bg-red-500/15 border border-red-500/20'
+  } else if (color.includes('emerald')) {
+    bgWrapper = 'bg-emerald-500/15 border border-emerald-500/20'
+  } else if (color.includes('brand-accent')) {
+    bgWrapper = 'bg-brand-accent/15 border border-brand-accent/20'
+  }
+
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-      {Icon ? (
-        <Icon className={`w-5 h-5 ${color} flex-shrink-0`} />
-      ) : iconText ? (
-        <span className={`text-lg font-bold ${color} flex-shrink-0 w-5 text-center`}>{iconText}</span>
-      ) : null}
+    <div className="flex items-center gap-3.5 p-3 rounded-xl bg-white/5 border border-white/5 shadow-glass-sm min-w-0">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${bgWrapper}`}>
+        {Icon ? (
+          <Icon className={`w-4.5 h-4.5 ${color}`} />
+        ) : iconText ? (
+          <span className={`text-sm font-black ${color} text-center`}>{iconText}</span>
+        ) : null}
+      </div>
       <div className="min-w-0">
-        <div className="text-lg font-bold text-foreground leading-tight">{value}</div>
-        <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
+        <div className="text-base font-black text-text-primary leading-tight truncate">{value}</div>
+        <div className="text-[10px] font-semibold text-text-primary/45 uppercase tracking-wide">{label}</div>
       </div>
     </div>
   )
@@ -298,9 +309,9 @@ function StatBlock({ icon: Icon, iconText, value, label, color }: { icon?: any; 
 
 function QuickAction({ icon: Icon, label, color, bg, onClick }: { icon: any; label: string; color: string; bg: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-2 p-4 rounded-lg ${bg} hover:opacity-80 transition-opacity active:scale-95`}>
-      <Icon className={`w-6 h-6 ${color}`} />
-      <span className="text-xs font-medium text-foreground">{label}</span>
+    <button onClick={onClick} className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl border text-center transition-all duration-200 active:scale-[0.96] shadow-glass-sm bg-white/5 ${bg}`}>
+      <Icon className={`w-5 h-5 ${color}`} />
+      <span className="text-[10px] font-bold text-text-primary/70">{label}</span>
     </button>
   )
 }

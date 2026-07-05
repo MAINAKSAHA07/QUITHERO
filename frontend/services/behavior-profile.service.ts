@@ -9,6 +9,8 @@ import { CravingTrigger, QuitArchetype, StepType } from '../types/enums'
  */
 class BehaviorProfileService {
 
+  private computingUsers = new Set<string>()
+
   async getProfile(userId: string): Promise<UserBehaviorProfile | null> {
     try {
       const record = await pb.collection('user_behavior_profiles').getFirstListItem(`user="${userId}"`)
@@ -18,44 +20,71 @@ class BehaviorProfileService {
     }
   }
 
-  async computeAndSave(userId: string): Promise<UserBehaviorProfile | null> {
-    const [events, cravings, journals, sessions, userProfile] = await Promise.all([
-      this.getRecentEvents(userId, 5),
-      this.getRecentCravings(userId, 5),
-      this.getRecentJournals(userId, 5),
-      this.getRecentSessions(userId, 5),
-      this.getUserProfile(userId),
-    ])
+  async refreshIfStale(userId: string, maxAgeHours: number = 24): Promise<void> {
+    try {
+      const existing = await this.getProfile(userId)
 
-    if (!userProfile) return null
+      if (!existing) {
+        await this.computeAndSave(userId)
+        return
+      }
 
-    const daysObserved = this.countDaysWithActivity(events)
-    const learningPhase = daysObserved >= 5 ? 'active' : 'observing'
+      const lastUpdated = new Date(existing.last_updated)
+      const hoursSince = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60)
 
-    const profile: Partial<UserBehaviorProfile> = {
-      user: userId,
-      peak_active_hour: this.computePeakHour(events),
-      peak_active_hour_2: this.computeSecondPeakHour(events),
-      craving_peak_hour: this.computeCravingPeakHour(cravings),
-      avg_session_minutes: this.computeAvgSessionMinutes(sessions),
-      preferred_step_types: this.computePreferredStepTypes(events),
-      typical_dropout_step: this.computeTypicalDropout(events),
-      dominant_trigger: this.computeDominantTrigger(cravings),
-      avg_craving_intensity: this.computeAvgIntensity(cravings),
-      intensity_trend: this.computeIntensityTrend(cravings),
-      mood_trend: this.computeMoodTrend(journals),
-      assigned_archetype: userProfile.quit_archetype || QuitArchetype.AUTO_PILOT,
-      behavioral_archetype: this.inferArchetype(cravings, events),
-      archetype_confidence: this.computeArchetypeConfidence(cravings, events),
-      best_notification_hour: this.computeBestNotificationHour(events),
-      best_notification_style: this.inferNotificationStyle(userProfile.quit_archetype),
-      notification_open_rate: await this.computeNotificationOpenRate(userId),
-      learning_phase: learningPhase as 'observing' | 'active',
-      days_observed: daysObserved,
-      last_updated: new Date().toISOString(),
+      if (hoursSince >= maxAgeHours) {
+        await this.computeAndSave(userId)
+      }
+    } catch {
+      // Never throw — this is background work
     }
+  }
 
-    return await this.upsertProfile(userId, profile)
+  async computeAndSave(userId: string): Promise<UserBehaviorProfile | null> {
+    if (this.computingUsers.has(userId)) return null
+    this.computingUsers.add(userId)
+
+    try {
+      const [events, cravings, journals, sessions, userProfile] = await Promise.all([
+        this.getRecentEvents(userId),
+        this.getRecentCravings(userId),
+        this.getRecentJournals(userId),
+        this.getRecentSessions(userId),
+        this.getUserProfile(userId),
+      ])
+
+      if (!userProfile) return null
+
+      const daysObserved = this.countDaysWithActivity(events)
+      const learningPhase = daysObserved >= 5 ? 'active' : 'observing'
+
+      const profile: Partial<UserBehaviorProfile> = {
+        user: userId,
+        peak_active_hour: this.computePeakHour(events),
+        peak_active_hour_2: this.computeSecondPeakHour(events),
+        craving_peak_hour: this.computeCravingPeakHour(cravings),
+        avg_session_minutes: this.computeAvgSessionMinutes(sessions),
+        preferred_step_types: this.computePreferredStepTypes(events),
+        typical_dropout_step: this.computeTypicalDropout(events),
+        dominant_trigger: this.computeDominantTrigger(cravings),
+        avg_craving_intensity: this.computeAvgIntensity(cravings),
+        intensity_trend: this.computeIntensityTrend(cravings),
+        mood_trend: this.computeMoodTrend(journals),
+        assigned_archetype: userProfile.quit_archetype || QuitArchetype.AUTO_PILOT,
+        behavioral_archetype: this.inferArchetype(cravings, events),
+        archetype_confidence: this.computeArchetypeConfidence(cravings, events),
+        best_notification_hour: this.computeBestNotificationHour(events),
+        best_notification_style: this.inferNotificationStyle(userProfile.quit_archetype),
+        notification_open_rate: await this.computeNotificationOpenRate(userId),
+        learning_phase: learningPhase as 'observing' | 'active',
+        days_observed: daysObserved,
+        last_updated: new Date().toISOString(),
+      }
+
+      return await this.upsertProfile(userId, profile)
+    } finally {
+      this.computingUsers.delete(userId)
+    }
   }
 
   // Check if personalization should be active for this user
@@ -66,7 +95,7 @@ class BehaviorProfileService {
 
   // ─── Private Computation Methods ───────────────────────────────────────────
 
-  private async getRecentEvents(userId: string, _days: number) {
+  private async getRecentEvents(userId: string) {
     try {
       return await pb.collection('analytics_events').getFullList({
         filter: `user="${userId}"`,
@@ -75,7 +104,7 @@ class BehaviorProfileService {
     } catch { return [] }
   }
 
-  private async getRecentCravings(userId: string, _days: number) {
+  private async getRecentCravings(userId: string) {
     try {
       return await pb.collection('cravings').getFullList({
         filter: `user="${userId}"`,
@@ -84,7 +113,7 @@ class BehaviorProfileService {
     } catch { return [] }
   }
 
-  private async getRecentJournals(userId: string, _days: number) {
+  private async getRecentJournals(userId: string) {
     try {
       return await pb.collection('journal_entries').getFullList({
         filter: `user="${userId}"`,
@@ -93,7 +122,7 @@ class BehaviorProfileService {
     } catch { return [] }
   }
 
-  private async getRecentSessions(userId: string, _days: number) {
+  private async getRecentSessions(userId: string) {
     try {
       return await pb.collection('session_progress').getFullList({
         filter: `user="${userId}"`,

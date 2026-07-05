@@ -16,8 +16,13 @@ export class ProgressService extends BaseService {
    */
   async calculateProgress(userId: string): Promise<ApiResponse<ProgressCalculation>> {
     try {
-      // Fetch user profile
-      const profile = await profileService.getByUserId(userId)
+      // Fetch user profile, slips, and resisted cravings in parallel to cut latency
+      const [profile, slipsResult, resistedResult] = await Promise.all([
+        profileService.getByUserId(userId),
+        cravingService.getCountByType(userId, 'slip'),
+        cravingService.getCountByType(userId, 'craving')
+      ])
+
       if (!profile.success || !profile.data) {
         // Return default values if profile doesn't exist yet
         const defaultCalculation: ProgressCalculation = {
@@ -43,8 +48,8 @@ export class ProgressService extends BaseService {
           nicotine_not_consumed: 0,
           cigarettes_smoked: 0,
         }
-        // Still update the stats with defaults
-        await this.upsertProgressStats(userId, defaultCalculation)
+        // Still update the stats with defaults in the background
+        this.upsertProgressStats(userId, defaultCalculation).catch(() => {})
         return { success: true, data: defaultCalculation }
       }
 
@@ -57,12 +62,8 @@ export class ProgressService extends BaseService {
       // Calculate days smoke-free
       const daysSmokeFree = Math.max(0, Math.floor((today.getTime() - quitDate.getTime()) / (1000 * 60 * 60 * 24)))
 
-      // Fetch slips (cravings with type = 'slip')
-      const slipsResult = await cravingService.getCountByType(userId, 'slip')
+      // Extract results from parallel fetches
       const cigarettesSmoked = slipsResult.success ? (slipsResult.data || 0) : 0
-
-      // Fetch cravings resisted
-      const resistedResult = await cravingService.getCountByType(userId, 'craving')
       const cravingsResisted = resistedResult.success ? (resistedResult.data || 0) : 0
 
       const dailyConsumption = userProfile.daily_consumption || 0
@@ -95,8 +96,8 @@ export class ProgressService extends BaseService {
         cigarettes_smoked: cigarettesSmoked,
       }
 
-      // Update or create progress_stats record
-      await this.upsertProgressStats(userId, calculation)
+      // Update or create progress_stats record in the background to avoid blocking the main thread
+      this.upsertProgressStats(userId, calculation).catch(() => {})
 
       return { success: true, data: calculation }
     } catch (error: any) {

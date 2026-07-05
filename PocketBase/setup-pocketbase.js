@@ -436,14 +436,18 @@ async function setupDatabase() {
     await pb.collection('admin_users').getFirstListItem('email = "admin@backoffice.com"')
     console.log('✓ Backoffice admin user already exists, skipping...')
   } catch (_) {
+    const adminPwd = process.env.PB_ADMIN_PASSWORD
+    if (!adminPwd || adminPwd === 'Admin123!') {
+      throw new Error('FATAL: Set PB_ADMIN_PASSWORD env var to a strong password (min 10 chars).')
+    }
     await pb.collection('admin_users').create({
       email: 'admin@backoffice.com',
-      password: 'Admin123!',
-      passwordConfirm: 'Admin123!',
+      password: adminPwd,
+      passwordConfirm: adminPwd,
       name: 'Backoffice Admin',
       role: 'admin',
     })
-    console.log('✓ Created backoffice admin user: admin@backoffice.com / Admin123!')
+    console.log('✓ Created backoffice admin user: admin@backoffice.com')
   }
 
   // Set permissive rules for admin_users on all collections

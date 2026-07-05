@@ -19,57 +19,21 @@ export class SessionService extends BaseService {
       }
 
       const authUserId = pb.authStore.model.id
+      const targetUserId = userId || authUserId
 
-      // With API rule @request.auth.id = user, PocketBase auto-filters by authenticated user
-      // For new users, there may be no sessions yet, which can cause 400 errors
-      // We'll handle this gracefully by returning null
-      let result
-      
       try {
-        // Simplest query - just get list, let API rules handle filtering
-        // No sort parameter to avoid potential issues
-        result = await pb.collection('user_sessions').getList(1, 1)
+        const result = await pb.collection('user_sessions').getFirstListItem(
+          `user = "${targetUserId}"`,
+          { expand: 'program' }
+        )
+        return { success: true, data: result as any }
       } catch (error: any) {
-        // 400 errors often mean "no records found" when using API rules
-        // This is expected for new users who haven't completed onboarding
-        if (error.status === 400 || error.status === 404) {
-          // Silently return null - this is normal for users without sessions
+        if (error.status === 404 || error.status === 400) {
           return { success: true, data: null as any }
         }
-        
-        return { success: true, data: null as any }
+        throw error
       }
-      
-      if (result.items && result.items.length > 0) {
-        const session = result.items[0]
-        
-        const sessionUserId = typeof session.user === 'string' ? session.user : session.user?.id
-        if (sessionUserId !== userId && sessionUserId !== authUserId) {
-          return { success: true, data: null as any }
-        }
-        
-        // If we have a program relation, try to expand it separately
-        if (session.program) {
-          try {
-            const expandedSession = await pb.collection('user_sessions').getOne(session.id, {
-              expand: 'program',
-            })
-            return { success: true, data: expandedSession as any }
-          } catch (expandError: any) {
-            return { success: true, data: session as any }
-          }
-        }
-        
-        return { success: true, data: session as any }
-      }
-      
-      // No session found, return null
-      return { success: true, data: null as any }
     } catch (error: any) {
-      // ponytail: 400/404 = no session yet (new user), not a real error
-      if (error.status === 404 || error.status === 400) {
-        return { success: true, data: null as any }
-      }
       return { success: false, error: error.message || 'Failed to fetch session' }
     }
   }
@@ -220,7 +184,7 @@ export class SessionService extends BaseService {
           const nextDay = programDay.day_number + 1
           await pb.collection('user_sessions').update(userSession.data.id!, {
             current_day: nextDay,
-            status: nextDay > 10 ? 'completed' : 'in_progress',
+            status: nextDay > 30 ? 'completed' : 'in_progress',
           })
         }
       }

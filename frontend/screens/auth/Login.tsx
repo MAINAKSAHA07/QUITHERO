@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
@@ -6,7 +6,6 @@ import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
-import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
@@ -19,9 +18,17 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showLanguageModal, setShowLanguageModal] = useState(false)
   const navigate = useNavigate()
-  const { setIsAuthenticated, setUser, language } = useApp()
+  const { isAuthenticated, user, setIsAuthenticated, setUser } = useApp()
+
+  // If user is already authenticated (e.g. after OAuth redirect), route them appropriately
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return
+    profileService.getByUserId(user.id).then(result => {
+      const hasCompletedKYC = result.success && result.data && result.data.daily_consumption
+      navigate(hasCompletedKYC ? '/home' : '/kyc', { replace: true })
+    })
+  }, [isAuthenticated, user?.id, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,15 +50,18 @@ export default function Login() {
           id: result.data.record.id,
           email: result.data.record.email,
           name: result.data.record.name || result.data.record.email,
+          avatar: result.data.record.avatar || '',
         })
         // Track login
         await analyticsService.trackEvent('login', {}, result.data.record.id)
 
-        // Show language modal if no language is set, otherwise navigate to home
-        if (!language || language === 'en') {
-          setShowLanguageModal(true)
-        } else {
+        // Check if user has completed onboarding
+        const profileResult = await profileService.getByUserId(result.data.record.id)
+        const hasCompletedKYC = profileResult.success && profileResult.data && profileResult.data.daily_consumption
+        if (hasCompletedKYC) {
           navigate('/home')
+        } else {
+          navigate('/kyc')
         }
       } else {
         setError(result.error || 'Login failed. Please check your credentials.')
@@ -76,21 +86,17 @@ export default function Login() {
           id: record.id,
           email: record.email,
           name: record.name || record.email,
+          avatar: record.avatar || '',
         })
         // Track login
         await analyticsService.trackEvent('login', { method: 'google' }, record.id)
 
-        // Check if user profile exists
+        // Check if user has completed onboarding (has profile with essential data)
         const profileResult = await profileService.getByUserId(record.id)
-        if (profileResult.success && profileResult.data) {
-          // Profile exists, go to home or show language selection
-          if (!profileResult.data.language || profileResult.data.language === 'en') {
-            setShowLanguageModal(true)
-          } else {
-            navigate('/home')
-          }
+        const hasCompletedKYC = profileResult.success && profileResult.data && profileResult.data.daily_consumption
+        if (hasCompletedKYC) {
+          navigate('/home')
         } else {
-          // No profile, new user, redirect to kyc
           navigate('/kyc')
         }
       } else {
@@ -238,18 +244,6 @@ export default function Login() {
         </motion.div>
       </div>
 
-      {/* Language Selection Modal */}
-      <LanguageModal
-        isOpen={showLanguageModal}
-        onClose={() => {
-          setShowLanguageModal(false)
-          navigate('/home')
-        }}
-        onLanguageSelected={() => {
-          navigate('/home')
-        }}
-        showSkip={true}
-      />
     </div>
   )
 }

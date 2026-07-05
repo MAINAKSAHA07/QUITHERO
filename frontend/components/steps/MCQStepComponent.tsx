@@ -11,52 +11,101 @@ interface MCQStepComponentProps {
 export default function MCQStepComponent({ step, onNext }: MCQStepComponentProps) {
   const content = step.content_json as MCQStepContent
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  const [isSubmitted, setIsSubmitted] = useState(false)
 
   const handleSubmit = () => {
-    if (selectedOption !== null) {
+    if (selectedOption === null) return
+    
+    if (!isSubmitted) {
+      setIsSubmitted(true)
+    } else {
       onNext({ selected_option: selectedOption })
     }
   }
 
+  const hasCorrectAnswer = content.correct_answer !== undefined && content.correct_answer !== null
+
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-bold text-text-primary leading-snug">
+      <h3 className="text-lg sm:text-xl font-black text-text-primary leading-snug">
         {content.question}
       </h3>
       <div className="space-y-3">
-        {content.options.map((option, index) => (
-          <button
-            key={index}
-            onClick={() => setSelectedOption(index)}
-            className={`w-full glass p-4 rounded-xl text-left transition-all ${
-              selectedOption === index
-                ? 'ring-2 ring-brand-primary shadow-glow bg-brand-primary/10'
-                : 'hover:ring-2 hover:ring-brand-primary/50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  selectedOption === index
-                    ? 'bg-brand-primary text-white'
-                    : 'bg-text-primary/10 text-text-primary/50'
-                }`}
-              >
-                {selectedOption === index ? '✓' : String.fromCharCode(65 + index)}
+        {content.options.map((option, index) => {
+          const isSelected = selectedOption === index
+          const isCorrect = hasCorrectAnswer && content.correct_answer === index
+          const isIncorrectSelection = isSelected && hasCorrectAnswer && content.correct_answer !== index
+          
+          let optionStyle = 'hover:border-brand-primary/45 border-white/5 bg-white/5'
+          if (isSelected) {
+            optionStyle = 'border-brand-primary bg-brand-primary/10 shadow-glow'
+          }
+          if (isSubmitted) {
+            if (isCorrect) {
+              optionStyle = 'border-emerald-500 bg-emerald-500/10 shadow-emerald-500/10'
+            } else if (isIncorrectSelection) {
+              optionStyle = 'border-red-500 bg-red-500/10 shadow-red-500/10'
+            } else {
+              optionStyle = 'opacity-40 border-white/5 bg-white/5'
+            }
+          }
+
+          return (
+            <button
+              key={index}
+              disabled={isSubmitted}
+              onClick={() => setSelectedOption(index)}
+              className={`w-full text-left p-4 rounded-xl border transition-all duration-200 shadow-glass-sm flex items-center justify-between ${optionStyle}`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                    isSelected
+                      ? 'bg-brand-primary text-white'
+                      : isSubmitted && isCorrect
+                      ? 'bg-emerald-500 text-white'
+                      : isSubmitted && isIncorrectSelection
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white/10 text-text-primary/50'
+                  }`}
+                >
+                  {isSubmitted && isCorrect ? '✓' : isSubmitted && isIncorrectSelection ? '✕' : String.fromCharCode(65 + index)}
+                </div>
+                <span className="text-text-primary text-sm sm:text-base font-semibold">{option}</span>
               </div>
-              <span className="text-text-primary">{option}</span>
-            </div>
-          </button>
-        ))}
+            </button>
+          )
+        })}
       </div>
+
+      {isSubmitted && (
+        <div className={`p-4 rounded-xl border text-sm leading-relaxed animate-fade-in ${
+          hasCorrectAnswer
+            ? selectedOption === content.correct_answer
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 font-semibold'
+              : 'bg-red-500/10 border-red-500/20 text-red-400 font-semibold'
+            : 'bg-white/5 border-white/10 text-text-primary/75'
+        }`}>
+          {hasCorrectAnswer ? (
+            selectedOption === content.correct_answer ? (
+              <p>✓ Excellent! That is correct. Deepening this awareness is key to rewiring your habit patterns.</p>
+            ) : (
+              <p>✕ Not quite. The recommended response is: <span className="underline">{content.options[content.correct_answer!]}</span>. Take a moment to reflect on this perspective as we build support strategies.</p>
+            )
+          ) : (
+            <p>✓ Response saved. Self-reflection is a vital step in learning your subconscious smoking cues.</p>
+          )}
+        </div>
+      )}
+
       <div className="pt-2">
         <GlassButton
           onClick={handleSubmit}
           disabled={selectedOption === null}
           fullWidth
-          className="py-4"
+          className="py-3.5 sm:py-4 font-bold"
         >
-          Submit
+          {isSubmitted ? 'Continue' : 'Submit Answer'}
         </GlassButton>
       </div>
     </div>

@@ -46,26 +46,42 @@ export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComp
   }
 
   // Clean placeholder text to remove emojis
-  const cleanPlaceholder = removeEmojis(content.placeholder || 'Type your answer here...') || 'Type your answer here...'
+  const cleanPlaceholder = removeEmojis(content.placeholder || 'Type your reflection here...') || 'Type your reflection here...'
+  
+  // Calculate word count
+  const wordCount = answer.trim() ? answer.trim().split(/\s+/).length : 0
+  const mindfulTarget = 10
+  const targetMet = wordCount >= mindfulTarget
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-text-primary">
-        {content.question}
-      </h3>
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        placeholder={cleanPlaceholder}
-        className="glass-input w-full min-h-[120px] p-4 rounded-xl resize-none"
-        rows={5}
-      />
+      <div className="space-y-2">
+        <h3 className="text-lg font-bold text-text-primary">
+          {content.question}
+        </h3>
+      </div>
+      <div className="relative">
+        <textarea
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder={cleanPlaceholder}
+          className="glass-input w-full min-h-[140px] p-4 pb-10 rounded-xl resize-none leading-relaxed text-sm sm:text-base focus:border-brand-primary/50 transition-colors"
+          rows={5}
+        />
+        <div className="absolute bottom-3 right-4 flex items-center gap-2">
+          <span className={`text-[10px] font-bold tracking-wide uppercase ${
+            targetMet ? 'text-emerald-400' : 'text-text-primary/45'
+          }`}>
+            {targetMet ? '✓ Mindful Entry Met' : `${wordCount}/${mindfulTarget} words`}
+          </span>
+        </div>
+      </div>
       <div className="pt-2">
         <GlassButton
           onClick={handleSubmit}
           disabled={!answer.trim()}
           fullWidth
-          className="py-4"
+          className="py-3.5 sm:py-4 font-bold"
         >
           Save & Continue
         </GlassButton>

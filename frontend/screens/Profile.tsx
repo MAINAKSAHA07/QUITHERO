@@ -361,10 +361,14 @@ export default function Profile() {
     : new Date().toISOString().split('T')[0]
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24">
-      <TopNavigation left="menu" center="Profile" right="" />
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
+      {/* Pinned Top Navigation */}
+      <div className="flex-shrink-0">
+        <TopNavigation left="menu" center="Profile" right="" />
+      </div>
 
-      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
         {/* Profile Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -453,13 +457,13 @@ export default function Profile() {
               </>
             )}
 
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-3 gap-4 text-center mt-6 pt-6 border-t border-white/20">
               <div>
                 <div className="text-lg font-bold text-text-primary">
-                  <TranslatedText text="Member since" />
+                  {new Date(memberSince).toLocaleDateString(undefined, { month: 'short', year: '2-digit' })}
                 </div>
                 <div className="text-xs text-text-primary/70">
-                  {new Date(memberSince).toLocaleDateString()}
+                  <TranslatedText text="Joined" />
                 </div>
               </div>
               <div>

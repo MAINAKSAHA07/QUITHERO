@@ -12,8 +12,9 @@ import { useApp } from '../context/AppContext'
 import { useCravings } from '../hooks/useCravings'
 import { analyticsService } from '../services/analytics.service'
 import { achievementService } from '../services/achievement.service'
+import { behaviorProfileService } from '../services/behavior-profile.service'
 import { contentService } from '../services/content.service'
-import { CravingType, CravingTrigger } from '../types/enums'
+import { CravingType, CravingTrigger, ResolutionMethod } from '../types/enums'
 
 // Fallback motivational quotes
 const fallbackQuotes = [
@@ -35,6 +36,23 @@ const fallbackQuotes = [
   },
 ]
 
+const TRIGGER_THOUGHT_PROMPTS: Partial<Record<CravingTrigger, string>> = {
+  [CravingTrigger.STRESS]: 'What stressful thought just crossed your mind?',
+  [CravingTrigger.BOREDOM]: 'What were you telling yourself about needing stimulation?',
+  [CravingTrigger.SOCIAL]: 'What thought made smoking seem necessary in this social moment?',
+  [CravingTrigger.HABIT]: 'What automatic thought triggered this routine craving?',
+  [CravingTrigger.OTHER]: 'What thought came just before the craving?',
+}
+
+const RESOLUTION_OPTIONS: { value: ResolutionMethod; label: string }[] = [
+  { value: ResolutionMethod.BREATHING, label: '🌬️ Did breathing exercise' },
+  { value: ResolutionMethod.DISTRACTION, label: '🎯 Distracted myself' },
+  { value: ResolutionMethod.PASSED_ON_OWN, label: '⏳ It passed on its own' },
+  { value: ResolutionMethod.MOTIVATIONAL, label: '💪 Read a motivational message' },
+  { value: ResolutionMethod.JOURNALED, label: '📝 Journaled about it' },
+  { value: ResolutionMethod.SMOKED, label: '🚬 I smoked' },
+]
+
 export default function CravingSupport() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -45,14 +63,17 @@ export default function CravingSupport() {
   const [currentQuote, setCurrentQuote] = useState<{ text: string; details?: string } | null>(null)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showEncouragement, setShowEncouragement] = useState(false)
+  const [showResolutionPicker, setShowResolutionPicker] = useState(false)
   const [encouragementMessage, setEncouragementMessage] = useState('')
   const [intensity, setIntensity] = useState(3)
   const [trigger, setTrigger] = useState<CravingTrigger | ''>('')
   const [customTrigger, setCustomTrigger] = useState('')
+  const [automaticThought, setAutomaticThought] = useState('')
   const [notes, setNotes] = useState('')
   const [slipped, setSlipped] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [lastCravingId, setLastCravingId] = useState<string | null>(null)
 
   const triggers = [
     { value: CravingTrigger.STRESS, label: 'Stress' },
@@ -140,9 +161,12 @@ export default function CravingSupport() {
         trigger: trigger as CravingTrigger,
         trigger_custom: trigger === CravingTrigger.OTHER ? customTrigger : undefined,
         notes: notes.trim() || undefined,
+        automatic_thought: automaticThought.trim() || undefined,
       })
 
       if (result.success) {
+        if (result.data?.id) setLastCravingId(result.data.id)
+
         // Track analytics
         await analyticsService.trackCravingLogged(
           user.id,
@@ -156,6 +180,9 @@ export default function CravingSupport() {
         // Check for achievements
         await achievementService.checkAndUnlock(user.id)
 
+        // Recompute behavioral profile — non-blocking
+        behaviorProfileService.computeAndSave(user.id).catch(() => {})
+
         // Show encouragement message
         const cravingsThisWeek = cravings.filter((c) => {
           const cravingDate = new Date(c.created || '')
@@ -165,9 +192,6 @@ export default function CravingSupport() {
         }).length
 
         if (slipped) {
-          // Get days smoke-free for encouragement
-          // const progressResult = await cravingService.getCountByType(user.id, 'slip')
-          // const totalSlips = progressResult.success ? (progressResult.data || 0) : 0
           setEncouragementMessage(
             `It's okay. Tomorrow is a new day. You've come this far - keep going! 💪`
           )
@@ -183,15 +207,16 @@ export default function CravingSupport() {
         setIntensity(3)
         setTrigger('')
         setCustomTrigger('')
+        setAutomaticThought('')
         setNotes('')
         setSlipped(false)
         setShowLogForm(false)
 
-        // Close encouragement after 3 seconds and navigate
+        // Show resolution picker after short encouragement
         setTimeout(() => {
           setShowEncouragement(false)
-          navigate('/home')
-        }, 3000)
+          setShowResolutionPicker(true)
+        }, 2000)
       } else {
         setError(result.error || 'Failed to save craving. Please try again.')
       }
@@ -326,6 +351,20 @@ export default function CravingSupport() {
               )}
             </div>
 
+            {trigger && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  {TRIGGER_THOUGHT_PROMPTS[trigger as CravingTrigger] || 'What thought came just before?'}
+                </label>
+                <textarea
+                  value={automaticThought}
+                  onChange={(e) => setAutomaticThought(e.target.value)}
+                  placeholder="e.g. 'I deserve a break' or 'Just one won't hurt'"
+                  className="glass-input w-full min-h-[80px] resize-none"
+                />
+              </div>
+            )}
+
             <div className="mb-6">
               <label className="block text-sm font-medium text-text-primary mb-2">
                 Any notes? (Optional)
@@ -379,6 +418,56 @@ export default function CravingSupport() {
             </GlassButton>
           </GlassCard>
         </div>
+      </div>
+    )
+  }
+
+  // Resolution picker — shown after encouragement
+  if (showResolutionPicker) {
+    const handleResolution = async (method: ResolutionMethod | null) => {
+      if (method && lastCravingId && user?.id) {
+        try {
+          const { pb } = await import('../lib/pocketbase')
+          await pb.collection('cravings').update(lastCravingId, { resolution_method: method })
+        } catch { /* non-critical */ }
+      }
+      setShowResolutionPicker(false)
+      navigate('/home')
+    }
+
+    return (
+      <div className="min-h-screen pb-20 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="app-container px-3 sm:px-4"
+        >
+          <GlassCard className="p-6">
+            <h2 className="text-lg font-bold text-text-primary mb-2 text-center">
+              How did you get through it?
+            </h2>
+            <p className="text-sm text-text-primary/60 text-center mb-5">
+              This helps us personalize your support
+            </p>
+            <div className="flex flex-col gap-2">
+              {RESOLUTION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleResolution(opt.value)}
+                  className="w-full text-left px-4 py-3 rounded-xl border border-white/20 glass hover:bg-white/10 transition-colors text-sm"
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                onClick={() => handleResolution(null)}
+                className="w-full text-center px-4 py-2 text-sm text-text-primary/50 mt-2"
+              >
+                Skip
+              </button>
+            </div>
+          </GlassCard>
+        </motion.div>
       </div>
     )
   }

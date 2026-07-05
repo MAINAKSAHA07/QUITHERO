@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
+import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target, Loader2 } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
@@ -13,8 +13,8 @@ import { useCravings } from '../hooks/useCravings'
 import { useSessions } from '../hooks/useSessions'
 import { useAchievements } from '../hooks/useAchievements'
 import { profileService } from '../services/profile.service'
-import { cravingService } from '../services/craving.service'
 import { analyticsService } from '../services/analytics.service'
+import { beliefService, BeliefDelta } from '../services/belief.service'
 import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
 import { formatMoney } from '../utils/currency'
@@ -54,6 +54,7 @@ export default function Progress() {
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null)
   const [showNotification, setShowNotification] = useState(false)
   const [userCountry, setUserCountry] = useState<string | undefined>(undefined)
+  const [beliefDeltas, setBeliefDeltas] = useState<BeliefDelta[]>([])
   const [preQuitData, setPreQuitData] = useState<{
     isPreQuit: boolean
     daysUntilQuit: number
@@ -66,20 +67,21 @@ export default function Progress() {
     nicotineAvoided: number
   } | null>(null)
 
-  // Load data on mount
+  // Load data on mount, when filter changes, or when session day resolves
   useEffect(() => {
     if (user?.id) {
       loadData()
       analyticsService.trackPageView('progress', user.id)
     }
-  }, [user?.id, timeFilter])
+  }, [user?.id, timeFilter, currentSession?.current_day])
 
   const loadData = async () => {
     if (!user?.id) return
     setLoading(true)
     try {
-      // Refresh progress
-      await refreshProgressData()
+      // Refresh progress and get the fresh calculation data
+      const refreshResult = await refreshProgressData()
+      const freshCalc = refreshResult && 'success' in refreshResult && refreshResult.success ? refreshResult.data : null
 
       // Check if user is in pre-quit phase
       try {
@@ -91,22 +93,17 @@ export default function Progress() {
           today.setHours(0, 0, 0, 0)
           if (quitDate && quitDate.getTime() > today.getTime()) {
             const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            const allCravings = await cravingService.getAll({ filter: `user="${user.id}"` })
-            const items = allCravings.success && allCravings.data ? allCravings.data : []
-            const resisted = items.filter((c: any) => c.type === 'craving').length
             const day = currentSession?.current_day || 1
-            const { getCountryConfig } = await import('../utils/currency')
-            const config = getCountryConfig(profileResult.data.country)
             setPreQuitData({
               isPreQuit: true,
               daysUntilQuit: daysUntil,
               quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              totalCravings: items.length,
-              totalResisted: resisted,
+              totalCravings: freshCalc?.cigarettes_smoked ?? 0,
+              totalResisted: freshCalc?.cigarettes_not_smoked ?? 0,
               programDay: day,
               programPercent: Math.round((day / 30) * 100),
-              moneySaved: formatMoney(resisted * config.pricePerCigarette, profileResult.data.country),
-              nicotineAvoided: Math.round(resisted * config.nicotinePerCigarette * 10) / 10,
+              moneySaved: formatMoney(freshCalc?.money_saved ?? 0, profileResult.data.country),
+              nicotineAvoided: Math.round((freshCalc?.nicotine_not_consumed ?? 0) * 10) / 10,
             })
           } else {
             setPreQuitData(null)
@@ -148,6 +145,12 @@ export default function Progress() {
           color: TRIGGER_COLORS[item.name] || '#9B59B6',
         }))
         setTriggerBreakdown(formatted)
+      }
+
+      // Fetch belief deltas
+      const beliefResult = await beliefService.getBeliefDelta(user.id)
+      if (beliefResult.success && beliefResult.data) {
+        setBeliefDeltas(beliefResult.data)
       }
 
       // Check for new achievements
@@ -197,35 +200,38 @@ export default function Progress() {
   }, [achievements, isUnlocked])
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24">
-      <TopNavigation
-        left="menu"
-        center="Your Progress"
-        right={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadData}
-              disabled={loading || progressLoading}
-              className="p-2"
-            >
-              <RefreshCw
-                className={`w-5 h-5 text-text-primary ${
-                  loading || progressLoading ? 'animate-spin' : ''
-                }`}
-              />
-            </button>
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value as 'week' | 'month' | 'all')}
-              className="glass-input text-sm py-1 px-2"
-            >
-              <option value="week"><TranslatedText text="This Week" /></option>
-              <option value="month"><TranslatedText text="This Month" /></option>
-              <option value="all"><TranslatedText text="All Time" /></option>
-            </select>
-          </div>
-        }
-      />
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
+      {/* Pinned Top Navigation */}
+      <div className="flex-shrink-0">
+        <TopNavigation
+          left="menu"
+          center="Your Progress"
+          right={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadData}
+                disabled={loading || progressLoading}
+                className="p-2"
+              >
+                <RefreshCw
+                  className={`w-5 h-5 text-text-primary ${
+                    loading || progressLoading ? 'animate-spin' : ''
+                  }`}
+                />
+              </button>
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value as 'week' | 'month' | 'all')}
+                className="glass-input text-sm py-1 px-2"
+              >
+                <option value="week"><TranslatedText text="This Week" /></option>
+                <option value="month"><TranslatedText text="This Month" /></option>
+                <option value="all"><TranslatedText text="All Time" /></option>
+              </select>
+            </div>
+          }
+        />
+      </div>
 
       {/* Achievement Notification */}
       {showNotification && newlyUnlocked && (
@@ -238,7 +244,8 @@ export default function Progress() {
         />
       )}
 
-      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
         {/* Pre-Quit Countdown Card */}
         {preQuitData?.isPreQuit && (
           <motion.div
@@ -384,8 +391,8 @@ export default function Progress() {
               <TranslatedText text="Craving Patterns" />
             </h3>
             {loading ? (
-              <div className="flex items-center justify-center h-[200px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+              <div className="flex items-center justify-center h-[200px] text-brand-primary">
+                <Loader2 className="animate-spin w-8 h-8" />
               </div>
             ) : cravingTrend.length === 0 ? (
               <div className="flex items-center justify-center h-[200px] text-text-primary/50">
@@ -436,8 +443,8 @@ export default function Progress() {
               <TranslatedText text="Trigger Breakdown" />
             </h3>
             {loading ? (
-              <div className="flex items-center justify-center h-[200px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+              <div className="flex items-center justify-center h-[200px] text-brand-primary">
+                <Loader2 className="animate-spin w-8 h-8" />
               </div>
             ) : triggerBreakdown.length === 0 ? (
               <div className="flex items-center justify-center h-[200px] text-text-primary/50">
@@ -479,8 +486,8 @@ export default function Progress() {
             <TranslatedText text="Achievements" />
           </h3>
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+            <div className="flex items-center justify-center py-8 text-brand-primary">
+              <Loader2 className="animate-spin w-8 h-8" />
             </div>
           ) : formattedAchievements.length === 0 ? (
             <div className="text-center py-8 text-text-primary/50 mb-6">
@@ -582,6 +589,51 @@ export default function Progress() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {/* Belief Delta Section */}
+      {beliefDeltas.length > 0 && (
+        <div className="app-container px-3 sm:px-4 pb-8">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <GlassCard className="p-5">
+              <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-brand-primary" />
+                Belief Change
+              </h3>
+              <p className="text-xs text-text-primary/60 mb-4">Day 0 vs Latest — lower is better</p>
+              <div className="space-y-3">
+                {beliefDeltas.map((d) => (
+                  <div key={d.key} className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-text-primary/80 truncate">{d.label}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-8 text-center">
+                          <span className="text-xs font-mono text-text-primary/50">{d.day0}</span>
+                        </div>
+                        <div className="flex-1 h-2 bg-text-primary/10 rounded-full overflow-hidden relative">
+                          <div
+                            className="absolute h-full bg-text-primary/20 rounded-full"
+                            style={{ width: `${d.day0 * 10}%` }}
+                          />
+                          <div
+                            className={`absolute h-full rounded-full ${d.delta <= 0 ? 'bg-success' : 'bg-error/60'}`}
+                            style={{ width: `${d.latest * 10}%` }}
+                          />
+                        </div>
+                        <div className="w-8 text-center">
+                          <span className="text-xs font-mono font-bold text-text-primary">{d.latest}</span>
+                        </div>
+                        <span className={`text-xs font-bold w-8 ${d.delta <= 0 ? 'text-success' : 'text-error'}`}>
+                          {d.delta <= 0 ? '↓' : '↑'}{Math.abs(d.delta)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </motion.div>
+        </div>
+      )}
 
       <BottomNavigation />
     </div>

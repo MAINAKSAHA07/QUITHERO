@@ -1,21 +1,23 @@
 import { motion } from 'framer-motion'
 import { DollarSign, Clock, Heart } from 'lucide-react'
 import GlassButton from './GlassButton'
+import { formatMoney, getCountryConfig } from '../utils/currency'
 
 interface InsightInterstitialProps {
   dailyConsumption: number
   monthsUsing: number
+  country?: string
   onContinue: () => void
 }
 
-const COST_PER_CIGARETTE = 0.50
 const MINUTES_PER_CIGARETTE = 7
 const LIFE_MINUTES_LOST_PER_CIGARETTE = 11
 
-export default function InsightInterstitial({ dailyConsumption, monthsUsing, onContinue }: InsightInterstitialProps) {
+export default function InsightInterstitial({ dailyConsumption, monthsUsing, country, onContinue }: InsightInterstitialProps) {
+  const config = getCountryConfig(country)
   const totalDays = monthsUsing * 30
   const totalCigarettes = dailyConsumption * totalDays
-  const moneySpent = totalCigarettes * COST_PER_CIGARETTE
+  const moneySpent = totalCigarettes * config.pricePerCigarette
   const timeSpentHours = Math.round((totalCigarettes * MINUTES_PER_CIGARETTE) / 60)
   const lifeLostDays = Math.round((totalCigarettes * LIFE_MINUTES_LOST_PER_CIGARETTE) / 60 / 24)
 
@@ -23,7 +25,7 @@ export default function InsightInterstitial({ dailyConsumption, monthsUsing, onC
     {
       icon: DollarSign,
       label: 'Money spent smoking',
-      value: `$${moneySpent.toLocaleString()}`,
+      value: formatMoney(moneySpent, country),
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
     },

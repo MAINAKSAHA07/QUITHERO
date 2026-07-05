@@ -14,6 +14,9 @@ export enum Language {
   HI = 'hi',
   DE = 'de',
   ZH = 'zh',
+  MR = 'mr',
+  GU = 'gu',
+  IT = 'it',
 }
 
 export enum StepType {
@@ -114,5 +117,15 @@ export enum EmotionalState {
   ANGRY = 'angry',
   SAD_STATE = 'sad_state',
   EXCITED = 'excited',
+}
+
+export enum ResolutionMethod {
+  BREATHING = 'breathing',
+  DISTRACTION = 'distraction',
+  PASSED_ON_OWN = 'passed_on_own',
+  MOTIVATIONAL = 'motivational_message',
+  SMOKED = 'smoked',
+  JOURNALED = 'journaled',
+  AUTO_BREATHING = 'auto_breathing',
 }
 

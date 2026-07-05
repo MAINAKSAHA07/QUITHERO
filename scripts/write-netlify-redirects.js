@@ -40,6 +40,9 @@ const redirects = `# Auto-generated — do not edit
 # PocketBase API proxy
 /api/pocketbase/*  ${pbUrl}/:splat  200
 
+# AI personalization proxy → Netlify Function
+/api/ai/personalize  /.netlify/functions/ai-personalize  200
+
 # SPA fallback
 /*  /index.html  200
 `

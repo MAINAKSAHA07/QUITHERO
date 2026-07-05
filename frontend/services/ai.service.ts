@@ -11,17 +11,26 @@ import { QuitArchetype, CravingTrigger, EmotionalState } from '../types/enums'
 import { behaviorProfileService } from './behavior-profile.service'
 import { profileService } from './profile.service'
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
-
 // ─── Onboarding Context Builder ────────────────────────────────────────────────
 
 function buildOnboardingContext(profile: UserProfile): string {
   const lines: string[] = ['ONBOARDING PROFILE:']
 
+  if (profile.onboarding_name) {
+    lines.push(`- Preferred Name: ${profile.onboarding_name}`)
+  }
+
   if (profile.daily_consumption) {
     const unit = profile.consumption_unit || 'cigarettes'
     lines.push(`- Daily consumption: ${profile.daily_consumption} ${unit}/day`)
+  }
+
+  if (profile.pack_cost) {
+    lines.push(`- Cost per pack: ${profile.pack_cost}`)
+  }
+
+  if (profile.minutes_per_cigarette) {
+    lines.push(`- Minutes spent per cigarette: ${profile.minutes_per_cigarette} minutes`)
   }
 
   if (profile.how_long_using) {
@@ -32,6 +41,42 @@ function buildOnboardingContext(profile: UserProfile): string {
         ? `${years} year${years > 1 ? 's' : ''}${months > 0 ? ` ${months} month${months > 1 ? 's' : ''}` : ''}`
         : `${months} month${months > 1 ? 's' : ''}`
     lines.push(`- Smoking for: ${duration}`)
+  }
+
+  if (profile.started_age_range) {
+    lines.push(`- Age started smoking: ${profile.started_age_range}`)
+  }
+
+  if (profile.first_use_after_waking) {
+    lines.push(`- First use after waking: ${profile.first_use_after_waking}`)
+  }
+
+  if (profile.smoking_times && profile.smoking_times.length > 0) {
+    lines.push(`- Typical smoking times: ${profile.smoking_times.join(', ')}`)
+  }
+
+  if (profile.smoking_environments && profile.smoking_environments.length > 0) {
+    lines.push(`- Typical smoking environments: ${profile.smoking_environments.join(', ')}`)
+  }
+
+  if (profile.primary_trigger) {
+    lines.push(`- Primary trigger: ${profile.primary_trigger}`)
+  }
+
+  if (profile.craving_peak_time) {
+    lines.push(`- Craving peak time: ${profile.craving_peak_time}`)
+  }
+
+  if (profile.daily_stress_level) {
+    lines.push(`- Daily stress level: ${profile.daily_stress_level}`)
+  }
+
+  if (profile.anxiety_social_pattern) {
+    lines.push(`- Anxiety/social pattern: ${profile.anxiety_social_pattern}`)
+  }
+
+  if (profile.guilt_frequency) {
+    lines.push(`- Guilt frequency: ${profile.guilt_frequency}`)
   }
 
   if (profile.smoking_triggers && profile.smoking_triggers.length > 0) {
@@ -92,92 +137,69 @@ function buildOnboardingContext(profile: UserProfile): string {
 function buildPersonalizationRules(profile: UserProfile): string {
   const rules: string[] = ['PERSONALIZATION RULES (derived from onboarding):']
 
+  if (profile.first_use_after_waking === 'within 5 minutes' || profile.first_use_after_waking === '6-30 minutes') {
+    rules.push('- HIGH PHYSICAL DEPENDENCY: First cigarette soon after waking. Focus on physical withdrawal, early morning cravings, and somatic grounding.')
+  }
+
+  if (profile.daily_stress_level === 'high' || profile.daily_stress_level === 'very high') {
+    rules.push('- HIGH DAILY STRESS: Offer quick, action-oriented stress-relief and mindfulness coping mechanisms.')
+  }
+
+  if (profile.guilt_frequency === 'often' || profile.guilt_frequency === 'always') {
+    rules.push('- HIGH GUILT: Keep tone extremely compassionate and gentle. De-escalate self-blame and emphasize recovery.')
+  }
+
   if (profile.fear_index !== undefined) {
     if (profile.fear_index >= 7) {
       rules.push(
-        '- HIGH FEAR: Lead with reassurance before any challenge. ' +
-        'Avoid urgency language. Validate that fear is normal.'
+        '- HIGH FEAR: Lead with reassurance before any challenge. Avoid urgency language. Validate that fear is normal.'
       )
     } else if (profile.fear_index <= 3) {
       rules.push(
-        '- LOW FEAR: User is confident. Skip over-reassurance. ' +
-        'Match their energy — direct, capable framing.'
+        '- LOW FEAR: User is confident. Skip over-reassurance. Match their energy — direct, capable framing.'
       )
     }
   }
 
   if (profile.smoking_triggers?.includes(CravingTrigger.STRESS)) {
-    rules.push(
-      '- STRESS TRIGGER: When stress appears, acknowledge it is real before reframing. ' +
-      'Never dismiss stress. Offer a concrete tool (breathing, grounding) alongside the insight.'
-    )
+    rules.push('- STRESS TRIGGER: Acknowledge stress is real before reframing. Offer a concrete tool.')
   }
   if (profile.smoking_triggers?.includes(CravingTrigger.BOREDOM)) {
-    rules.push(
-      '- BOREDOM TRIGGER: Reference the feeling of emptiness or restlessness directly. ' +
-      'Frame freedom as gaining engagement, not just removing a habit.'
-    )
+    rules.push('- BOREDOM TRIGGER: Reference emptiness/restlessness directly. Frame freedom as gaining engagement.')
   }
   if (profile.smoking_triggers?.includes(CravingTrigger.SOCIAL)) {
-    rules.push(
-      '- SOCIAL TRIGGER: Acknowledge that social situations are real pressure. ' +
-      'Do not make the user feel isolated. Use "others like you" framing where natural.'
-    )
+    rules.push('- SOCIAL TRIGGER: Acknowledge social pressure is real. Use "others like you" framing.')
   }
   if (profile.smoking_triggers?.includes(CravingTrigger.HABIT)) {
-    rules.push(
-      '- HABIT TRIGGER: Reference specific routines (morning coffee, after meals) ' +
-      'when relevant. Focus on pattern interruption over willpower.'
-    )
+    rules.push('- HABIT TRIGGER: Reference routines. Focus on pattern interruption over willpower.')
   }
 
   if (profile.emotional_states?.includes(EmotionalState.ANXIOUS)) {
-    rules.push(
-      '- ANXIETY: Avoid overwhelming with too many ideas at once. ' +
-      'One clear action per message. Breathing or grounding before cognition.'
-    )
+    rules.push('- ANXIETY: One clear action per message. Breathing before cognition.')
   }
   if (profile.emotional_states?.includes(EmotionalState.LONELY)) {
-    rules.push(
-      '- LONELINESS: Lean into community, shared experience, and "you are not alone" framing.'
-    )
+    rules.push('- LONELINESS: Lean into community and "you are not alone" framing.')
   }
 
   if (profile.daily_consumption && profile.daily_consumption >= 20) {
-    rules.push(
-      '- HEAVY SMOKER (20+/day): Acknowledge that withdrawal will be real. ' +
-      'Do not minimise Days 2-4. Celebrate micro-wins (hours, not just days).'
-    )
+    rules.push('- HEAVY SMOKER (20+/day): Acknowledge withdrawal will be real. Celebrate micro-wins.')
   }
   if (profile.daily_consumption && profile.daily_consumption <= 5) {
-    rules.push(
-      '- LIGHT SMOKER (<5/day): Avoid language implying they are deeply addicted. ' +
-      'Focus on the habit and association angle, not the physical dependency angle.'
-    )
+    rules.push('- LIGHT SMOKER (<5/day): Focus on habit/association angle, not physical dependency.')
   }
 
   if (profile.how_long_using && profile.how_long_using > 120) {
-    rules.push(
-      '- LONG-TERM SMOKER (10+ years): Acknowledge this is deeply woven into identity. ' +
-      'Be patient in framing — this is not a quick fix, it is a genuine reset.'
-    )
+    rules.push('- LONG-TERM SMOKER (10+ years): Acknowledge this is woven into identity. Patient framing.')
   }
 
   if (profile.motivations?.includes('health')) {
-    rules.push(
-      '- HEALTH MOTIVATION: Safe to reference health improvements and recovery milestones.'
-    )
+    rules.push('- HEALTH MOTIVATION: Safe to reference health improvements and recovery milestones.')
   }
   if (profile.motivations?.includes('family')) {
-    rules.push(
-      '- FAMILY MOTIVATION: Reference loved ones where natural. ' +
-      '"The people who matter to you" framing resonates.'
-    )
+    rules.push('- FAMILY MOTIVATION: "The people who matter to you" framing resonates.')
   }
   if (profile.motivations?.includes('money') || profile.motivations?.includes('financial')) {
-    rules.push(
-      '- FINANCIAL MOTIVATION: Safe to reference money saved and cost of smoking.'
-    )
+    rules.push('- FINANCIAL MOTIVATION: Safe to reference money saved and cost of smoking.')
   }
 
   if (rules.length === 1) {
@@ -190,23 +212,28 @@ function buildPersonalizationRules(profile: UserProfile): string {
 // ─── Main Service ─────────────────────────────────────────────────────────────
 
 class AIPersonalizationService {
-  private apiKey: string
+  private currentUserId: string = ''
+  private contentCache = new Map<string, PersonalizedContent>()
 
-  constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''
+  private cacheKey(userId: string, day: number): string {
+    return `${userId}_${day}`
   }
 
   /**
    * Get personalized session content.
-   * Active from Day 1 onward using onboarding data.
-   * Days 6+: additionally uses behavioral signals once learning_phase = 'active'.
-   * Falls back to null (static content) only if AI call fails or no API key.
+   * Active from Day 1 using onboarding data.
+   * Falls back to null if proxy unavailable or rate limited.
    */
   async getPersonalizedSessionContent(
     userId: string,
     dayNumber: number
   ): Promise<PersonalizedContent | null> {
-    if (!this.apiKey) return null
+    this.currentUserId = userId
+
+    const key = this.cacheKey(userId, dayNumber)
+    if (this.contentCache.has(key)) {
+      return this.contentCache.get(key)!
+    }
 
     const [userProfileResult, behaviorProfile] = await Promise.all([
       profileService.getByUserId(userId),
@@ -225,11 +252,28 @@ class AIPersonalizationService {
     }
 
     const okfContext = await this.loadOKFContext(archetype, dayNumber, 'session_content')
-    const prompt = this.buildSessionPrompt(userProfile, behaviorProfile, dayNumber, archetype, okfContext)
+    const behavioralSection = this.buildBehavioralSection(behaviorProfile)
 
     try {
-      const response = await this.callGemini(prompt)
+      const response = await this.callProxy('session_content', {
+        dayNumber,
+        archetype,
+        onboardingContext: buildOnboardingContext(userProfile),
+        personalizationRules: buildPersonalizationRules(userProfile),
+        okfContext: okfContext.context,
+        behavioralSection,
+      })
+
       const content = this.parseSessionResponse(response)
+
+      if (content.session_intro) {
+        this.contentCache.set(key, content)
+        if (this.contentCache.size > 5) {
+          const firstKey = this.contentCache.keys().next().value
+          if (firstKey) this.contentCache.delete(firstKey)
+        }
+      }
+
       await this.logPersonalization(userId, dayNumber, 'session_content', archetype, okfContext.docsLoaded)
       return content
     } catch {
@@ -239,14 +283,13 @@ class AIPersonalizationService {
 
   /**
    * Get personalized notification.
-   * Now includes full onboarding context in the prompt.
    */
   async getPersonalizedNotification(
     userId: string,
     triggerType: NotificationTriggerType,
     dayNumber: number
   ): Promise<NotificationMessage | null> {
-    if (!this.apiKey) return null
+    this.currentUserId = userId
 
     const [userProfileResult, behaviorProfile] = await Promise.all([
       profileService.getByUserId(userId),
@@ -269,12 +312,23 @@ class AIPersonalizationService {
       this.loadOKFContext(archetype, dayNumber, 'notification'),
     ])
 
-    const prompt = this.buildNotificationPrompt(
-      userProfile, behaviorProfile, triggerType, dayNumber, archetype, recentCravings, okfContext
-    )
+    const hasRecentSlip = recentCravings.some(c => c.type === 'slip')
+    const recentTriggers = [...new Set(recentCravings.slice(0, 5).map(c => c.trigger))].join(', ')
+    const behavioralSection = this.buildBehavioralSection(behaviorProfile)
 
     try {
-      const response = await this.callGemini(prompt)
+      const response = await this.callProxy('notification', {
+        dayNumber,
+        archetype,
+        onboardingContext: buildOnboardingContext(userProfile),
+        personalizationRules: buildPersonalizationRules(userProfile),
+        okfContext: okfContext.context,
+        behavioralSection,
+        triggerType,
+        hasRecentSlip,
+        recentTriggers: recentTriggers || 'none logged',
+      })
+
       const message = this.parseNotificationResponse(response, triggerType, archetype)
       await this.logPersonalization(userId, dayNumber, 'notification', archetype, okfContext.docsLoaded)
       return message
@@ -284,7 +338,7 @@ class AIPersonalizationService {
   }
 
   /**
-   * Backoffice transparency — shows onboarding data that is feeding prompts
+   * Backoffice transparency
    */
   async getPersonalizationRationale(userId: string): Promise<string> {
     const [userProfileResult, behaviorProfile] = await Promise.all([
@@ -325,112 +379,42 @@ class AIPersonalizationService {
     return lines.join('\n')
   }
 
-  // ─── Private: Prompt Builders ──────────────────────────────────────────────
+  // ─── Private: Proxy Call ───────────────────────────────────────────────────
 
-  private buildSessionPrompt(
-    userProfile: UserProfile,
-    behaviorProfile: UserBehaviorProfile | null,
-    dayNumber: number,
-    archetype: QuitArchetype,
-    okfContext: { context: string }
-  ): string {
-    const behavioralSection = behaviorProfile && behaviorProfile.learning_phase === 'active'
-      ? `
-BEHAVIORAL SIGNALS (from ${behaviorProfile.days_observed} days of observation):
+  private async callProxy(
+    requestType: 'session_content' | 'notification',
+    context: Record<string, unknown>
+  ): Promise<string> {
+    const proxyUrl = import.meta.env.VITE_AI_PROXY_URL
+    if (!proxyUrl) throw new Error('AI proxy URL not configured')
+
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: this.currentUserId, requestType, context }),
+      signal: AbortSignal.timeout(8000),
+    })
+
+    if (res.status === 429) throw new Error('rate_limited')
+    if (res.status === 503) throw new Error('ai_unavailable')
+    if (!res.ok) throw new Error(`proxy_error_${res.status}`)
+
+    const data = await res.json()
+    return JSON.stringify(data)
+  }
+
+  // ─── Private: Behavioral Section Builder ───────────────────────────────────
+
+  private buildBehavioralSection(behaviorProfile: UserBehaviorProfile | null): string {
+    if (behaviorProfile && behaviorProfile.learning_phase === 'active') {
+      return `BEHAVIORAL SIGNALS (from ${behaviorProfile.days_observed} days of observation):
 - Dominant live trigger: ${behaviorProfile.dominant_trigger}
 - Craving intensity trend: ${behaviorProfile.intensity_trend}
 - Mood trend: ${behaviorProfile.mood_trend}
 - Average session time: ${behaviorProfile.avg_session_minutes} min
 - Behavioral archetype: ${behaviorProfile.behavioral_archetype} (confidence: ${(behaviorProfile.archetype_confidence * 100).toFixed(0)}%)`
-      : `
-BEHAVIORAL SIGNALS:
-- Not yet available (user is in Days 1-5; use onboarding data only)`
-
-    return `You are the personalization engine for Smono, a 30-day CBT-based quit-smoking app.
-
-KNOWLEDGE CONTEXT:
-${okfContext.context}
-
-${buildOnboardingContext(userProfile)}
-
-ARCHETYPE: ${archetype}
-${behavioralSection}
-
-${buildPersonalizationRules(userProfile)}
-
-TASK: Generate personalized content insertions for Day ${dayNumber}.
-
-HARD RULES:
-- Never mention "archetype", "CBT", "personalization", or any system internals to the user
-- Never quote back their own words verbatim — translate into insight
-- Non-stigmatizing and trauma-informed at all times
-- Second-person ("you"), present tense
-- Do not invent facts about the user beyond what is given
-- If fear_index is high (>=7): lead with reassurance in the session_intro
-- session_intro: max 120 words
-- exercise_motivation: max 60 words
-- closing_reflection: max 100 words
-- journal_prompt: one specific question, max 30 words
-
-Respond with ONLY valid JSON (no markdown, no preamble):
-{
-  "session_intro": "...",
-  "exercise_motivation": "...",
-  "closing_reflection": "...",
-  "journal_prompt": "..."
-}`
-  }
-
-  private buildNotificationPrompt(
-    userProfile: UserProfile,
-    behaviorProfile: UserBehaviorProfile | null,
-    triggerType: NotificationTriggerType,
-    dayNumber: number,
-    archetype: QuitArchetype,
-    recentCravings: any[],
-    okfContext: { context: string }
-  ): string {
-    const hasRecentSlip = recentCravings.some(c => c.type === 'slip')
-    const recentTriggers = [...new Set(recentCravings.slice(0, 5).map(c => c.trigger))].join(', ')
-
-    const behavioralSection = behaviorProfile && behaviorProfile.learning_phase === 'active'
-      ? `Intensity trend: ${behaviorProfile.intensity_trend} | Mood trend: ${behaviorProfile.mood_trend}`
-      : 'Behavioral data not yet available (Days 1-5)'
-
-    return `You are the notification engine for Smono, a 30-day CBT quit-smoking app.
-
-KNOWLEDGE CONTEXT:
-${okfContext.context}
-
-${buildOnboardingContext(userProfile)}
-
-${buildPersonalizationRules(userProfile)}
-
-NOTIFICATION CONTEXT:
-- Archetype: ${archetype}
-- Day: ${dayNumber}
-- Trigger type: ${triggerType}
-- Recent cravings (48h): ${recentCravings.length}
-- Has recent slip: ${hasRecentSlip}
-- Recent triggers: ${recentTriggers || 'none logged'}
-- ${behavioralSection}
-
-TASK: Generate ONE notification for trigger type "${triggerType}".
-
-HARD RULES:
-- Title: max 60 characters
-- Body: max 120 characters
-- NEVER use guilt or shame
-- NEVER mention "archetype" or system internals
-${hasRecentSlip ? '- SLIP DETECTED: compassionate only, zero-guilt, frame as data not failure' : ''}
-- Make it specific to their triggers/motivations where possible
-- Actionable — the user should know what to do next
-
-Respond with ONLY valid JSON:
-{
-  "title": "...",
-  "body": "..."
-}`
+    }
+    return 'BEHAVIORAL SIGNALS:\n- Not yet available (user is in Days 1-5; use onboarding data only)'
   }
 
   // ─── Private: OKF Context ──────────────────────────────────────────────────
@@ -443,12 +427,10 @@ Respond with ONLY valid JSON:
     const docsLoaded: string[] = []
     const sections: string[] = []
 
-    const archetypeDoc = this.getArchetypeContext(archetype)
-    sections.push(archetypeDoc)
+    sections.push(this.getArchetypeContext(archetype))
     docsLoaded.push(`archetypes/${archetype}.md`)
 
-    const toneDoc = this.getToneContext(archetype)
-    sections.push(toneDoc)
+    sections.push(this.getToneContext(archetype))
     docsLoaded.push(`content-variants/tone-${archetype.replace('_', '-')}.md`)
 
     if (requestType === 'notification') {
@@ -528,28 +510,6 @@ Respond with ONLY valid JSON:
       30: 'Free for Life — Lifelong non-smoker identity',
     }
     return `PROGRAM DAY ${dayNumber}: ${dayThemes[dayNumber] || 'Unknown'}`
-  }
-
-  // ─── Private: Gemini ──────────────────────────────────────────────────────
-
-  private async callGemini(prompt: string): Promise<string> {
-    const res = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-          responseMimeType: 'application/json',
-        },
-      }),
-    })
-
-    if (!res.ok) throw new Error(`Gemini API error: ${res.status}`)
-
-    const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   }
 
   // ─── Private: Parsers ─────────────────────────────────────────────────────

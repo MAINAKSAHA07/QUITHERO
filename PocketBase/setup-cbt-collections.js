@@ -5,7 +5,7 @@ const { url: PB_URL, email: ADMIN_EMAIL, password: ADMIN_PASSWORD } = initPocket
 
 async function setup() {
   const pb = new PocketBase(PB_URL)
-  await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD)
+  await pb.collection('_superusers').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD)
   console.log('Authenticated as admin')
 
   // belief_assessments

@@ -1757,14 +1757,18 @@ async function createBackofficeAdmin() {
     console.log('  ✓ Backoffice admin already exists')
   } catch (_) {
     try {
+      const adminPwd = process.env.PB_ADMIN_PASSWORD
+      if (!adminPwd || adminPwd === 'Admin123!') {
+        throw new Error('FATAL: Set PB_ADMIN_PASSWORD env var to a strong password (min 10 chars).')
+      }
       await pb.collection('admin_users').create({
         email: 'admin@backoffice.com',
-        password: 'Admin123!',
-        passwordConfirm: 'Admin123!',
+        password: adminPwd,
+        passwordConfirm: adminPwd,
         name: 'Backoffice Admin',
         role: 'admin',
       })
-      console.log('  ✓ Created backoffice admin: admin@backoffice.com / Admin123!')
+      console.log('  ✓ Created backoffice admin: admin@backoffice.com')
     } catch (error) {
       console.error('  ✗ Failed to create backoffice admin:', error.message)
     }
@@ -2037,7 +2041,7 @@ async function completeSetup() {
     console.log('')
     console.log('   Backoffice Admin:')
     console.log('     Email: admin@backoffice.com')
-    console.log('     Password: Admin123!')
+    console.log('     Password: [your PB_ADMIN_PASSWORD env var]')
     console.log('')
     console.log('🚀 Next Steps:')
     console.log(`   1. Access PocketBase Admin: ${PB_URL}/_/`)

@@ -12,7 +12,10 @@ loadEnv()
 
 const PB_URL = getPocketBaseURL()
 const BACKOFFICE_ADMIN_EMAIL = process.env.BACKOFFICE_ADMIN_EMAIL || 'admin@backoffice.com'
-const BACKOFFICE_ADMIN_PASSWORD = process.env.BACKOFFICE_ADMIN_PASSWORD || 'Admin123!'
+const BACKOFFICE_ADMIN_PASSWORD = process.env.BACKOFFICE_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD
+if (!BACKOFFICE_ADMIN_PASSWORD) {
+  throw new Error('FATAL: Set BACKOFFICE_ADMIN_PASSWORD or PB_ADMIN_PASSWORD env var.')
+}
 
 async function verifyAccess() {
   console.log('🔍 Verifying Backoffice Access to PocketBase...\n');
@@ -99,7 +102,7 @@ async function verifyAccess() {
     console.log('\nNext steps:');
     console.log('1. Make sure backoffice is running: cd backoffice && npm run dev');
     console.log('2. Open: http://localhost:5176');
-    console.log('3. Login with: admin@backoffice.com / Admin123!')
+    console.log('3. Login with: admin@backoffice.com / [your PB_ADMIN_PASSWORD]')
     console.log('4. You should see all the data in the dashboard!\n');
 
   } catch (error) {

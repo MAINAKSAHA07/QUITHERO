@@ -8,7 +8,27 @@ import GlassButton from '../components/GlassButton'
 import { useApp } from '../context/AppContext'
 import { useJournal } from '../hooks/useJournal'
 import { analyticsService } from '../services/analytics.service'
-import { Mood } from '../types/enums'
+import { pb } from '../lib/pocketbase'
+import { Mood, ResolutionMethod } from '../types/enums'
+
+async function autoTagCravingResolution(userId: string) {
+  const cutoff = new Date(Date.now() - 45 * 60 * 1000).toISOString()
+  try {
+    const records = await pb.collection('cravings').getFullList({
+      filter: `user="${userId}" && resolution_method=""`,
+      sort: '-id',
+    })
+    const recent = records.find((r: any) => {
+      const created = r.created || r.updated || ''
+      return created >= cutoff
+    })
+    if (recent) {
+      await pb.collection('cravings').update(recent.id, {
+        resolution_method: ResolutionMethod.AUTO_BREATHING,
+      })
+    }
+  } catch { /* non-critical */ }
+}
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale' | 'rest'
 
@@ -121,6 +141,7 @@ export default function Breathing() {
           setShowMoodSelector(true)
           if (user?.id) {
             analyticsService.trackEvent('breathing_exercise_completed', { rounds: TOTAL_ROUNDS }, user.id)
+            autoTagCravingResolution(user.id).catch(() => {})
           }
           return
         } else {

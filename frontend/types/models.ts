@@ -41,6 +41,47 @@ export interface UserProfile {
   fear_index?: number // 0-10 scale
   quit_reason?: string // Free text - why they want to quit
   quit_archetype?: QuitArchetype // Auto-assigned based on triggers/emotional states
+  subscription_status?: 'free' | 'active' | 'expired'
+  subscription_started_at?: string
+  subscription_country?: string
+  
+  // Custom onboarding upgrade fields
+  onboarding_name?: string
+  pack_cost?: number
+  minutes_per_cigarette?: number
+  started_age_range?: string
+  first_use_after_waking?: string
+  smoking_times?: string[]
+  smoking_environments?: string[]
+  primary_trigger?: string
+  craving_peak_time?: string
+  daily_stress_level?: string
+  anxiety_social_pattern?: string
+  guilt_frequency?: string
+  tried_quitting_before?: string
+  previous_attempt_difficulty?: string[]
+  quit_attempt_count?: string
+  past_quit_tools?: string[]
+  primary_motivation?: string
+  priority_goal?: string
+  quit_goal_style?: string
+  quit_confidence?: string
+  cravings_worry?: string
+  relapse_worry?: string
+  withdrawal_worry?: string
+  household_smokers?: string
+  occupation_style?: string
+  reminder_frequency?: string
+  support_preference?: string
+  checkin_time_preference?: string
+  success_outcome?: string
+  commitment_statement?: string
+  secondary_quit_archetype?: string
+  readiness_score?: number
+  relapse_risk_score?: number
+  support_intensity_score?: number
+  onboarding_completed_at?: string
+  
   created?: string
   updated?: string
 }
@@ -167,6 +208,9 @@ export interface Craving {
   trigger: CravingTrigger
   trigger_custom?: string
   notes?: string
+  automatic_thought?: string
+  resolution_method?: string
+  resolution_time_minutes?: number
   created?: string
   updated?: string
 }
@@ -179,6 +223,10 @@ export interface JournalEntry {
   title?: string
   content: string
   mood: Mood
+  cbt_mode?: boolean
+  antecedent?: string
+  automatic_thought?: string
+  behavioral_response?: string
   created?: string
   updated?: string
 }

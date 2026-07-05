@@ -7,36 +7,61 @@ interface TextStepComponentProps {
   onNext: () => void
 }
 
+function formatRichText(text: string) {
+  // Simple bold/italic markdown parser
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-black text-brand-primary">{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={index} className="italic text-brand-accent">{part.slice(1, -1)}</em>
+    }
+    return part
+  })
+}
+
 function formatText(text: string) {
   return text.split('\n\n').map((block, i) => {
-    const lines = block.split('\n')
+    const trimmedBlock = block.trim()
+    if (trimmedBlock.startsWith('> ')) {
+      return (
+        <div key={i} className="p-4 rounded-xl border-l-4 border-brand-primary bg-brand-primary/5 my-3 shadow-glass-sm italic text-text-primary/95 text-[14px] sm:text-[15px] leading-relaxed">
+          {formatRichText(trimmedBlock.slice(2))}
+        </div>
+      )
+    }
+
+    const lines = trimmedBlock.split('\n')
     const isBulletList = lines.every(l => l.startsWith('• ') || l.trim() === '')
     if (isBulletList) {
       return (
         <ul key={i} className="space-y-2 pl-1">
           {lines.filter(l => l.startsWith('• ')).map((l, j) => (
-            <li key={j} className="flex gap-2 items-start">
-              <span className="text-brand-primary mt-1.5 text-[8px]">●</span>
-              <span>{l.slice(2)}</span>
+            <li key={j} className="flex gap-2 items-start text-sm sm:text-[15px] text-text-primary/90">
+              <span className="text-brand-primary mt-2 text-[8px] flex-shrink-0">●</span>
+              <span>{formatRichText(l.slice(2))}</span>
             </li>
           ))}
         </ul>
       )
     }
+
     const isNumbered = lines.length > 1 && lines.every(l => /^\d+[.)]\s/.test(l) || l.trim() === '')
     if (isNumbered) {
       return (
         <ol key={i} className="space-y-2 pl-1 list-none">
           {lines.filter(l => l.trim()).map((l, j) => (
-            <li key={j} className="flex gap-3 items-start">
-              <span className="text-brand-primary font-semibold min-w-[1.25rem]">{j + 1}.</span>
-              <span>{l.replace(/^\d+[.)]\s*/, '')}</span>
+            <li key={j} className="flex gap-3 items-start text-sm sm:text-[15px] text-text-primary/90">
+              <span className="text-brand-primary font-bold min-w-[1.25rem] flex-shrink-0">{j + 1}.</span>
+              <span>{formatRichText(l.replace(/^\d+[.)]\s*/, ''))}</span>
             </li>
           ))}
         </ol>
       )
     }
-    return <p key={i}>{block}</p>
+
+    return <p key={i} className="text-text-primary/90 leading-relaxed text-sm sm:text-[15px]">{formatRichText(trimmedBlock)}</p>
   })
 }
 

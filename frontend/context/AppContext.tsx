@@ -4,6 +4,7 @@ import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
 import { sessionService } from '../services/session.service'
 import { achievementService } from '../services/achievement.service'
+import { behaviorProfileService } from '../services/behavior-profile.service'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
 
 interface AppContextType {
@@ -17,6 +18,7 @@ interface AppContextType {
   userProfile: UserProfile | null
   progressStats: ProgressStats | null
   currentSession: UserSession | null
+  isPremium: boolean
   // Loading states
   profileLoading: boolean
   progressLoading: boolean
@@ -46,6 +48,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(false)
   const [progressLoading, setProgressLoading] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(false)
+
+  // TODO: Re-enable when payment API is integrated
+  // const isPremium = userProfile?.subscription_status === 'active'
+  const isPremium = true
 
   // Update language and persist to localStorage
   const setLanguage = (lang: string) => {
@@ -80,6 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: currentUser.id,
         email: currentUser.email,
         name: currentUser.name || currentUser.email,
+        avatar: currentUser.avatar || '',
       })
     }
   }, [])
@@ -179,6 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProgress()
       // Check achievements on app open
       achievementService.checkAndUnlock(user.id).catch(console.error)
+      // Silently refresh behavioral profile if stale (>24h or never computed)
+      behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
       
       // Request notification permission and schedule reminders
       if (userProfile?.enable_reminders && userProfile?.daily_reminder_time) {
@@ -205,6 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         userProfile,
         progressStats,
         currentSession,
+        isPremium,
         profileLoading,
         progressLoading,
         sessionLoading,

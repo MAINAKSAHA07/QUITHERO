@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import SplashScreen from './screens/SplashScreen'
 import LanguageSelection from './screens/LanguageSelection'
 import Onboarding from './screens/Onboarding'
@@ -14,30 +14,46 @@ import Breathing from './screens/Breathing'
 import Progress from './screens/Progress'
 import Journal from './screens/Journal'
 import Profile from './screens/Profile'
-import { AppProvider } from './context/AppContext'
+import Paywall from './screens/Paywall'
+import ObjectionSurvey from './screens/ObjectionSurvey'
+import ObjectionScreen from './screens/ObjectionScreen'
+import SubscriptionConfirmation from './screens/SubscriptionConfirmation'
+import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useApp()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
 
 function AppRoutes() {
   const location = useLocation()
 
   return (
     <Routes location={location} key={location.pathname}>
+      {/* Public routes */}
       <Route path="/language" element={<LanguageSelection />} />
       <Route path="/" element={<Navigate to="/onboarding" replace />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
-      <Route path="/kyc" element={<KYCFlow />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/sessions" element={<Sessions />} />
-      <Route path="/sessions/:dayId" element={<Session />} />
-      <Route path="/session/:day" element={<Session />} />
-      <Route path="/breathing" element={<Breathing />} />
-      <Route path="/craving" element={<CravingSupport />} />
-      <Route path="/progress" element={<Progress />} />
-      <Route path="/journal" element={<Journal />} />
-      <Route path="/profile" element={<Profile />} />
+      {/* Protected routes */}
+      <Route path="/kyc" element={<ProtectedRoute><KYCFlow /></ProtectedRoute>} />
+      <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+      <Route path="/sessions" element={<ProtectedRoute><Sessions /></ProtectedRoute>} />
+      <Route path="/sessions/:dayId" element={<ProtectedRoute><Session /></ProtectedRoute>} />
+      <Route path="/session/:day" element={<ProtectedRoute><Session /></ProtectedRoute>} />
+      <Route path="/breathing" element={<ProtectedRoute><Breathing /></ProtectedRoute>} />
+      <Route path="/craving" element={<ProtectedRoute><CravingSupport /></ProtectedRoute>} />
+      <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
+      <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/paywall" element={<ProtectedRoute><Paywall /></ProtectedRoute>} />
+      <Route path="/objection-survey" element={<ProtectedRoute><ObjectionSurvey /></ProtectedRoute>} />
+      <Route path="/objection/:key" element={<ProtectedRoute><ObjectionScreen /></ProtectedRoute>} />
+      <Route path="/subscription-confirmed" element={<ProtectedRoute><SubscriptionConfirmation /></ProtectedRoute>} />
     </Routes>
   )
 }

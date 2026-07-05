@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Edit, Trash2, X, Calendar } from 'lucide-react'
+import { Plus, Edit, Trash2, X, Calendar, Loader2 } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
@@ -39,6 +39,8 @@ export default function Journal() {
     title: '',
     content: '',
   })
+  const [cbtMode, setCbtMode] = useState(false)
+  const [cbtFields, setCbtFields] = useState({ antecedent: '', thought: '', response: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -65,7 +67,12 @@ export default function Journal() {
   }, [user?.id, dateFilter])
 
   const handleSave = async () => {
-    if (!formData.content.trim() || formData.content.trim().length < 10) {
+    if (cbtMode) {
+      if (!cbtFields.antecedent.trim() || !cbtFields.thought.trim()) {
+        setError('Please fill in at least the Situation and Thought fields')
+        return
+      }
+    } else if (!formData.content.trim() || formData.content.trim().length < 10) {
       setError('Please write at least 10 characters')
       return
     }
@@ -114,11 +121,21 @@ export default function Journal() {
         }
       } else {
         // Create new entry
+        const entryContent = cbtMode
+          ? `[Situation] ${cbtFields.antecedent}\n[Thought] ${cbtFields.thought}\n[Response] ${cbtFields.response}`
+          : formData.content.trim()
+
         const result = await createEntry({
           date: new Date().toISOString().split('T')[0],
           mood: formData.mood,
           title: formData.title.trim() || undefined,
-          content: formData.content.trim(),
+          content: entryContent,
+          ...(cbtMode && {
+            cbt_mode: true,
+            antecedent: cbtFields.antecedent.trim(),
+            automatic_thought: cbtFields.thought.trim(),
+            behavioral_response: cbtFields.response.trim(),
+          }),
         })
 
         if (result.success) {
@@ -185,26 +202,30 @@ export default function Journal() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24">
-      <TopNavigation
-        left="menu"
-        center="Your Journal"
-        right={
-          <button
-            onClick={() => {
-              setEditingEntry(null)
-              setFormData({ mood: Mood.HAPPY, title: '', content: '' })
-              setError('')
-              setShowAddModal(true)
-            }}
-            className="w-10 h-10 rounded-full glass-button-primary flex items-center justify-center"
-          >
-            <Plus className="w-5 h-5 text-white" />
-          </button>
-        }
-      />
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
+      {/* Pinned Top Navigation */}
+      <div className="flex-shrink-0">
+        <TopNavigation
+          left="menu"
+          center="Your Journal"
+          right={
+            <button
+              onClick={() => {
+                setEditingEntry(null)
+                setFormData({ mood: Mood.HAPPY, title: '', content: '' })
+                setError('')
+                setShowAddModal(true)
+              }}
+              className="w-10 h-10 rounded-full glass-button-primary flex items-center justify-center"
+            >
+              <Plus className="w-5 h-5 text-white" />
+            </button>
+          }
+        />
+      </div>
 
-      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
         {/* Date Filter */}
         <div className="mb-6">
           <div className="flex gap-2">
@@ -225,8 +246,8 @@ export default function Journal() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+          <div className="flex items-center justify-center py-20 text-brand-primary">
+            <Loader2 className="animate-spin w-8 h-8" />
           </div>
         ) : entries.length === 0 ? (
           <motion.div
@@ -357,6 +378,25 @@ export default function Journal() {
                   </div>
                 </div>
 
+                {/* CBT Mode Toggle */}
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">CBT Mode</label>
+                    <p className="text-xs text-gray-400">Structured thought analysis</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCbtMode(!cbtMode)}
+                    className={`relative w-12 h-7 rounded-full transition-colors ${
+                      cbtMode ? 'bg-emerald-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full transition-transform shadow ${
+                      cbtMode ? 'translate-x-5' : ''
+                    }`} />
+                  </button>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Title (Optional)
@@ -370,17 +410,55 @@ export default function Journal() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Write about your day
-                  </label>
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Write about your day, thoughts, challenges, or victories..."
-                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[200px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                  />
-                </div>
+                {cbtMode ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        A — Situation (What happened?)
+                      </label>
+                      <textarea
+                        value={cbtFields.antecedent}
+                        onChange={(e) => setCbtFields({ ...cbtFields, antecedent: e.target.value })}
+                        placeholder="Describe the situation that triggered a craving or negative thought..."
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        B — Automatic Thought
+                      </label>
+                      <textarea
+                        value={cbtFields.thought}
+                        onChange={(e) => setCbtFields({ ...cbtFields, thought: e.target.value })}
+                        placeholder="What thought popped into your head? e.g. 'I need a cigarette to deal with this'"
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        C — Your Response
+                      </label>
+                      <textarea
+                        value={cbtFields.response}
+                        onChange={(e) => setCbtFields({ ...cbtFields, response: e.target.value })}
+                        placeholder="How did you respond? What did you do instead?"
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Write about your day
+                    </label>
+                    <textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder="Write about your day, thoughts, challenges, or victories..."
+                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[200px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                )}
 
                 {error && (
                   <p className="text-sm text-error text-center mb-2">{error}</p>
@@ -392,7 +470,7 @@ export default function Journal() {
                   }}
                   fullWidth
                   className="py-4"
-                  disabled={!formData.content.trim() || formData.content.trim().length < 10 || saving}
+                  disabled={saving || (cbtMode ? (!cbtFields.antecedent.trim() || !cbtFields.thought.trim()) : (!formData.content.trim() || formData.content.trim().length < 10))}
                   type="button"
                 >
                   {saving
