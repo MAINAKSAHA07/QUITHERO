@@ -18,6 +18,7 @@ import Paywall from './screens/Paywall'
 import ObjectionSurvey from './screens/ObjectionSurvey'
 import ObjectionScreen from './screens/ObjectionScreen'
 import SubscriptionConfirmation from './screens/SubscriptionConfirmation'
+import LegalScreen from './screens/LegalScreen'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
@@ -39,6 +40,8 @@ function AppRoutes() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/terms" element={<LegalScreen initialType="terms" />} />
+      <Route path="/privacy" element={<LegalScreen initialType="privacy" />} />
       {/* Protected routes */}
       <Route path="/kyc" element={<ProtectedRoute><KYCFlow /></ProtectedRoute>} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />

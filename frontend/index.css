@@ -4,26 +4,27 @@
 
 @layer base {
   :root {
-    --background: 210 20% 97%;
-    --foreground: 0 0% 17%;
+    /* ── Tranquil Wellness Reset palette ── */
+    --background: 198 100% 97%;       /* #F4FBFF */
+    --foreground: 207 58% 14%;        /* #0E2538 */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 17%;
-    --primary: 199 60% 78%;
+    --card-foreground: 207 58% 14%;
+    --primary: 207 54% 54%;           /* #3F8DD2 – deep blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 26 97% 72%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 200 20% 92%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 26 97% 72%;
+    --secondary: 28 89% 75%;          /* #F6B884 – peach */
+    --secondary-foreground: 207 58% 14%;
+    --muted: 198 30% 94%;
+    --muted-foreground: 201 17% 47%;  /* #637D8B */
+    --accent: 155 22% 54%;            /* #6EA48F – sage */
     --accent-foreground: 0 0% 100%;
-    --destructive: 355 78% 56%;
+    --destructive: 355 73% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 200 20% 88%;
-    --input: 200 20% 88%;
-    --ring: 199 60% 78%;
+    --border: 198 55% 82%;            /* rgba(180,220,235,0.45) approx */
+    --input: 198 55% 82%;
+    --ring: 207 54% 54%;
     --radius: 0.75rem;
-    --success: 122 39% 49%;
-    --info: 209 62% 44%;
+    --success: 155 22% 54%;           /* sage green */
+    --info: 207 54% 54%;
   }
 
 
@@ -33,9 +34,10 @@
 
   body {
     @apply text-foreground font-sans antialiased;
-    background: radial-gradient(circle at 10% 20%, rgba(168, 212, 234, 0.18), transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(253, 180, 123, 0.18), transparent 40%),
-                linear-gradient(to bottom, #f4f8fa, #e5ecef);
+    background:
+      radial-gradient(circle at 18% 28%, rgba(139, 205, 232, 0.28), transparent 38%),
+      radial-gradient(circle at 86% 66%, rgba(246, 184, 132, 0.24), transparent 42%),
+      linear-gradient(120deg, #F4FBFF, #ffffff 46%, #FFF1E6);
     min-height: 100vh;
     background-attachment: fixed;
   }

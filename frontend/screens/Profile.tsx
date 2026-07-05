@@ -334,12 +334,12 @@ export default function Profile() {
   }
 
   const handleTerms = () => {
-    alert('Terms of Service\n\nBy using smono, you agree to:\n\n1. Use the app responsibly\n2. Provide accurate information\n3. Respect the community guidelines\n4. Not misuse the app or its features\n\nFor the full terms, please contact support.')
+    navigate('/terms')
     analyticsService.trackEvent('terms_viewed', {}, user?.id)
   }
 
   const handlePrivacy = () => {
-    alert('Privacy Policy\n\nsmono respects your privacy:\n\n1. We collect only necessary data for app functionality\n2. Your data is encrypted and secure\n3. We do not share your personal information with third parties\n4. You can delete your account and data at any time\n\nFor the full privacy policy, please contact support.')
+    navigate('/privacy')
     analyticsService.trackEvent('privacy_viewed', {}, user?.id)
   }
 

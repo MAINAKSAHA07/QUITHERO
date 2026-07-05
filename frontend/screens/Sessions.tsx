@@ -9,9 +9,10 @@ import BottomNavigation from '../components/BottomNavigation'
 import { useApp } from '../context/AppContext'
 import { useSessions } from '../hooks/useSessions'
 import { programService } from '../services/program.service'
-import { sessionService } from '../services/session.service'
+
 import { SessionStatus } from '../types/enums'
 import { ProgramDay, SessionProgress } from '../types/models'
+import pb from '../lib/pocketbase'
 
 interface DayWithProgress {
   day: ProgramDay
@@ -20,71 +21,87 @@ interface DayWithProgress {
   status: SessionStatus
 }
 
+// ponytail: simple module-level cache — avoids re-fetching static program data
+//           on every navigation. Cache key = programId. TTL: session lifetime.
+const _cache: {
+  programId?: string
+  days?: ProgramDay[]
+} = {}
+
 export default function Sessions() {
   const navigate = useNavigate()
   const { user, isPremium } = useApp()
-  const { currentSession, loading, fetchCurrentSession } = useSessions()
+  const { currentSession, fetchCurrentSession } = useSessions()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (user?.id) loadSessions()
-  }, [user?.id, currentSession])
+    if (user?.id) loadSessions(false)
+  }, [user?.id, currentSession?.id]) // key on .id not the whole object to prevent re-fire
 
-  const loadSessions = async () => {
+  const loadSessions = async (forceRefresh = false) => {
     if (!user?.id) return
     setIsLoading(true)
     try {
-      if (!currentSession) await fetchCurrentSession()
-
+      // 1. Resolve programId (from hook state or DB, never re-fetch days if cached)
       let programId: string | null = null
-      if (currentSession && currentSession.program) {
+
+      if (currentSession?.program) {
         programId = typeof currentSession.program === 'string'
           ? currentSession.program
-          : (currentSession.program as any)?.id || currentSession.program
+          : (currentSession.program as any)?.id || null
       }
 
       if (!programId) {
-        const programResult = await programService.getActiveProgram('en')
-        if (programResult.success && programResult.data) {
-          programId = programResult.data.id!
-          if (programId) {
-            await sessionService.createOrGetSession(user.id, programId)
-            await fetchCurrentSession()
-          }
-        }
+        await fetchCurrentSession()
+        // fetchCurrentSession updates context — re-effect will fire; bail here
+        return
       }
 
-      if (!programId) return
-
-      const daysResult = await programService.getProgramDays(programId)
-      if (daysResult.success && daysResult.data) {
-        const days = daysResult.data
-        const progressResults = await Promise.all(
-          days.map((day) => day.id
-            ? sessionService.getSessionProgress(user.id, day.id)
-            : Promise.resolve({ success: true, data: null })
-          )
-        )
-
-        setDaysWithProgress(days.map((day, i) => {
-          const progress = progressResults[i].success ? progressResults[i].data : null
-          const status = progress?.status || SessionStatus.NOT_STARTED
-          const isLocked = i === 0 ? false
-            : (progressResults[i - 1].data?.status || SessionStatus.NOT_STARTED) !== SessionStatus.COMPLETED
-          return { day, progress: progress || null, isLocked, status }
-        }))
+      // 2. Fetch program days (cached after first load)
+      let days: ProgramDay[]
+      if (!forceRefresh && _cache.programId === programId && _cache.days) {
+        days = _cache.days
+      } else {
+        const daysResult = await programService.getProgramDays(programId)
+        if (!daysResult.success || !daysResult.data) return
+        days = daysResult.data
+        _cache.programId = programId
+        _cache.days = days
       }
+
+      // 3. ONE batch call for all progress records instead of N individual calls
+      const allProgress = await pb.collection('session_progress').getFullList<SessionProgress & { id: string }>({
+        filter: `user = "${user.id}"`,
+        fields: 'id,program_day,status,last_step_index,completed_at,time_spent_minutes',
+      }).catch(() => [] as any[])
+
+      const progressByDay = new Map<string, SessionProgress>(
+        allProgress.map((p: any) => [p.program_day, p])
+      )
+
+      // 4. Merge locally
+      setDaysWithProgress(days.map((day, i) => {
+        const progress = day.id ? (progressByDay.get(day.id) ?? null) : null
+        const status = (progress?.status as SessionStatus) || SessionStatus.NOT_STARTED
+        const prevStatus = i === 0
+          ? SessionStatus.COMPLETED // day 1 is never locked
+          : (days[i - 1].id ? (progressByDay.get(days[i - 1].id!)?.status as SessionStatus) : undefined) ?? SessionStatus.NOT_STARTED
+        const isLocked = i === 0 ? false : prevStatus !== SessionStatus.COMPLETED
+        return { day, progress, isLocked, status }
+      }))
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleRefresh = () => {
+    _cache.programId = undefined // bust cache on manual refresh
+    loadSessions(true)
+  }
+
   const handleDayClick = (d: DayWithProgress, dayIndex: number) => {
-    if (!isPremium && dayIndex > 0) {
-      navigate('/paywall')
-      return
-    }
+    if (!isPremium && dayIndex > 0) { navigate('/paywall'); return }
     if (d.isLocked) return
     if (d.day.id) navigate(`/sessions/${d.day.id}`)
   }
@@ -92,10 +109,9 @@ export default function Sessions() {
   const completedCount = daysWithProgress.filter(d => d.status === SessionStatus.COMPLETED).length
   const totalDays = daysWithProgress.length || 30
 
-  if (isLoading || loading) {
+  if (isLoading) {
     return (
       <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-        {/* Pinned Top Navigation */}
         <div className="flex-shrink-0">
           <TopNavigation left="menu" center="Program" right="" />
         </div>
@@ -110,16 +126,18 @@ export default function Sessions() {
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      {/* Pinned Top Navigation */}
       <div className="flex-shrink-0">
         <TopNavigation
           left="menu"
           center="Program"
-          right={<button onClick={loadSessions} className="p-2 rounded-full hover:bg-white/5 touch-target"><RefreshCw className="w-5 h-5 text-text-primary" /></button>}
+          right={
+            <button onClick={handleRefresh} className="p-2 rounded-full hover:bg-white/5 touch-target">
+              <RefreshCw className="w-5 h-5 text-text-primary" />
+            </button>
+          }
         />
       </div>
 
-      {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24 space-y-5">
         {/* Progress Header */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -155,11 +173,17 @@ export default function Sessions() {
                 >
                   <div className="p-3.5 flex items-center gap-3">
                     <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      isCompleted && !isFreemiumLocked ? 'bg-emerald-500/10 border border-emerald-500/20' : isInProgress && !isFreemiumLocked ? 'bg-brand-primary/10 border border-brand-primary/20 animate-pulse' : effectiveLocked ? 'bg-white/5 border border-white/5' : 'bg-brand-primary/10 border border-brand-primary/10'
+                      isCompleted && !isFreemiumLocked ? 'bg-emerald-500/10 border border-emerald-500/20'
+                      : isInProgress && !isFreemiumLocked ? 'bg-brand-primary/10 border border-brand-primary/20 animate-pulse'
+                      : effectiveLocked ? 'bg-white/5 border border-white/5'
+                      : 'bg-brand-primary/10 border border-brand-primary/10'
                     }`}>
-                      {isCompleted && !isFreemiumLocked ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" /> :
-                       effectiveLocked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-primary/40" /> :
-                       <span className="text-brand-primary font-black text-xs sm:text-sm">{d.day.day_number}</span>}
+                      {isCompleted && !isFreemiumLocked
+                        ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                        : effectiveLocked
+                        ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-primary/40" />
+                        : <span className="text-brand-primary font-black text-xs sm:text-sm">{d.day.day_number}</span>
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-text-primary text-xs sm:text-sm truncate">{d.day.title}</p>

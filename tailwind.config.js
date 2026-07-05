@@ -20,10 +20,10 @@ export default {
         ring: 'hsl(var(--ring))',
         success: 'hsl(var(--success))',
         info: 'hsl(var(--info))',
-        // ponytail: legacy aliases for screens not yet migrated to shadcn
-        brand: { primary: '#A8D4EA', accent: '#FDB47B', light: '#FED2B2' },
-        text: { primary: '#2B2B2B' },
-        bg: { soft: '#F4F8FA', card: '#E5ECEF' },
+        // Tranquil Wellness Reset brand palette
+        brand: { primary: '#3F8DD2', accent: '#F6B884', light: '#8BCDE8', sage: '#6EA48F' },
+        text: { primary: '#0E2538' },
+        bg: { soft: '#F4FBFF', card: '#FFF1E6' },
         error: '#E63946',
       },
       fontFamily: {
@@ -35,9 +35,9 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
-        'glass': '0 8px 32px rgba(0, 0, 0, 0.08)',
-        'glass-lg': '0 12px 48px rgba(0, 0, 0, 0.12)',
-        'glow': '0 0 20px rgba(168, 212, 234, 0.4)',
+        'glass': '0 8px 32px rgba(90, 130, 150, 0.10)',
+        'glass-lg': '0 24px 80px rgba(90, 130, 150, 0.15)',
+        'glow': '0 0 20px rgba(139, 205, 232, 0.35)',
       },
     },
   },

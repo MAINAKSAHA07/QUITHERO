@@ -53,49 +53,67 @@ export const BeliefAssessment: React.FC<BeliefAssessmentProps> = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col gap-6 p-6"
+      className="min-h-screen w-full flex flex-col justify-center py-8"
     >
-      <h2 className="text-xl font-bold text-center text-slate-800">
-        {DAY_HEADINGS[assessmentDay]}
-      </h2>
-      <p className="text-sm text-slate-500 text-center">
-        Rate each belief from 0 (not at all) to 10 (completely true)
-      </p>
+      <div className="w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background/30 rounded-3xl border border-white/20 shadow-glass-lg backdrop-blur-2xl">
+        {/* Navigation & Header (Fixed) */}
+        <div className="flex-shrink-0">
+          <div className="w-full flex items-center justify-between p-4 bg-background/50 backdrop-blur-md border-b border-white/10">
+            <span className="text-text-primary/60 text-xs font-bold uppercase tracking-wider mx-auto">
+              Belief Assessment
+            </span>
+          </div>
+        </div>
 
-      <div className="flex flex-col gap-5">
-        {BELIEF_QUESTIONS.map((q) => (
-          <div key={q.key} className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-700">
-              {q.label}
-            </label>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400 w-4">0</span>
-              <input
-                type="range"
-                min={0}
-                max={10}
-                value={values[q.key]}
-                onChange={(e) =>
-                  setValues((v) => ({ ...v, [q.key]: Number(e.target.value) }))
-                }
-                className="flex-1 accent-emerald-500"
-              />
-              <span className="text-xs font-semibold text-emerald-600 w-5 text-right">
-                {values[q.key]}
-              </span>
+        {/* Main Content Area (Scrollable) */}
+        <div className="flex-1 overflow-y-auto px-5 py-6 scrollbar-none flex flex-col justify-between gap-6">
+          <div className="flex flex-col gap-6">
+            <div className="text-center px-2">
+              <h2 className="text-lg font-bold font-display text-text-primary leading-tight mb-2">
+                {DAY_HEADINGS[assessmentDay]}
+              </h2>
+              <p className="text-xs text-text-primary/60 font-medium">
+                Rate each belief from 0 (not at all) to 10 (completely true)
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {BELIEF_QUESTIONS.map((q) => (
+                <div key={q.key} className="p-5 rounded-2xl bg-white/40 border border-white/25 backdrop-blur-xl shadow-glass flex flex-col gap-3">
+                  <label className="text-sm font-semibold text-text-primary/80">
+                    {q.label}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-text-primary/40 w-4">0</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      value={values[q.key]}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [q.key]: Number(e.target.value) }))
+                      }
+                      className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-brand-primary focus:outline-none"
+                    />
+                    <span className="text-sm font-extrabold text-brand-primary w-5 text-right">
+                      {values[q.key]}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="mt-4 w-full py-3 rounded-xl bg-emerald-500 text-white font-semibold
-                   disabled:opacity-50 active:scale-[0.98] transition-transform"
-      >
-        {saving ? 'Saving...' : 'Continue'}
-      </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-4 rounded-xl glass-button-primary disabled:opacity-50 text-white text-base font-semibold shadow-glow transition-all duration-200 active:scale-[0.98]"
+          >
+            {saving ? 'Saving...' : 'Continue'}
+          </button>
+        </div>
+      </div>
     </motion.div>
   )
 }
+
