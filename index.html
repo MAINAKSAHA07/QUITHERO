@@ -12,16 +12,16 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0f1a;
-      --surface: rgba(255,255,255,0.04);
+      --bg: #030712;
+      --surface: rgba(255, 255, 255, 0.03);
       --primary: #38bdf8;
       --secondary: #4ade80;
       --warm: #fb923c;
       --text: #f8fafc;
       --muted: #64748b;
-      --border: rgba(255,255,255,0.08);
-      --radius-card: 24px;
-      --radius-btn: 16px;
+      --border: rgba(255, 255, 255, 0.08);
+      --radius-card: 20px;
+      --radius-btn: 14px;
       --radius-pill: 999px;
       --font-display: 'Fraunces', serif;
       --font-body: 'Plus Jakarta Sans', sans-serif;
@@ -38,28 +38,28 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* Grain Overlay */
+    .noise-overlay {
+      position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.015;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
     h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
-
     a { color: inherit; text-decoration: none; }
-
     .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
     /* ═══ NAVIGATION ═══ */
     .nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
       height: 80px; display: flex; align-items: center;
-      transition: all 0.3s ease;
-      background: transparent;
+      transition: all 0.3s ease; background: transparent;
     }
     .nav.scrolled {
-      height: 60px;
-      background: rgba(10,15,26,0.85);
+      height: 60px; background: rgba(3,7,18,0.85);
       backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
     }
-    .nav .container {
-      display: flex; align-items: center; justify-content: space-between; width: 100%;
-    }
+    .nav .container { display: flex; align-items: center; justify-content: space-between; width: 100%; }
     .nav-logo {
       font-family: var(--font-display); font-size: 1.6rem; font-weight: 700;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -67,31 +67,22 @@
       background-clip: text;
     }
     .nav-links { display: flex; gap: 32px; align-items: center; }
-    .nav-links a {
-      font-size: 0.9rem; font-weight: 500; color: var(--muted);
-      transition: color 0.2s;
-    }
+    .nav-links a { font-size: 0.9rem; font-weight: 500; color: var(--muted); transition: color 0.2s; }
     .nav-links a:hover { color: var(--text); }
     .nav-cta {
       padding: 10px 24px; border-radius: var(--radius-pill); font-weight: 600;
       font-size: 0.85rem; background: var(--primary); color: var(--bg);
-      box-shadow: 0 0 20px rgba(56,189,248,0.3); transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(56,189,248,0.25); transition: all 0.3s;
       border: none; cursor: pointer;
     }
-    .nav-cta:hover { box-shadow: 0 0 30px rgba(56,189,248,0.5); transform: translateY(-1px); }
-    .nav-hamburger {
-      display: none; flex-direction: column; gap: 5px; cursor: pointer;
-      background: none; border: none; padding: 8px;
-    }
-    .nav-hamburger span {
-      width: 24px; height: 2px; background: var(--text);
-      transition: all 0.3s; border-radius: 2px;
-    }
+    .nav-cta:hover { box-shadow: 0 0 30px rgba(56,189,248,0.4); transform: translateY(-1px); }
+    .nav-hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 8px; }
+    .nav-hamburger span { width: 24px; height: 2px; background: var(--text); transition: all 0.3s; border-radius: 2px; }
     .nav-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
     .nav-hamburger.open span:nth-child(2) { opacity: 0; }
     .nav-hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
     .mobile-menu {
-      position: fixed; top: 60px; left: 0; right: 0; background: rgba(10,15,26,0.95);
+      position: fixed; top: 60px; left: 0; right: 0; background: rgba(3,7,18,0.95);
       backdrop-filter: blur(20px); padding: 24px; display: none;
       flex-direction: column; gap: 16px; border-bottom: 1px solid var(--border);
       transform: translateY(-20px); opacity: 0; transition: all 0.3s ease;
@@ -111,290 +102,420 @@
     }
     .hero-bg {
       position: absolute; inset: 0; z-index: 0;
-      background: linear-gradient(135deg, #0a0f1a 0%, #0d1f3c 50%, #0a1a0f 100%);
+      background: radial-gradient(circle at 30% 20%, rgba(30,58,138,0.15) 0%, transparent 55%),
+                  radial-gradient(circle at 80% 80%, rgba(6,78,59,0.12) 0%, transparent 50%);
     }
-    .orb {
-      position: absolute; border-radius: 50%; filter: blur(80px);
-      will-change: transform;
-    }
-    .orb-1 {
-      width: 700px; height: 700px; top: -20%; left: -10%;
-      background: rgba(56,189,248,0.15);
-      animation: orbFloat1 12s ease-in-out infinite alternate;
-    }
-    .orb-2 {
-      width: 600px; height: 600px; bottom: -10%; right: -5%;
-      background: rgba(74,222,128,0.12);
-      animation: orbFloat2 10s ease-in-out infinite alternate;
-    }
-    .orb-3 {
-      width: 500px; height: 500px; top: 30%; right: 20%;
-      background: rgba(251,146,60,0.1);
-      animation: orbFloat3 14s ease-in-out infinite alternate;
-    }
-    @keyframes orbFloat1 { from { transform: translate(0,0) } to { transform: translate(30px,-25px) } }
-    @keyframes orbFloat2 { from { transform: translate(0,0) } to { transform: translate(-25px,20px) } }
-    @keyframes orbFloat3 { from { transform: translate(0,0) } to { transform: translate(20px,30px) } }
+    .orb { position: absolute; border-radius: 50%; filter: blur(100px); will-change: transform; opacity: 0.8; }
+    .orb-1 { width: 600px; height: 600px; top: -10%; left: -10%; background: rgba(56,189,248,0.08); animation: orbFloat1 15s ease-in-out infinite alternate; }
+    .orb-2 { width: 500px; height: 500px; bottom: -10%; right: -5%; background: rgba(74,222,128,0.07); animation: orbFloat2 12s ease-in-out infinite alternate; }
+    @keyframes orbFloat1 { from { transform: translate(0,0) } to { transform: translate(40px,-30px) } }
+    @keyframes orbFloat2 { from { transform: translate(0,0) } to { transform: translate(-30px,30px) } }
 
-    .hero-content {
-      position: relative; z-index: 1; display: grid;
-      grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
-    }
+    .hero-content { position: relative; z-index: 1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; }
     .hero-text { max-width: 580px; }
     .hero-pill {
-      display: inline-block; padding: 8px 20px; border-radius: var(--radius-pill);
-      background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
+      display: inline-block; padding: 6px 16px; border-radius: var(--radius-pill);
+      background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2);
       font-size: 0.8rem; font-weight: 600; color: var(--primary);
       margin-bottom: 24px; letter-spacing: 0.5px;
     }
-    .hero-headline {
-      font-size: clamp(2.4rem, 5vw, 3.8rem); margin-bottom: 24px;
-      line-height: 1.1;
-    }
+    .hero-headline { font-size: clamp(2.4rem, 5vw, 3.8rem); margin-bottom: 24px; line-height: 1.1; letter-spacing: -0.5px; }
     .hero-headline .cursor {
       display: inline-block; width: 3px; height: 0.9em;
       background: var(--primary); margin-left: 4px; vertical-align: middle;
       animation: blink 0.8s step-end infinite;
     }
     @keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
-    .hero-sub {
-      font-size: 1.1rem; color: var(--muted); margin-bottom: 40px;
-      line-height: 1.7; max-width: 480px;
-    }
-    .hero-ctas { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 48px; }
+    .hero-sub { font-size: 1.1rem; color: var(--muted); margin-bottom: 40px; line-height: 1.7; }
+    .hero-ctas { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 36px; }
+    
     .btn-primary {
       padding: 16px 32px; border-radius: var(--radius-btn); font-weight: 600;
       font-size: 1rem; border: none; cursor: pointer;
       background: linear-gradient(135deg, var(--primary), #0ea5e9);
-      color: var(--bg); box-shadow: 0 4px 20px rgba(56,189,248,0.3);
+      color: var(--bg); box-shadow: 0 4px 20px rgba(56,189,248,0.25);
       transition: all 0.3s;
     }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.4); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.35); }
     .btn-ghost {
       padding: 16px 32px; border-radius: var(--radius-btn); font-weight: 600;
       font-size: 1rem; background: transparent; cursor: pointer;
       border: 1px solid var(--border); color: var(--text); transition: all 0.3s;
     }
-    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
-    .hero-proof {
-      display: flex; gap: 32px; flex-wrap: wrap;
-    }
-    .proof-item { display: flex; flex-direction: column; }
-    .proof-number { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text); }
-    .proof-label { font-size: 0.8rem; color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); background: rgba(56,189,248,0.03); }
+    
+    .hero-proof-line { font-size: 0.85rem; color: var(--muted); }
 
-    .hero-phone { display: flex; justify-content: center; align-items: center; }
-
-    /* Phone Mockup */
-    .phone {
-      width: 280px; height: 580px; background: #1a1a2e;
-      border-radius: 48px; border: 2px solid #2a2a4a; position: relative;
-      overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-      animation: phoneFloat 3s ease-in-out infinite alternate;
+    /* Hero Canvas and Node Graphics */
+    .hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
+    .reset-node-container {
+      position: relative; width: 380px; height: 380px; border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(56, 189, 248, 0.04) 0%, transparent 70%);
+      display: flex; justify-content: center; align-items: center;
     }
-    .phone-2 { animation-duration: 3.5s; }
-    .phone-3 { animation-duration: 4s; }
-    @keyframes phoneFloat { from { transform: translateY(0) } to { transform: translateY(-12px) } }
-    .phone-screen {
-      position: absolute; inset: 8px; border-radius: 40px; overflow: hidden;
-      background: var(--bg);
+    #heroCanvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+    .node-center-label {
+      position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 140px; height: 140px; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 50%;
+      box-shadow: 0 0 35px rgba(56, 189, 248, 0.15); animation: pulseGlow 4s ease-in-out infinite alternate;
     }
-    .phone-island {
-      width: 110px; height: 28px; background: #000; border-radius: 20px;
-      margin: 12px auto 0; position: relative; z-index: 2;
+    @keyframes pulseGlow {
+      from { box-shadow: 0 0 20px rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.15); }
+      to { box-shadow: 0 0 40px rgba(56, 189, 248, 0.25); border-color: rgba(56, 189, 248, 0.4); }
     }
-    .phone-status {
-      display: flex; justify-content: space-between; padding: 8px 20px;
-      font-size: 0.65rem; color: var(--muted);
-    }
-    .phone-content { padding: 16px 20px; }
-    .phone-days {
-      text-align: center; margin: 20px 0;
-    }
-    .phone-days-num {
-      font-family: var(--font-display); font-size: 3rem; font-weight: 700;
+    .node-center-label .day-num {
+      font-family: var(--font-display); font-size: 1.8rem; font-weight: 700;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
-    .phone-days-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-    .phone-ring {
-      width: 100px; height: 100px; border-radius: 50%; margin: 16px auto;
-      border: 6px solid rgba(56,189,248,0.2); position: relative;
-      border-top-color: var(--primary); border-right-color: var(--primary);
+    .node-center-label .day-total { font-size: 0.8rem; color: var(--muted); margin-top: -2px; }
+    .micro-label {
+      position: absolute; z-index: 3; padding: 4px 10px; background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06); border-radius: var(--radius-pill);
+      font-size: 0.65rem; font-weight: 600; color: var(--muted); letter-spacing: 0.5px;
+      pointer-events: none; backdrop-filter: blur(5px); animation: floatLabel 6s ease-in-out infinite alternate;
     }
-    .phone-ring-inner {
-      position: absolute; inset: 10px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem; color: var(--muted);
+    .micro-label::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--primary); margin-right: 6px; vertical-align: middle; }
+    .label-belief::before { background: var(--warm); }
+    .label-craving::before { background: #ef4444; }
+    .label-reset::before { background: var(--secondary); }
+
+    @keyframes floatLabel {
+      from { transform: translateY(0) rotate(0.01deg); }
+      to { transform: translateY(-8px) rotate(0.01deg); }
     }
-    .phone-btn {
-      display: block; margin: 20px auto 0; padding: 10px 20px;
-      border-radius: var(--radius-pill); background: var(--primary);
-      color: var(--bg); font-size: 0.75rem; font-weight: 600;
-      border: none; width: 80%;
-    }
+    .label-belief { animation-delay: -1.5s; animation-duration: 5s; }
+    .label-craving { animation-delay: -3s; animation-duration: 7s; }
+    .label-reset { animation-delay: -4.5s; animation-duration: 8s; }
 
     @media (max-width: 1024px) {
       .hero-content { grid-template-columns: 1fr; text-align: center; }
       .hero-text { max-width: 100%; margin: 0 auto; }
-      .hero-sub { margin-left: auto; margin-right: auto; }
       .hero-ctas { justify-content: center; }
-      .hero-proof { justify-content: center; }
-      .hero-phone { margin-top: 40px; }
+      .hero-visual { margin-top: 40px; }
     }
 
     /* ═══ STATS ═══ */
     .stats {
-      padding: 80px 0; background: rgba(0,0,0,0.3);
+      padding: 80px 0; background: rgba(0,0,0,0.2);
       border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     }
-    .stats-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
-      text-align: center;
-    }
-    .stat-item { }
-    .stat-number {
-      font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem);
-      font-weight: 700; color: var(--text); margin-bottom: 8px;
-    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
+    .stat-number { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; color: var(--text); margin-bottom: 8px; }
     .stat-label { font-size: 0.9rem; color: var(--muted); }
     @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 40px; } }
 
+    /* ═══ SCROLL-DRIVEN STORY SECTION ═══ */
+    .reset-story { position: relative; background: #020617; border-bottom: 1px solid var(--border); }
+    .story-grid {
+      display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: start;
+      position: relative; min-height: 220vh; padding-top: 100px; padding-bottom: 100px;
+    }
+    .story-sticky-visual { position: sticky; top: 15vh; height: 70vh; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .story-canvas-box {
+      position: relative; width: 100%; max-width: 420px; aspect-ratio: 1;
+      background: radial-gradient(circle at center, rgba(56, 189, 248, 0.03) 0%, transparent 70%);
+      border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.03);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #storyCanvas { width: 100%; height: 100%; }
+    .story-scroll-content { position: relative; padding-left: 40px; }
+    .story-timeline-line { position: absolute; top: 0; bottom: 0; left: 10px; width: 2px; background: rgba(255, 255, 255, 0.05); }
+    .story-timeline-progress {
+      position: absolute; top: 0; left: 0; width: 100%; height: 0%;
+      background: linear-gradient(to bottom, var(--primary), var(--secondary));
+      transition: height 0.1s ease-out;
+    }
+    .story-step {
+      min-height: 50vh; display: flex; flex-direction: column; justify-content: center;
+      opacity: 0.15; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease;
+      position: relative; padding-bottom: 80px;
+    }
+    .story-step:last-child { padding-bottom: 0; }
+    .story-step.active { opacity: 1; transform: translateY(0); }
+    .step-dot {
+      position: absolute; left: -40px; top: calc(50% - 10px); width: 20px; height: 20px;
+      border-radius: 50%; background: #0f172a; border: 2px solid rgba(255, 255, 255, 0.1);
+      z-index: 5; transition: all 0.3s ease;
+    }
+    .story-step.active .step-dot { background: var(--primary); border-color: var(--primary); box-shadow: 0 0 15px var(--primary); }
+    .story-step.active:nth-child(even) .step-dot { background: var(--secondary); border-color: var(--secondary); box-shadow: 0 0 15px var(--secondary); }
+    .step-badge { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); margin-bottom: 12px; }
+    .story-step.active:nth-child(even) .step-badge { color: var(--secondary); }
+    .story-step h3 { font-size: 1.8rem; margin-bottom: 16px; color: var(--text); }
+    .story-step p { font-size: 1.05rem; color: var(--muted); line-height: 1.7; }
+
+    @media (max-width: 1024px) {
+      .story-grid { grid-template-columns: 1fr; min-height: auto; gap: 40px; padding-top: 60px; padding-bottom: 60px; }
+      .story-sticky-visual { position: relative; top: 0; height: auto; margin-bottom: 20px; }
+      .story-canvas-box { max-width: 320px; margin: 0 auto; }
+      .story-scroll-content { padding-left: 30px; }
+      .story-timeline-line { left: 5px; }
+      .step-dot { left: -35px; width: 16px; height: 16px; }
+      .story-step { min-height: auto; opacity: 1; transform: none; padding-bottom: 48px; }
+    }
+
+    /* ═══ PARTICLE WORD REVEAL ═══ */
+    .particle-banner { background: #020617; padding: 60px 0; position: relative; overflow: hidden; border-bottom: 1px solid rgba(255, 255, 255, 0.02); }
+
     /* ═══ HOW IT WORKS ═══ */
-    .how {
-      padding: 120px 0; position: relative;
+    .how { padding: 120px 0; position: relative; }
+    .section-title { font-size: clamp(2rem, 4vw, 3rem); text-align: center; margin-bottom: 16px; }
+    .section-sub { text-align: center; color: var(--muted); font-size: 1.1rem; margin-bottom: 64px; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; position: relative; }
+    
+    .how-steps-connector {
+      position: absolute; top: 90px; left: 15%; right: 15%; height: 2px;
+      background: rgba(255, 255, 255, 0.05); z-index: 1; pointer-events: none;
     }
-    .section-title {
-      font-size: clamp(2rem, 4vw, 3rem); text-align: center; margin-bottom: 16px;
+    .how-steps-connector-active {
+      position: absolute; top: 0; left: 0; height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
     }
-    .section-sub {
-      text-align: center; color: var(--muted); font-size: 1.1rem;
-      margin-bottom: 64px; max-width: 600px; margin-left: auto; margin-right: auto;
-    }
-    .how-steps {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
-      position: relative;
-    }
-    .how-steps::before {
-      content: ''; position: absolute; top: 60px; left: 16%; right: 16%;
-      height: 2px; border-top: 2px dashed var(--border);
-    }
+    
     .step-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-card); padding: 40px 32px;
-      text-align: center; backdrop-filter: blur(20px);
-      transition: all 0.3s; position: relative;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 48px 32px;
+      text-align: center; backdrop-filter: blur(20px); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; z-index: 2; overflow: hidden;
     }
-    .step-card:hover { border-color: rgba(56,189,248,0.3); transform: translateY(-4px); }
-    .step-icon { font-size: 2.5rem; margin-bottom: 20px; display: block; }
+    .step-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(56, 189, 248, 0.08) 0%, transparent 50%);
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .step-card:hover::before { opacity: 1; }
+    .step-card:hover { border-color: rgba(56,189,248,0.3); transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
+    
+    .step-node-icon {
+      width: 80px; height: 80px; border-radius: 50%; background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; transition: all 0.3s ease; color: var(--primary);
+    }
+    .step-card:hover .step-node-icon { border-color: var(--primary); background: rgba(56,189,248,0.05); box-shadow: 0 0 20px rgba(56, 189, 248, 0.2); color: var(--secondary); }
+    .step-card:nth-child(2):hover .step-node-icon { border-color: var(--secondary); background: rgba(74,222,128,0.05); box-shadow: 0 0 20px rgba(74, 222, 128, 0.2); }
+    .step-card:nth-child(3):hover .step-node-icon { border-color: var(--warm); background: rgba(251,146,60,0.05); box-shadow: 0 0 20px rgba(251, 146, 60, 0.2); }
+    
     .step-num {
-      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
-      background: var(--primary); color: var(--bg); width: 28px; height: 28px;
+      position: absolute; top: 16px; right: 24px; background: rgba(255,255,255,0.03);
+      color: var(--muted); border: 1px solid var(--border); width: 28px; height: 28px;
       border-radius: 50%; display: flex; align-items: center; justify-content: center;
       font-size: 0.75rem; font-weight: 700;
     }
-    .step-card h3 { font-size: 1.2rem; margin-bottom: 12px; }
+    .step-card:hover .step-num { background: var(--primary); color: var(--bg); border-color: var(--primary); }
+    .step-card h3 { font-size: 1.25rem; margin-bottom: 12px; }
     .step-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    
     @media (max-width: 768px) {
       .how-steps { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
-      .how-steps::before { display: none; }
+      .how-steps-connector { display: none; }
     }
 
     /* ═══ SHOWCASE ═══ */
     .showcase { padding: 120px 0; }
-    .showcase-row {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
-      align-items: center; margin-bottom: 100px;
-    }
+    .showcase-row { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; margin-bottom: 100px; }
     .showcase-row:last-child { margin-bottom: 0; }
     .showcase-row.reverse { direction: rtl; }
     .showcase-row.reverse > * { direction: ltr; }
-    .showcase-copy h3 {
-      font-size: clamp(1.5rem, 3vw, 2.2rem); margin-bottom: 16px;
-    }
+    .showcase-copy h3 { font-size: clamp(1.5rem, 3vw, 2.2rem); margin-bottom: 16px; }
     .showcase-copy p { color: var(--muted); margin-bottom: 20px; line-height: 1.7; }
     .showcase-copy ul { list-style: none; }
-    .showcase-copy li {
-      padding: 8px 0; color: var(--muted); font-size: 0.95rem;
-      display: flex; align-items: center; gap: 12px;
-    }
-    .showcase-copy li::before {
-      content: ''; width: 8px; height: 8px; border-radius: 50%;
-      background: var(--secondary); flex-shrink: 0;
-    }
+    .showcase-copy li { padding: 8px 0; color: var(--muted); font-size: 0.95rem; display: flex; align-items: center; gap: 12px; }
+    .showcase-copy li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--secondary); flex-shrink: 0; }
     .showcase-phone { display: flex; justify-content: center; }
-    .phone-mini { transform: scale(0.85); }
+
+    /* Phone Mockup Custom Classes */
+    .phone {
+      width: 280px; height: 560px; background: #0b0f19; border-radius: 44px;
+      border: 3px solid rgba(255,255,255,0.06); position: relative; overflow: hidden;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6); transition: transform 0.5s ease;
+    }
+    .phone-screen { position: absolute; inset: 6px; border-radius: 38px; overflow: hidden; background: var(--bg); }
+    .phone-island { width: 110px; height: 26px; background: #000; border-radius: 20px; margin: 12px auto 0; position: relative; z-index: 12; }
+    .phone-status { display: flex; justify-content: space-between; padding: 6px 20px; font-size: 0.65rem; color: var(--muted); }
+    .phone-content { padding: 12px 18px; }
+    .phone-days { text-align: center; margin: 12px 0; }
+    .phone-days-num {
+      font-family: var(--font-display); font-size: 2.8rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .phone-days-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .phone-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .phone-ring-bg { stroke: rgba(255, 255, 255, 0.04); }
+    .phone-ring-progress { stroke: var(--primary); stroke-linecap: round; transition: stroke-dashoffset 2s cubic-bezier(0.16, 1, 0.3, 1); }
+    
+    .phone-btn {
+      display: block; margin: 14px auto 0; padding: 10px 20px; border-radius: var(--radius-pill);
+      background: var(--primary); color: var(--bg); font-size: 0.75rem; font-weight: 600; border: none; width: 85%;
+    }
+    
+    .phone-mini { transform: scale(0.9); }
+    .phone:hover { transform: translateY(-4px) scale(0.92); }
+
+    /* Refactored Phone Mini UI Classes */
+    .mini-card { margin-top: 12px; padding: 12px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); }
+    .mini-card.first { margin-top: 20px; }
+    .mini-label { font-size: 0.65rem; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .mini-value { font-size: 1.25rem; font-weight: 700; }
+    .mini-value.secondary { color: var(--secondary); }
+    .mini-value.primary { color: var(--primary); }
+
+    .phone-section-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; text-align: center; }
+    .trigger-row { margin-bottom: 10px; }
+    .trigger-info { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
+    .mini-bar { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+    .mini-bar-fill { height: 100%; border-radius: 4px; background: var(--primary); transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1), background 0.6s ease; }
+
+    .belief-row { margin-bottom: 14px; }
+    .belief-row .mini-label { font-size: 0.65rem; color: var(--muted); margin-bottom: 4px; }
+    .belief-row .mini-bar { height: 6px; border-radius: 3px; }
+    .belief-row .mini-bar-fill { border-radius: 3px; }
+    .belief-row-meta { font-size: 0.6rem; color: var(--secondary); margin-top: 2px; }
+
+    .phone-notification {
+      position: absolute; bottom: -80px; left: 12px; right: 12px; background: rgba(3, 7, 18, 0.95);
+      border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 14px; padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 10; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s; opacity: 0;
+    }
+    .phone-notification.slide-in { transform: translateY(-94px); opacity: 1; }
+    .noti-icon { font-size: 1.1rem; }
+    .noti-text { text-align: left; }
+    .noti-title { font-size: 0.75rem; font-weight: 700; color: var(--text); }
+    .noti-sub { font-size: 0.6rem; color: var(--muted); }
+
     @media (max-width: 768px) {
       .showcase-row, .showcase-row.reverse { grid-template-columns: 1fr; direction: ltr; gap: 40px; }
       .showcase-row.reverse > * { direction: ltr; }
     }
 
     /* ═══ TESTIMONIALS ═══ */
-    .testimonials { padding: 120px 0; overflow: hidden; }
+    .testimonials { padding: 120px 0; overflow: hidden; position: relative; }
     .testimonials .section-title { margin-bottom: 48px; }
-    .testimonial-track {
-      display: flex; gap: 24px; width: max-content;
-      animation: scrollTrack 35s linear infinite;
+    .testimonial-wrapper { position: relative; width: 100%; overflow: hidden; }
+    .testimonial-wrapper::before, .testimonial-wrapper::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 15%; z-index: 10; pointer-events: none;
     }
+    .testimonial-wrapper::before { left: 0; background: linear-gradient(to right, var(--bg) 0%, transparent 100%); }
+    .testimonial-wrapper::after { right: 0; background: linear-gradient(to left, var(--bg) 0%, transparent 100%); }
+    
+    .testimonial-track { display: flex; gap: 24px; width: max-content; animation: scrollTrack 40s linear infinite; }
     .testimonial-track:hover { animation-play-state: paused; }
     @keyframes scrollTrack { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+    
     .testimonial-card {
-      width: 340px; flex-shrink: 0; padding: 32px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-card); backdrop-filter: blur(20px);
-      transition: transform 0.3s;
+      width: 340px; flex-shrink: 0; padding: 32px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius-card);
+      backdrop-filter: blur(20px); transition: transform 0.3s;
     }
     .testimonial-stars { color: #facc15; font-size: 0.9rem; margin-bottom: 16px; letter-spacing: 2px; }
-    .testimonial-quote {
-      font-size: 0.95rem; line-height: 1.7; color: var(--text);
-      margin-bottom: 24px; font-style: italic;
-    }
+    .testimonial-quote { font-size: 0.95rem; line-height: 1.7; color: var(--text); margin-bottom: 24px; font-style: italic; }
     .testimonial-author { display: flex; align-items: center; gap: 12px; }
     .testimonial-avatar {
-      width: 40px; height: 40px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: var(--bg);
+      width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--bg);
     }
     .testimonial-name { font-weight: 600; font-size: 0.9rem; }
     .testimonial-meta { font-size: 0.75rem; color: var(--muted); }
+    .testimonial-tag {
+      display: inline-block; padding: 4px 10px; background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border); border-radius: var(--radius-pill);
+      font-size: 0.7rem; color: var(--muted); margin-top: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .testimonial-track { animation: none; overflow-x: auto; padding: 20px 24px; width: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+      .testimonial-card { scroll-snap-align: start; }
+      .testimonial-wrapper::before, .testimonial-wrapper::after { display: none; }
+    }
 
     /* ═══ SCIENCE ═══ */
     .science { padding: 120px 0; }
-    .science-content {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
-    }
-    .belief-bars { }
-    .belief-bar-item { margin-bottom: 20px; }
-    .belief-bar-label { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
-    .belief-bar-track {
-      height: 12px; background: rgba(255,255,255,0.05); border-radius: 6px;
-      overflow: hidden; position: relative;
-    }
-    .belief-bar-fill {
-      height: 100%; border-radius: 6px; transition: width 1.5s ease-out;
-      width: 0%;
-    }
-    .belief-bar-fill.before { background: #ef4444; }
-    .belief-bar-fill.after { background: var(--secondary); }
-    .belief-label-row {
-      display: flex; justify-content: space-between; margin-top: 32px;
-      font-size: 0.8rem; font-weight: 600;
-    }
-    .label-before { color: #ef4444; }
-    .label-after { color: var(--secondary); }
+    .science-content { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
 
-    .science-cards { display: flex; flex-direction: column; gap: 16px; }
+    /* CBT loop diagram */
+    .cbt-loop-box {
+      background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px 28px 20px; margin-bottom: 24px;
+      position: relative;
+    }
+    .cbt-loop-svg { width: 100%; height: auto; display: block; }
+    .loop-line { fill: none; stroke-width: 2; }
+    .loop-primary { stroke: var(--primary); }
+    .loop-bad { stroke: #ef4444; stroke-dasharray: 4,4; }
+    .loop-good { stroke: var(--secondary); }
+    .interrupt-slash { stroke: #ef4444; stroke-width: 3; stroke-linecap: round; }
+    .loop-node .node-bg { fill: #030712; stroke: rgba(255,255,255,0.1); stroke-width: 1.5; }
+    .loop-node .node-bg.active-pulse { stroke: var(--warm); animation: svgPulse 2s infinite alternate; }
+    .loop-node .node-bg.rewired { stroke: var(--secondary); }
+    .loop-node .node-label { font-size: 10px; fill: var(--muted); text-anchor: middle; font-weight: 600; font-family: var(--font-body); }
+    @keyframes svgPulse {
+      0% { stroke-width: 1.5; r: 16; }
+      100% { stroke-width: 3; r: 19; }
+    }
+
+    /* Belief strength panel */
+    .belief-panel {
+      background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+    }
+    .belief-panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .belief-panel-title { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .belief-phase-pills { display: flex; gap: 8px; }
+    .phase-pill {
+      font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+    }
+    .phase-pill.before { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .phase-pill.after  { background: rgba(74,222,128,0.1);  color: #4ade80;  border: 1px solid rgba(74,222,128,0.2); }
+
+    .belief-bar-item { margin-bottom: 16px; }
+    .belief-bar-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .belief-bar-label { font-size: 0.82rem; color: rgba(255,255,255,0.7); font-style: italic; }
+    .belief-bar-pct { font-size: 0.75rem; color: var(--muted); font-weight: 600; transition: color 1.5s; }
+    .belief-bar-track { height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; }
+    .belief-bar-fill { height: 100%; border-radius: 5px; transition: width 1.4s cubic-bezier(0.4,0,0.2,1), background 0.6s ease; width: 0%; }
+
+    .belief-bar-legend { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .legend-dot { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; }
+    .legend-dot::before { content:''; display:inline-block; width:8px; height:8px; border-radius:50%; }
+    .legend-dot.before::before { background: #ef4444; }
+    .legend-dot.after::before  { background: var(--secondary); }
+    .legend-dot.before { color: #f87171; }
+    .legend-dot.after  { color: var(--secondary); }
+
+    /* Science cards */
+    .science-cards { display: flex; flex-direction: column; gap: 14px; }
     .science-card {
-      padding: 24px; background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-card); border-left: 4px solid var(--primary);
-      transition: all 0.3s; cursor: default;
+      padding: 22px 24px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-card); border-left: 3px solid var(--primary);
+      transition: transform 0.25s, border-color 0.25s; cursor: default;
+      display: flex; gap: 16px; align-items: flex-start;
     }
     .science-card:nth-child(2) { border-left-color: var(--secondary); }
     .science-card:nth-child(3) { border-left-color: var(--warm); }
-    .science-card:hover { transform: translateX(8px); border-color: rgba(255,255,255,0.15); }
-    .science-card h4 { font-size: 1.1rem; margin-bottom: 8px; }
-    .science-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .science-card:hover { transform: translateX(6px); border-color: rgba(255,255,255,0.15); }
+    .science-card-icon {
+      width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; font-size: 1rem;
+      background: rgba(56,189,248,0.08);
+    }
+    .science-card:nth-child(2) .science-card-icon { background: rgba(74,222,128,0.08); }
+    .science-card:nth-child(3) .science-card-icon { background: rgba(251,146,60,0.08); }
+    .science-card-body h4 { font-size: 1rem; margin-bottom: 6px; }
+    .science-card-body p { font-size: 0.83rem; color: var(--muted); line-height: 1.65; margin: 0; }
+
+    .science-disclaimer {
+      font-size: 0.73rem; color: var(--muted); margin-top: 20px;
+      padding: 14px 16px; background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border); border-radius: 10px; opacity: 0.85;
+    }
+
     @media (max-width: 768px) { .science-content { grid-template-columns: 1fr; } }
 
     /* ═══ PRICING ═══ */
@@ -406,41 +527,47 @@
       text-align: center; position: relative; overflow: hidden;
     }
     .pricing-card::before {
-      content: ''; position: absolute; inset: -2px; border-radius: var(--radius-card);
+      content: ''; position: absolute; inset: -2.5px; border-radius: var(--radius-card);
       background: conic-gradient(from var(--angle, 0deg), var(--primary), var(--secondary), var(--warm), var(--primary));
-      z-index: -1; opacity: 0; transition: opacity 0.5s;
+      z-index: -1; opacity: 0.15; transition: opacity 0.5s;
     }
-    .pricing-card:hover::before { opacity: 1; animation: rotateBorder 4s linear infinite; }
+    .pricing-card:hover::before { opacity: 0.45; animation: rotateBorder 4s linear infinite; }
     @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
     @keyframes rotateBorder { to { --angle: 360deg; } }
+    
     .pricing-badge {
       display: inline-block; padding: 6px 16px; border-radius: var(--radius-pill);
-      background: rgba(74,222,128,0.15); color: var(--secondary);
+      background: rgba(74,222,128,0.1); color: var(--secondary); border: 1px solid rgba(74,222,128,0.25);
       font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 1px; margin-bottom: 20px;
+      letter-spacing: 1px;
     }
     .pricing-name { font-size: 1.4rem; margin-bottom: 16px; }
-    .pricing-price {
-      font-family: var(--font-display); font-size: 3.5rem; font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .pricing-original {
-      color: var(--muted); text-decoration: line-through; font-size: 1.2rem;
-      margin-bottom: 8px;
-    }
+    .pricing-price { font-family: var(--font-display); font-size: 3.5rem; font-weight: 700; margin-bottom: 4px; }
+    .pricing-original { color: var(--muted); text-decoration: line-through; font-size: 1.2rem; margin-bottom: 8px; }
     .pricing-caption { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
     .pricing-savings {
-      background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3);
+      background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.2);
       border-radius: 12px; padding: 12px 20px; margin: 20px 0;
       color: var(--warm); font-size: 0.85rem; font-weight: 500;
     }
-    .pricing-features {
-      list-style: none; text-align: left; margin: 24px 0;
+    
+    .pricing-comparison {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      margin: 24px 0; padding: 16px; background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border); border-radius: 14px;
     }
+    .comparison-item { display: flex; flex-direction: column; flex: 1; }
+    .comparison-item.bad { color: #f87171; }
+    .comparison-item.good { color: var(--secondary); }
+    .comp-title { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+    .comp-cost { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+    .comparison-divider { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+
+    .pricing-features { list-style: none; text-align: left; margin: 24px 0; }
     .pricing-features li {
       padding: 10px 0; color: var(--text); font-size: 0.9rem;
       display: flex; align-items: center; gap: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
     }
     .pricing-features li:last-child { border-bottom: none; }
     .pricing-check { color: var(--secondary); font-size: 1.1rem; }
@@ -449,19 +576,18 @@
       background: linear-gradient(135deg, var(--primary), #0ea5e9);
       color: var(--bg); font-size: 1.05rem; font-weight: 700;
       border: none; cursor: pointer; margin-top: 16px;
-      box-shadow: 0 4px 20px rgba(56,189,248,0.3); transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(56,189,248,0.25); transition: all 0.3s;
     }
-    .pricing-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.5); }
-    .pricing-trust {
-      margin-top: 20px; font-size: 0.8rem; color: var(--muted);
-    }
+    .pricing-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,0.4); }
+    
+    .pricing-trust-row { display: flex; justify-content: center; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+    .trust-pill { font-size: 0.75rem; color: var(--muted); background: rgba(255, 255, 255, 0.015); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius-pill); }
+    .pricing-trust { margin-top: 20px; font-size: 0.8rem; color: var(--muted); }
 
     /* ═══ FAQ ═══ */
     .faq { padding: 120px 0; }
     .faq-list { max-width: 700px; margin: 0 auto; }
-    .faq-item {
-      border-bottom: 1px solid var(--border); overflow: hidden;
-    }
+    .faq-item { border-bottom: 1px solid var(--border); overflow: hidden; }
     .faq-question {
       width: 100%; padding: 24px 0; display: flex; justify-content: space-between;
       align-items: center; background: none; border: none; color: var(--text);
@@ -469,33 +595,15 @@
       font-family: var(--font-body);
     }
     .faq-question:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 4px; }
-    .faq-chevron {
-      width: 20px; height: 20px; transition: transform 0.3s; flex-shrink: 0; margin-left: 16px;
-    }
+    .faq-chevron { width: 20px; height: 20px; transition: transform 0.3s; flex-shrink: 0; margin-left: 16px; }
     .faq-item.open .faq-chevron { transform: rotate(180deg); }
-    .faq-answer {
-      max-height: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease;
-      opacity: 0;
-    }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; opacity: 0; }
     .faq-item.open .faq-answer { opacity: 1; }
-    .faq-answer p {
-      padding-bottom: 24px; color: var(--muted); font-size: 0.9rem; line-height: 1.7;
-    }
+    .faq-answer p { padding-bottom: 24px; color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
 
     /* ═══ FINAL CTA ═══ */
-    .final-cta {
-      padding: 120px 0; text-align: center; position: relative;
-      background: linear-gradient(135deg, #0d1f3c, #0a1a2e, #1a0f2e, #0d1f3c);
-      background-size: 400% 400%;
-      animation: gradientShift 8s ease infinite;
-    }
-    @keyframes gradientShift {
-      0% { background-position: 0% 50% }
-      50% { background-position: 100% 50% }
-      100% { background-position: 0% 50% }
-    }
-    .final-cta h2 { font-size: clamp(2rem, 5vw, 3.5rem); margin-bottom: 16px; }
-    .final-cta p { color: var(--muted); font-size: 1.2rem; margin-bottom: 40px; }
+    .final-cta { padding: 140px 0; text-align: center; position: relative; background: #030712; overflow: hidden; border-top: 1px solid var(--border); }
+    #finalCtaCanvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
     .pulse-btn {
       padding: 20px 48px; border-radius: var(--radius-btn); font-weight: 700;
       font-size: 1.1rem; border: none; cursor: pointer;
@@ -512,14 +620,8 @@
     .final-sub { margin-top: 20px; font-size: 0.9rem; color: var(--muted); }
 
     /* ═══ FOOTER ═══ */
-    .footer {
-      padding: 60px 0 40px; border-top: 1px solid var(--border);
-    }
-    .footer-content {
-      display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 24px;
-    }
-    .footer-brand { }
+    .footer { padding: 60px 0 40px; border-top: 1px solid var(--border); }
+    .footer-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
     .footer-logo {
       font-family: var(--font-display); font-size: 1.4rem; font-weight: 700;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -533,36 +635,35 @@
     .footer-social { display: flex; gap: 16px; }
     .footer-social a {
       width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.3s;
+      display: flex; align-items: center; justify-content: center; transition: all 0.3s;
     }
     .footer-social a:hover { border-color: var(--primary); background: rgba(56,189,248,0.1); }
     .footer-social svg { width: 16px; height: 16px; fill: var(--muted); }
-    .footer-bottom {
-      text-align: center; margin-top: 40px; padding-top: 24px;
-      border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted);
-    }
+    .footer-bottom { text-align: center; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
 
-    @media (max-width: 768px) {
-      .footer-content { flex-direction: column; text-align: center; }
-    }
+    @media (max-width: 768px) { .footer-content { flex-direction: column; text-align: center; } }
 
     /* ═══ SCROLL ANIMATIONS ═══ */
-    .reveal {
-      opacity: 0; transform: translateY(40px);
-      transition: opacity 0.7s ease-out, transform 0.7s ease-out;
-    }
+    .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
     .reveal.visible { opacity: 1; transform: translateY(0); }
 
     /* ═══ REDUCED MOTION ═══ */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
+        animation-delay: 0s !important;
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
       }
-      .reveal { opacity: 1; transform: none; }
-      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none !important; }
+      .phone, .orb, .micro-label, .testimonial-track { animation: none !important; transform: none !important; }
+      #heroCanvas, #storyCanvas, #particleBannerCanvas, #finalCtaCanvas { display: none !important; }
+      .reduced-motion-fallback-text { display: block !important; }
+      .phone-ring-progress { stroke-dashoffset: 0 !important; }
+      .mini-bar-fill { width: var(--width) !important; transition: none !important; }
+      .story-step { opacity: 1 !important; transform: none !important; }
+      html { scroll-behavior: auto !important; }
     }
 
     /* Focus styles */
@@ -570,28 +671,30 @@
   </style>
 </head>
 <body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+
   <!-- Navigation -->
   <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="container">
       <a href="#" class="nav-logo" aria-label="Smono home">Smono</a>
       <div class="nav-links">
-        <a href="#how">How it works</a>
+        <a href="#reset-story">How it works</a>
         <a href="#science">Science</a>
         <a href="#testimonials">Stories</a>
         <a href="#pricing">Pricing</a>
       </div>
-      <button class="nav-cta" aria-label="Start free trial">Start Free</button>
+      <button class="nav-cta" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})" aria-label="Begin Your Reset">Begin Reset</button>
       <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
     </div>
   </nav>
   <div class="mobile-menu" role="menu">
-    <a href="#how" role="menuitem">How it works</a>
+    <a href="#reset-story" role="menuitem">How it works</a>
     <a href="#science" role="menuitem">Science</a>
     <a href="#testimonials" role="menuitem">Stories</a>
     <a href="#pricing" role="menuitem">Pricing</a>
-    <button class="nav-cta" style="display:block;width:100%;margin-top:8px">Start Free</button>
+    <button class="nav-cta" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})" style="display:block;width:100%;margin-top:8px">Begin Reset</button>
   </div>
 
   <!-- Hero -->
@@ -599,39 +702,86 @@
     <div class="hero-bg">
       <div class="orb orb-1"></div>
       <div class="orb orb-2"></div>
-      <div class="orb orb-3"></div>
     </div>
     <div class="container hero-content">
       <div class="hero-text">
-        <span class="hero-pill">30-Day CBT Program</span>
+        <span class="hero-pill">30-Day CBT Reset Program</span>
         <h1 class="hero-headline" id="hero-headline"></h1>
-        <p class="hero-sub">The Smono Reset Method removes the desire to smoke — not just the cigarette.</p>
+        <p class="hero-sub">Smono helps you map triggers, rewire beliefs, and move through cravings with a structured CBT-based reset.</p>
         <div class="hero-ctas">
-          <button class="btn-primary">Begin Your Reset</button>
-          <button class="btn-ghost" onclick="document.getElementById('how').scrollIntoView()">See How It Works</button>
+          <button class="btn-primary" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Begin Your Reset</button>
+          <button class="btn-ghost" onclick="document.getElementById('reset-story').scrollIntoView({behavior:'smooth'})">Watch How It Works</button>
         </div>
-        <div class="hero-proof">
-          <div class="proof-item"><span class="proof-number">12,400+</span><span class="proof-label">people quit</span></div>
-          <div class="proof-item"><span class="proof-number">91%</span><span class="proof-label">success rate</span></div>
-          <div class="proof-item"><span class="proof-number">30+</span><span class="proof-label">countries</span></div>
-        </div>
+        <p class="hero-proof-line">Built for smokers who are tired of willpower-based quitting.</p>
       </div>
-      <div class="hero-phone">
-        <div class="phone">
-          <div class="phone-screen">
-            <div class="phone-island"></div>
-            <div class="phone-status"><span>9:41</span><span>●●● ⚡ 87%</span></div>
-            <div class="phone-content">
-              <div class="phone-days">
-                <div class="phone-days-num">7</div>
-                <div class="phone-days-label">Days Smoke-Free</div>
-              </div>
-              <div class="phone-ring"><div class="phone-ring-inner">Day 7/30</div></div>
-              <button class="phone-btn">Continue Day 7</button>
-            </div>
+      <div class="hero-visual">
+        <div class="reset-node-container">
+          <canvas id="heroCanvas"></canvas>
+          <div class="node-center-label">
+            <span class="day-num">Day 7</span>
+            <span class="day-total">/ 30</span>
           </div>
+          <div class="micro-label label-trigger" style="top: 12%; left: 12%;">Trigger</div>
+          <div class="micro-label label-belief" style="bottom: 16%; left: 10%;">Belief</div>
+          <div class="micro-label label-craving" style="top: 22%; right: 8%;">Craving</div>
+          <div class="micro-label label-reset" style="bottom: 12%; right: 14%;">Reset</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Scroll-Driven Story Section -->
+  <section class="reset-story" id="reset-story">
+    <div class="container story-grid">
+      <!-- Sticky Visual (Left Side on Desktop) -->
+      <div class="story-sticky-visual">
+        <div class="story-canvas-box">
+          <canvas id="storyCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Scrollable Text Blocks (Right Side on Desktop) -->
+      <div class="story-scroll-content">
+        <div class="story-timeline-line">
+          <div class="story-timeline-progress" id="timelineProgress"></div>
+        </div>
+
+        <div class="story-step active" data-step="1">
+          <div class="step-dot"></div>
+          <span class="step-badge">Stage 01</span>
+          <h3>Map the craving</h3>
+          <p>Smono identifies the moments, moods, and routines that pull you toward smoking.</p>
+        </div>
+
+        <div class="story-step" data-step="2">
+          <div class="step-dot"></div>
+          <span class="step-badge">Stage 02</span>
+          <h3>Find the belief</h3>
+          <p>Every craving has a thought underneath it: stress relief, control, reward, identity, or escape.</p>
+        </div>
+
+        <div class="story-step" data-step="3">
+          <div class="step-dot"></div>
+          <span class="step-badge">Stage 03</span>
+          <h3>Challenge the loop</h3>
+          <p>Daily CBT prompts weaken the belief instead of asking you to simply resist.</p>
+        </div>
+
+        <div class="story-step" data-step="4">
+          <div class="step-dot"></div>
+          <span class="step-badge">Stage 04</span>
+          <h3>Build the new response</h3>
+          <p>By repeating the reset, the cigarette becomes less automatic and less desirable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Particle Word Reveal Banner -->
+  <section class="particle-banner" aria-hidden="true">
+    <div class="container" style="text-align: center; position: relative;">
+      <canvas id="particleBannerCanvas" style="width: 100%; height: 180px; max-width: 600px; display: block; margin: 0 auto;"></canvas>
+      <div class="reduced-motion-fallback-text" style="display: none; font-family: var(--font-display); font-size: 3.5rem; font-weight: 700; color: var(--primary); text-shadow: 0 0 20px rgba(56,189,248,0.3);">RESET</div>
     </div>
   </section>
 
@@ -653,23 +803,43 @@
       <h2 class="section-title reveal">Not a tracker. A reset.</h2>
       <p class="section-sub reveal">Three stages that dismantle your relationship with cigarettes — permanently.</p>
       <div class="how-steps">
+        <div class="how-steps-connector" aria-hidden="true">
+          <div class="how-steps-connector-active"></div>
+        </div>
         <div class="step-card reveal">
           <span class="step-num">1</span>
-          <span class="step-icon">🧠</span>
-          <h3>Map Your Triggers</h3>
-          <p>We identify exactly what drives your smoking — stress, boredom, habit, social.</p>
+          <div class="step-node-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="22" y1="12" x2="18" y2="12"></line>
+              <line x1="6" y1="12" x2="2" y2="12"></line>
+              <line x1="12" y1="6" x2="12" y2="2"></line>
+              <line x1="12" y1="22" x2="12" y2="18"></line>
+            </svg>
+          </div>
+          <h3>Decode your triggers</h3>
+          <p>We identify the exact moments, mood, and routines that pull you toward smoking — stress, boredom, habit, social.</p>
         </div>
         <div class="step-card reveal">
           <span class="step-num">2</span>
-          <span class="step-icon">⚡</span>
-          <h3>Rewire the Belief</h3>
-          <p>Daily 5-minute CBT sessions dissolve the beliefs that keep cigarettes feeling necessary.</p>
+          <div class="step-node-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1 0-3.12 3 3 0 0 1 0-4.88 2.5 2.5 0 0 1 0-3.12A2.5 2.5 0 0 1 9.5 2z"></path>
+              <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 0-3.12 3 3 0 0 0 0-4.88 2.5 2.5 0 0 0 0-3.12A2.5 2.5 0 0 0 14.5 2z"></path>
+            </svg>
+          </div>
+          <h3>Rewrite the belief</h3>
+          <p>Daily 5-minute CBT sessions dissolve the sub-conscious beliefs that keep cigarettes feeling necessary.</p>
         </div>
         <div class="step-card reveal">
           <span class="step-num">3</span>
-          <span class="step-icon">🍃</span>
-          <h3>Free Forever</h3>
-          <p>By Day 10, most users stop wanting cigarettes. Not resisting them — not wanting them.</p>
+          <div class="step-node-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+          </div>
+          <h3>Practice the reset</h3>
+          <p>Build a repeatable response for high-risk moments, replacing cravings with a sense of control.</p>
         </div>
       </div>
     </div>
@@ -686,13 +856,21 @@
               <div class="phone-status"><span>9:41</span><span>●●● ⚡ 92%</span></div>
               <div class="phone-content">
                 <div class="phone-days"><div class="phone-days-num">14</div><div class="phone-days-label">Days Smoke-Free</div></div>
-                <div style="margin-top:20px;padding:12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
-                  <div style="font-size:0.7rem;color:var(--muted);margin-bottom:8px">MONEY SAVED</div>
-                  <div style="font-size:1.3rem;font-weight:700;color:var(--secondary)">₹4,200</div>
+                <div class="mini-card first">
+                  <div class="mini-label">MONEY SAVED</div>
+                  <div class="mini-value secondary">₹4,200</div>
                 </div>
-                <div style="margin-top:12px;padding:12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
-                  <div style="font-size:0.7rem;color:var(--muted);margin-bottom:8px">CIGARETTES NOT SMOKED</div>
-                  <div style="font-size:1.3rem;font-weight:700;color:var(--primary)">280</div>
+                <div class="mini-card">
+                  <div class="mini-label">CIGARETTES NOT SMOKED</div>
+                  <div class="mini-value primary">280</div>
+                </div>
+                <!-- Sliding Notification -->
+                <div class="phone-notification" id="phone2Notification">
+                  <div class="noti-icon">🛡️</div>
+                  <div class="noti-text">
+                    <div class="noti-title">Craving Rescued</div>
+                    <div class="noti-sub">10 min deep breathe reset completed</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -716,11 +894,23 @@
               <div class="phone-island"></div>
               <div class="phone-status"><span>9:41</span><span>●●● ⚡ 78%</span></div>
               <div class="phone-content">
-                <div style="font-size:0.85rem;font-weight:600;margin-bottom:16px;text-align:center">Trigger Breakdown</div>
-                <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);margin-bottom:4px"><span>Stress</span><span>42%</span></div><div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px"><div style="height:100%;width:42%;background:var(--primary);border-radius:4px"></div></div></div>
-                <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);margin-bottom:4px"><span>Habit</span><span>28%</span></div><div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px"><div style="height:100%;width:28%;background:var(--warm);border-radius:4px"></div></div></div>
-                <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);margin-bottom:4px"><span>Social</span><span>18%</span></div><div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px"><div style="height:100%;width:18%;background:var(--secondary);border-radius:4px"></div></div></div>
-                <div><div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--muted);margin-bottom:4px"><span>Boredom</span><span>12%</span></div><div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px"><div style="height:100%;width:12%;background:#a78bfa;border-radius:4px"></div></div></div>
+                <div class="phone-section-title">Trigger Breakdown</div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Stress</span><span>42%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 0%" data-width="42"></div></div>
+                </div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Habit</span><span>28%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 0%" data-width="28"></div></div>
+                </div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Social</span><span>18%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 0%" data-width="18"></div></div>
+                </div>
+                <div class="trigger-row" style="margin-bottom: 0">
+                  <div class="trigger-info"><span>Boredom</span><span>12%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 0%" data-width="12"></div></div>
+                </div>
               </div>
             </div>
           </div>
@@ -738,16 +928,32 @@
 
       <div class="showcase-row reveal">
         <div class="showcase-phone">
-          <div class="phone phone-mini">
+          <div class="phone phone-mini phone-4">
             <div class="phone-screen">
               <div class="phone-island"></div>
               <div class="phone-status"><span>9:41</span><span>●●● ⚡ 95%</span></div>
               <div class="phone-content">
-                <div style="font-size:0.85rem;font-weight:600;margin-bottom:16px;text-align:center">Belief Assessment</div>
-                <div style="margin-bottom:14px"><div style="font-size:0.65rem;color:var(--muted);margin-bottom:4px">"Smoking relaxes me"</div><div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px"><div style="height:100%;width:30%;background:var(--secondary);border-radius:3px"></div></div><div style="font-size:0.6rem;color:var(--secondary);margin-top:2px">Day 0: 9 → Now: 3</div></div>
-                <div style="margin-bottom:14px"><div style="font-size:0.65rem;color:var(--muted);margin-bottom:4px">"I enjoy smoking"</div><div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px"><div style="height:100%;width:20%;background:var(--secondary);border-radius:3px"></div></div><div style="font-size:0.6rem;color:var(--secondary);margin-top:2px">Day 0: 8 → Now: 2</div></div>
-                <div style="margin-bottom:14px"><div style="font-size:0.65rem;color:var(--muted);margin-bottom:4px">"Helps me concentrate"</div><div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px"><div style="height:100%;width:40%;background:var(--secondary);border-radius:3px"></div></div><div style="font-size:0.6rem;color:var(--secondary);margin-top:2px">Day 0: 7 → Now: 4</div></div>
-                <div style="margin-bottom:14px"><div style="font-size:0.65rem;color:var(--muted);margin-bottom:4px">"Handles my stress"</div><div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px"><div style="height:100%;width:25%;background:var(--secondary);border-radius:3px"></div></div><div style="font-size:0.6rem;color:var(--secondary);margin-top:2px">Day 0: 10 → Now: 3</div></div>
+                <div class="phone-section-title">Belief Assessment</div>
+                <div class="belief-row">
+                  <div class="mini-label">"Smoking relaxes me"</div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 90%" data-before="90" data-after="30"></div></div>
+                  <div class="belief-row-meta">Day 0: 9 → Now: 3</div>
+                </div>
+                <div class="belief-row">
+                  <div class="mini-label">"I enjoy smoking"</div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 80%" data-before="80" data-after="20"></div></div>
+                  <div class="belief-row-meta">Day 0: 8 → Now: 2</div>
+                </div>
+                <div class="belief-row">
+                  <div class="mini-label">"Helps me concentrate"</div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 70%" data-before="70" data-after="40"></div></div>
+                  <div class="belief-row-meta">Day 0: 7 → Now: 4</div>
+                </div>
+                <div class="belief-row" style="margin-bottom: 0">
+                  <div class="mini-label">"Handles my stress"</div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width: 100%" data-before="100" data-after="30"></div></div>
+                  <div class="belief-row-meta">Day 0: 10 → Now: 3</div>
+                </div>
               </div>
             </div>
           </div>
@@ -770,20 +976,22 @@
     <div class="container">
       <h2 class="section-title reveal">Real people. Real resets.</h2>
     </div>
-    <div class="testimonial-track" id="testimonialTrack">
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div></div>
-      <!-- Duplicates for infinite scroll -->
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div></div>
-      <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div></div>
+    <div class="testimonial-wrapper">
+      <div class="testimonial-track" id="testimonialTrack">
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <!-- Duplicates for infinite scroll -->
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+      </div>
     </div>
   </section>
 
@@ -793,28 +1001,146 @@
       <h2 class="section-title reveal">Built on 60 years of behavioral science</h2>
       <p class="section-sub reveal">Cognitive Behavioral Therapy is the most evidence-backed treatment for addiction. Smono makes it accessible in 5 minutes a day.</p>
       <div class="science-content">
-        <div class="belief-bars reveal" id="beliefBars">
-          <div class="belief-bar-item"><div class="belief-bar-label">"Smoking relaxes me"</div><div class="belief-bar-track"><div class="belief-bar-fill before" data-before="85" data-after="25"></div></div></div>
-          <div class="belief-bar-item"><div class="belief-bar-label">"I enjoy smoking"</div><div class="belief-bar-track"><div class="belief-bar-fill before" data-before="75" data-after="15"></div></div></div>
-          <div class="belief-bar-item"><div class="belief-bar-label">"Helps me concentrate"</div><div class="belief-bar-track"><div class="belief-bar-fill before" data-before="65" data-after="20"></div></div></div>
-          <div class="belief-bar-item"><div class="belief-bar-label">"I need it socially"</div><div class="belief-bar-track"><div class="belief-bar-fill before" data-before="70" data-after="10"></div></div></div>
-          <div class="belief-bar-item"><div class="belief-bar-label">"Handles my stress"</div><div class="belief-bar-track"><div class="belief-bar-fill before" data-before="90" data-after="30"></div></div></div>
-          <div class="belief-label-row"><span class="label-before">Before (Day 0)</span><span class="label-after">After (Day 30)</span></div>
+
+        <!-- Left: CBT diagram + belief bars -->
+        <div class="science-visual reveal">
+          <div class="cbt-loop-box">
+            <svg class="cbt-loop-svg" viewBox="0 0 300 210" aria-hidden="true">
+              <defs>
+                <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1" fill="rgba(255,255,255,0.03)" />
+                </pattern>
+                <filter id="nodeGlow">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#dotGrid)" rx="12"/>
+
+              <!-- Lines -->
+              <path class="loop-line loop-primary" d="M 60,110 L 150,55" />
+              <path class="loop-line loop-bad" d="M 150,55 L 240,110" />
+              <path class="loop-line loop-good" d="M 150,55 L 150,155" />
+
+              <!-- Interrupt badge at midpoint of bad path (195, 83) -->
+              <circle cx="195" cy="83" r="11" fill="#0d1117" stroke="#ef4444" stroke-width="1.5"/>
+              <line x1="189" y1="77" x2="201" y2="89" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="201" y1="77" x2="189" y2="89" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+
+              <!-- Trigger node -->
+              <g class="loop-node" transform="translate(60, 110)">
+                <circle r="18" class="node-bg" />
+                <circle r="8" fill="var(--primary)" />
+                <text y="34" class="node-label">Trigger</text>
+              </g>
+              <!-- CBT Intervention node -->
+              <g class="loop-node" transform="translate(150, 55)">
+                <circle r="22" class="node-bg active-pulse" />
+                <circle r="10" fill="var(--warm)" />
+                <text y="-30" class="node-label">CBT Intervention</text>
+              </g>
+              <!-- Smoking Loop node (dimmed) -->
+              <g class="loop-node" transform="translate(240, 110)" opacity="0.45">
+                <circle r="18" class="node-bg" />
+                <circle r="8" fill="#ef4444" />
+                <text y="34" class="node-label">Smoking Loop</text>
+              </g>
+              <!-- Healthy Reset node -->
+              <g class="loop-node" transform="translate(150, 155)">
+                <circle r="18" class="node-bg rewired" />
+                <circle r="8" fill="var(--secondary)" />
+                <text y="34" class="node-label">Healthy Reset</text>
+              </g>
+
+              <!-- Travelling pulse dot -->
+              <circle r="4" fill="#fff" opacity="0.9">
+                <animateMotion dur="3.5s" repeatCount="indefinite" path="M 60,110 L 150,55 L 150,155"/>
+              </circle>
+            </svg>
+          </div>
+
+          <!-- Belief strength bars -->
+          <div class="belief-panel" id="beliefBars">
+            <div class="belief-panel-header">
+              <span class="belief-panel-title">Belief Strength</span>
+              <div class="belief-phase-pills">
+                <span class="phase-pill before">Day 0</span>
+                <span class="phase-pill after">Day 30</span>
+              </div>
+            </div>
+
+            <div class="belief-bar-item">
+              <div class="belief-bar-row">
+                <span class="belief-bar-label">"Smoking relaxes me"</span>
+                <span class="belief-bar-pct">85%</span>
+              </div>
+              <div class="belief-bar-track"><div class="belief-bar-fill" data-before="85" data-after="25"></div></div>
+            </div>
+            <div class="belief-bar-item">
+              <div class="belief-bar-row">
+                <span class="belief-bar-label">"I enjoy smoking"</span>
+                <span class="belief-bar-pct">75%</span>
+              </div>
+              <div class="belief-bar-track"><div class="belief-bar-fill" data-before="75" data-after="15"></div></div>
+            </div>
+            <div class="belief-bar-item">
+              <div class="belief-bar-row">
+                <span class="belief-bar-label">"Helps me concentrate"</span>
+                <span class="belief-bar-pct">65%</span>
+              </div>
+              <div class="belief-bar-track"><div class="belief-bar-fill" data-before="65" data-after="20"></div></div>
+            </div>
+            <div class="belief-bar-item">
+              <div class="belief-bar-row">
+                <span class="belief-bar-label">"I need it socially"</span>
+                <span class="belief-bar-pct">70%</span>
+              </div>
+              <div class="belief-bar-track"><div class="belief-bar-fill" data-before="70" data-after="10"></div></div>
+            </div>
+            <div class="belief-bar-item" style="margin-bottom:0">
+              <div class="belief-bar-row">
+                <span class="belief-bar-label">"Handles my stress"</span>
+                <span class="belief-bar-pct">90%</span>
+              </div>
+              <div class="belief-bar-track"><div class="belief-bar-fill" data-before="90" data-after="30"></div></div>
+            </div>
+
+            <div class="belief-bar-legend">
+              <span class="legend-dot before">Before CBT</span>
+              <span class="legend-dot after">After 30 days</span>
+            </div>
+          </div>
         </div>
+
+        <!-- Right: science explanation cards -->
         <div class="science-cards reveal">
           <div class="science-card">
-            <h4>Cognitive Behavioral Therapy</h4>
-            <p>CBT identifies and restructures the irrational beliefs that make smoking feel necessary. It doesn't fight the craving — it removes the reason for it.</p>
+            <div class="science-card-icon">🧠</div>
+            <div class="science-card-body">
+              <h4>Cognitive Behavioral Therapy</h4>
+              <p>CBT identifies and restructures the irrational beliefs that make smoking feel necessary. It doesn't fight the craving — it removes the reason for it.</p>
+            </div>
           </div>
           <div class="science-card">
-            <h4>Functional Analysis</h4>
-            <p>Every craving follows an A→B→C pattern: Antecedent, Belief, Consequence. Once you see the pattern, you can interrupt it at the thought level.</p>
+            <div class="science-card-icon">🔍</div>
+            <div class="science-card-body">
+              <h4>Functional Analysis</h4>
+              <p>Every craving follows an A→B→C pattern: Antecedent, Belief, Consequence. Once you see the pattern, you can interrupt it at the thought level.</p>
+            </div>
           </div>
           <div class="science-card">
-            <h4>Neural Pathway Rewiring</h4>
-            <p>Repeated cognitive challenges weaken the neural associations between triggers and smoking. Within 10 days, the automatic response begins to fade.</p>
+            <div class="science-card-icon">⚡</div>
+            <div class="science-card-body">
+              <h4>Neural Pathway Rewiring</h4>
+              <p>Repeated cognitive challenges weaken the neural associations between triggers and smoking. Within 10 days, the automatic response begins to fade.</p>
+            </div>
+          </div>
+
+          <div class="science-disclaimer">
+            <strong>Note:</strong> CBT works by changing the meaning attached to the craving. This app is educational and supportive, not a replacement for medical care.
           </div>
         </div>
+
       </div>
     </div>
   </section>
@@ -825,12 +1151,29 @@
       <h2 class="section-title reveal">One program. Permanent freedom.</h2>
       <p class="section-sub reveal">No subscriptions. No recurring charges. One reset, and you're done.</p>
       <div class="pricing-card reveal">
-        <span class="pricing-badge">Most Popular</span>
+        <div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+          <span class="pricing-badge">One-time access</span>
+          <span class="pricing-badge" style="background:rgba(56,189,248,0.1);color:var(--primary);border-color:rgba(56,189,248,0.25)">No Subscriptions</span>
+        </div>
         <h3 class="pricing-name">Smono 30-Day Reset</h3>
         <div class="pricing-original">₹3,999</div>
         <div class="pricing-price">₹1,990</div>
         <div class="pricing-caption">One-time payment. Lifetime access.</div>
-        <div class="pricing-savings">Less than 3 days of cigarettes. Pays for itself instantly.</div>
+        
+        <!-- Comparison Block -->
+        <div class="pricing-comparison">
+          <div class="comparison-item bad">
+            <span class="comp-title">8 Days of Cigarettes</span>
+            <span class="comp-cost">₹2,400</span>
+          </div>
+          <div class="comparison-divider">vs</div>
+          <div class="comparison-item good">
+            <span class="comp-title">Smono Lifetime Reset</span>
+            <span class="comp-cost">₹1,990</span>
+          </div>
+        </div>
+
+        <div class="pricing-savings">Less than 8 days of cigarettes. Pays for itself in a week.</div>
         <ul class="pricing-features">
           <li><span class="pricing-check">✓</span> 30 daily CBT modules (5 min each)</li>
           <li><span class="pricing-check">✓</span> Automatic thought capture &amp; analysis</li>
@@ -838,10 +1181,14 @@
           <li><span class="pricing-check">✓</span> SOS craving rescue (breathing + grounding)</li>
           <li><span class="pricing-check">✓</span> Trigger pattern AI analysis</li>
           <li><span class="pricing-check">✓</span> Community support circle</li>
-          <li><span class="pricing-check">✓</span> 14-day money-back guarantee</li>
         </ul>
-        <button class="pricing-cta">Start My Reset — ₹1,990</button>
-        <p class="pricing-trust">🔒 256-bit secure · 🤝 14-day refund · 🌍 30 countries</p>
+        <button class="pricing-cta" onclick="alert('Checkout initiated! (Demo)')">Start My Reset — ₹1,990</button>
+        <div class="pricing-trust-row">
+          <div class="trust-pill">🔒 Secure payment</div>
+          <div class="trust-pill">⚡ 5–8 min daily sessions</div>
+          <div class="trust-pill">🌍 30 countries</div>
+        </div>
+        <p class="pricing-trust">🔒 256-bit secure · 🌍 30 countries</p>
       </div>
     </div>
   </section>
@@ -864,7 +1211,7 @@
             <span>Will I experience withdrawal symptoms?</span>
             <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
-          <div class="faq-answer" role="region"><p>Some users experience mild withdrawal in the first 3 days. Smono's daily modules are timed to match your withdrawal curve, with specific tools for Days 2–4 when cravings are strongest.</p></div>
+          <div class="faq-answer" role="region"><p>Some users experience mild withdrawal in the first 3 days. Smono's daily modules are designed to support you through your journey, with tools for the critical early days when cravings are strongest.</p></div>
         </div>
         <div class="faq-item reveal">
           <button class="faq-question" aria-expanded="false">
@@ -887,24 +1234,18 @@
           </button>
           <div class="faq-answer" role="region"><p>Yes — Smono supports 8 languages: English, Hindi, Marathi, Gujarati, French, German, Italian, and Spanish. Language is set at onboarding.</p></div>
         </div>
-        <div class="faq-item reveal">
-          <button class="faq-question" aria-expanded="false">
-            <span>What is the 14-day refund policy?</span>
-            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <div class="faq-answer" role="region"><p>If you don't feel a reduction in cravings within 14 days, email us at support@smono.app. We refund 100% — no questions asked.</p></div>
-        </div>
       </div>
     </div>
   </section>
 
   <!-- Final CTA -->
   <section class="final-cta">
-    <div class="container">
-      <h2 class="reveal">The best day to quit was yesterday.</h2>
-      <p class="reveal">The second best day is right now.</p>
-      <button class="pulse-btn reveal">Begin Your Reset</button>
-      <p class="final-sub reveal">Join 12,400+ people who chose freedom over willpower.</p>
+    <canvas id="finalCtaCanvas"></canvas>
+    <div class="container" style="position: relative; z-index: 2;">
+      <h2 class="reveal">The cigarette is not the problem. The loop is.</h2>
+      <p class="reveal" style="max-width: 600px; margin: 0 auto 40px; line-height: 1.7;">Break the loop with a 30-day reset built around triggers, beliefs, and daily CBT practice.</p>
+      <button class="pulse-btn reveal" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Begin Your Reset</button>
+      <p class="final-sub reveal">5 minutes a day. One structured path. No shame.</p>
     </div>
   </section>
 
@@ -1023,38 +1364,12 @@
       requestAnimationFrame(update);
     }
 
-    // ═══ BELIEF BAR ANIMATION ═══
-    const beliefSection = document.getElementById('beliefBars');
-    let beliefsDone = false;
-    const beliefObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && !beliefsDone) {
-          beliefsDone = true;
-          const bars = beliefSection.querySelectorAll('.belief-bar-fill');
-          bars.forEach((bar, idx) => {
-            const beforeVal = bar.dataset.before;
-            const afterVal = bar.dataset.after;
-            setTimeout(() => {
-              bar.style.width = beforeVal + '%';
-              bar.style.background = '#ef4444';
-              setTimeout(() => {
-                bar.style.width = afterVal + '%';
-                bar.style.background = '#4ade80';
-              }, 2000);
-            }, idx * 200);
-          });
-        }
-      });
-    }, { threshold: 0.3 });
-    beliefObserver.observe(beliefSection);
-
     // ═══ FAQ ACCORDION ═══
     document.querySelectorAll('.faq-question').forEach(btn => {
       btn.addEventListener('click', () => {
         const item = btn.parentElement;
         const answer = item.querySelector('.faq-answer');
         const isOpen = item.classList.contains('open');
-
         document.querySelectorAll('.faq-item.open').forEach(openItem => {
           openItem.classList.remove('open');
           openItem.querySelector('.faq-answer').style.maxHeight = '0';
@@ -1080,6 +1395,300 @@
         });
       });
     }
+
+    // ═══ HERO CANVAS — Particle Network ═══
+    (function initHeroCanvas() {
+      const canvas = document.getElementById('heroCanvas');
+      if (!canvas) return;
+      const container = canvas.parentElement;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      function resize() {
+        const r = container.getBoundingClientRect();
+        canvas.width = r.width * dpr;
+        canvas.height = r.height * dpr;
+        canvas.style.width = r.width + 'px';
+        canvas.style.height = r.height + 'px';
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      const ctx = canvas.getContext('2d');
+      const W = () => canvas.width, H = () => canvas.height;
+      const cx = () => W() / 2, cy = () => H() / 2;
+      const R = () => Math.min(W(), H()) * 0.42;
+      // ponytail: fixed count for perf
+      const pts = Array.from({ length: 22 }, (_, k) => ({
+        angle: (k / 22) * Math.PI * 2 + Math.random() * 0.5,
+        frac: 0.6 + Math.random() * 0.4,
+        size: 1.5 + Math.random() * 2,
+        speed: 0.0003 + Math.random() * 0.0005,
+        alpha: 0.3 + Math.random() * 0.5,
+        color: k % 3 === 0 ? '#38bdf8' : k % 3 === 1 ? '#4ade80' : '#fb923c',
+        x: 0, y: 0,
+      }));
+      function draw(ts) {
+        ctx.clearRect(0, 0, W(), H());
+        const grad = ctx.createRadialGradient(cx(), cy(), R()*.3, cx(), cy(), R()*.9);
+        grad.addColorStop(0, 'rgba(56,189,248,0.04)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx(), cy(), R(), 0, Math.PI*2); ctx.fill();
+        const prog = 7/30;
+        ctx.beginPath();
+        ctx.arc(cx(), cy(), R()*.52, -Math.PI/2, -Math.PI/2+prog*Math.PI*2);
+        ctx.strokeStyle='rgba(56,189,248,0.5)'; ctx.lineWidth=2.5*dpr; ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx(), cy(), R()*.52, -Math.PI/2+prog*Math.PI*2, -Math.PI/2+Math.PI*2);
+        ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=2*dpr; ctx.stroke();
+        pts.forEach(p => {
+          p.angle += p.speed;
+          const orbitR = R()*(p.frac + Math.sin(ts*.0002+p.angle)*.05);
+          p.x = cx()+Math.cos(p.angle)*orbitR;
+          p.y = cy()+Math.sin(p.angle)*orbitR;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size*dpr, 0, Math.PI*2);
+          ctx.fillStyle=p.color; ctx.globalAlpha=p.alpha*.8; ctx.fill();
+          ctx.beginPath(); ctx.moveTo(cx(),cy()); ctx.lineTo(p.x,p.y);
+          ctx.strokeStyle=p.color; ctx.globalAlpha=0.06; ctx.lineWidth=1; ctx.stroke();
+        });
+        ctx.globalAlpha=1;
+        for (let a=0;a<pts.length;a++) for (let b=a+1;b<pts.length;b++) {
+          const pa=pts[a], pb=pts[b], dist=Math.hypot(pa.x-pb.x,pa.y-pb.y);
+          if (dist < R()*.45) {
+            ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pb.x,pb.y);
+            ctx.strokeStyle='rgba(56,189,248,'+(0.08*(1-dist/(R()*.45)))+')';
+            ctx.lineWidth=0.8; ctx.stroke();
+          }
+        }
+        ctx.globalAlpha=1;
+        requestAnimationFrame(draw);
+      }
+      requestAnimationFrame(draw);
+    })();
+
+    // ═══ STORY CANVAS — Step-Based Node Graph ═══
+    (function initStoryCanvas() {
+      const canvas = document.getElementById('storyCanvas');
+      if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio||1, 2);
+      function resize() {
+        const r = canvas.parentElement.getBoundingClientRect();
+        canvas.width = r.width*dpr; canvas.height = r.height*dpr;
+        canvas.style.width = r.width+'px'; canvas.style.height = r.height+'px';
+      }
+      resize();
+      const ctx = canvas.getContext('2d');
+      let cur = 1;
+      const cfgs = [
+        {dots:[{x:.3,y:.3},{x:.7,y:.2},{x:.5,y:.5},{x:.2,y:.7},{x:.8,y:.6},{x:.6,y:.8},{x:.4,y:.15},{x:.85,y:.4}],conns:[]},
+        {dots:[{x:.3,y:.3},{x:.7,y:.2},{x:.5,y:.5},{x:.2,y:.7},{x:.8,y:.6},{x:.6,y:.8},{x:.4,y:.15},{x:.85,y:.4}],conns:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[0,6],[4,7]]},
+        {dots:[{x:.3,y:.3},{x:.7,y:.2},{x:.5,y:.5},{x:.2,y:.7},{x:.8,y:.6},{x:.6,y:.8},{x:.4,y:.15},{x:.85,y:.4}],conns:[[0,2],[2,3],[3,5]],broken:[[1,2],[2,4],[4,5],[0,6],[4,7]]},
+        {dots:Array.from({length:8},(_,k)=>({x:.5+Math.cos(k/8*Math.PI*2)*.35,y:.5+Math.sin(k/8*Math.PI*2)*.3})),conns:Array.from({length:8},(_,k)=>[k,(k+1)%8]),center:true},
+      ];
+      function draw(step) {
+        const W=canvas.width,H=canvas.height,cfg=cfgs[step-1];
+        if(!cfg) return;
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle='rgba(255,255,255,0.025)';
+        for(let gx=0;gx<W;gx+=22*dpr) for(let gy=0;gy<H;gy+=22*dpr){ctx.beginPath();ctx.arc(gx,gy,dpr,0,Math.PI*2);ctx.fill();}
+        (cfg.conns||[]).forEach(([a,b])=>{
+          const pa=cfg.dots[a],pb=cfg.dots[b]; if(!pa||!pb) return;
+          ctx.beginPath(); ctx.moveTo(pa.x*W,pa.y*H); ctx.lineTo(pb.x*W,pb.y*H);
+          ctx.strokeStyle=step===4?'rgba(74,222,128,0.4)':'rgba(56,189,248,0.3)';
+          ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+        });
+        (cfg.broken||[]).forEach(([a,b])=>{
+          const pa=cfg.dots[a],pb=cfg.dots[b]; if(!pa||!pb) return;
+          ctx.beginPath(); ctx.moveTo(pa.x*W,pa.y*H); ctx.lineTo(pb.x*W,pb.y*H);
+          ctx.strokeStyle='rgba(239,68,68,0.2)'; ctx.lineWidth=1; ctx.setLineDash([4,6]); ctx.stroke(); ctx.setLineDash([]);
+        });
+        if(cfg.center){
+          const g=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,W*.2);
+          g.addColorStop(0,'rgba(74,222,128,0.15)'); g.addColorStop(1,'transparent');
+          ctx.fillStyle=g; ctx.beginPath(); ctx.arc(W*.5,H*.5,W*.2,0,Math.PI*2); ctx.fill();
+        }
+        cfg.dots.forEach((d,k)=>{
+          const x=d.x*W,y=d.y*H,c=step===4?'#4ade80':k%3===0?'#38bdf8':k%3===1?'#4ade80':'#fb923c';
+          ctx.beginPath();ctx.arc(x,y,5*dpr,0,Math.PI*2);ctx.fillStyle=c;ctx.globalAlpha=.8;ctx.fill();
+          ctx.beginPath();ctx.arc(x,y,9*dpr,0,Math.PI*2);ctx.fillStyle=c;ctx.globalAlpha=.12;ctx.fill();
+          ctx.globalAlpha=1;
+        });
+      }
+      draw(cur);
+      window.setStoryStep = s => { if(s!==cur){cur=s;draw(cur);} };
+    })();
+
+    // ═══ SCROLL STORY — Step Tracking via IntersectionObserver ═══
+    (function(){
+      const steps = document.querySelectorAll('.story-step');
+      const prog = document.getElementById('timelineProgress');
+      if(!steps.length) return;
+      const obs = new IntersectionObserver(entries=>{
+        entries.forEach(e=>{
+          if(e.isIntersecting){
+            steps.forEach(s=>s.classList.remove('active'));
+            e.target.classList.add('active');
+            const n=parseInt(e.target.dataset.step);
+            if(window.setStoryStep) window.setStoryStep(n);
+            if(prog) prog.style.height=((n-1)/(steps.length-1)*100)+'%';
+          }
+        });
+      },{threshold:.5,rootMargin:'-20% 0px -20% 0px'});
+      steps.forEach(s=>obs.observe(s));
+    })();
+
+    // ═══ PARTICLE BANNER — "RESET" Word Formation ═══
+    (function(){
+      const canvas = document.getElementById('particleBannerCanvas');
+      if(!canvas) return;
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      const W=600*dpr,H=180*dpr;
+      canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d');
+      const off=document.createElement('canvas'); off.width=W; off.height=H;
+      const octx=off.getContext('2d');
+      octx.fillStyle='#fff';
+      octx.font=`bold ${80*dpr}px serif`;
+      octx.textAlign='center'; octx.textBaseline='middle';
+      octx.fillText('RESET',W/2,H/2);
+      const data=octx.getImageData(0,0,W,H).data;
+      const targets=[];
+      for(let y=0;y<H;y+=5) for(let x=0;x<W;x+=5) if(data[(y*W+x)*4+3]>128) targets.push({x,y});
+      const parts=targets.map(t=>({tx:t.x,ty:t.y,x:Math.random()*W,y:Math.random()*H,vx:0,vy:0}));
+      let going=false;
+      function tick(){
+        ctx.clearRect(0,0,W,H);
+        let live=false;
+        parts.forEach(p=>{
+          const dx=p.tx-p.x,dy=p.ty-p.y;
+          p.vx=(p.vx+dx*.04)*.82; p.vy=(p.vy+dy*.04)*.82;
+          p.x+=p.vx; p.y+=p.vy;
+          if(Math.abs(dx)>2||Math.abs(dy)>2) live=true;
+          ctx.beginPath(); ctx.arc(p.x/dpr,p.y/dpr,1.2,0,Math.PI*2);
+          ctx.fillStyle='rgba(56,189,248,0.7)'; ctx.fill();
+        });
+        if(live) requestAnimationFrame(tick);
+      }
+      new IntersectionObserver(([e])=>{if(e.isIntersecting&&!going){going=true;requestAnimationFrame(tick);}},{threshold:.3}).observe(canvas);
+    })();
+
+    // ═══ FINAL CTA CANVAS — Ambient Drift Particles ═══
+    (function(){
+      const canvas=document.getElementById('finalCtaCanvas');
+      if(!canvas) return;
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      const resize=()=>{canvas.width=canvas.offsetWidth*dpr;canvas.height=canvas.offsetHeight*dpr;};
+      resize(); window.addEventListener('resize',resize);
+      const ctx=canvas.getContext('2d');
+      const pts=Array.from({length:40},()=>({
+        x:Math.random()*canvas.width,y:Math.random()*canvas.height,
+        r:.5+Math.random()*1.5,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,
+        a:.1+Math.random()*.3
+      }));
+      (function draw(){
+        const W=canvas.width,H=canvas.height;
+        ctx.clearRect(0,0,W,H);
+        pts.forEach(p=>{
+          p.x+=p.vx; p.y+=p.vy;
+          if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+          if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+          ctx.beginPath(); ctx.arc(p.x,p.y,p.r*dpr,0,Math.PI*2);
+          ctx.fillStyle=`rgba(56,189,248,${p.a})`; ctx.fill();
+        });
+        requestAnimationFrame(draw);
+      })();
+    })();
+
+    // ═══ HOW-IT-WORKS — Connector Line Draw On Scroll ═══
+    (function(){
+      const el=document.querySelector('.how-steps-connector-active');
+      const sec=document.querySelector('.how');
+      if(!el||!sec) return;
+      new IntersectionObserver(([e])=>{if(e.isIntersecting)el.style.width='100%';},{threshold:.4}).observe(sec);
+    })();
+
+    // ═══ TRIGGER BAR FILLS ═══
+    (function(){
+      const phone = document.querySelector('.phone-3');
+      if(!phone) return;
+      const colors = ['var(--primary)','var(--warm)','var(--secondary)','#a78bfa'];
+      let done = false;
+      new IntersectionObserver(([e])=>{
+        if(e.isIntersecting && !done){
+          done = true;
+          phone.querySelectorAll('.mini-bar-fill[data-width]').forEach((b,i)=>{
+            setTimeout(()=>{ b.style.width = b.dataset.width+'%'; b.style.background = colors[i]||colors[0]; }, i*200);
+          });
+        }
+      },{threshold:.25}).observe(phone);
+    })();
+
+    // ═══ BELIEF BAR SHOWCASE (phone-4) — Before→After Animation ═══
+    (function(){
+      const phone = document.querySelector('.phone-4');
+      if(!phone) return;
+      const bars = phone.querySelectorAll('.belief-row .mini-bar-fill');
+      if(!bars.length) return;
+      let done = false;
+      new IntersectionObserver(([e])=>{
+        if(e.isIntersecting && !done){
+          done = true;
+          bars.forEach((b,i)=>{
+            const before = parseInt(b.dataset.before)||80;
+            const after  = parseInt(b.dataset.after)||30;
+            b.style.width = before+'%'; b.style.background = '#ef4444';
+            setTimeout(()=>{ b.style.width = after+'%'; b.style.background = 'var(--secondary)'; }, 1400 + i*200);
+          });
+        }
+      },{threshold:.2}).observe(phone);
+    })();
+
+    // ═══ SCIENCE BELIEF BARS — Before→After Animation ═══
+    (function(){
+      const panel = document.getElementById('beliefBars');
+      if(!panel) return;
+      const fills = panel.querySelectorAll('.belief-bar-fill');
+      if(!fills.length) return;
+      let done = false;
+      new IntersectionObserver(([e])=>{
+        if(e.isIntersecting && !done){
+          done = true;
+          const pcts = panel.querySelectorAll('.belief-bar-pct');
+          fills.forEach((bar, i)=>{
+            const before = parseInt(bar.dataset.before) || 80;
+            const after  = parseInt(bar.dataset.after)  || 25;
+            // Phase 1: show red "before" bar
+            bar.style.width = before + '%';
+            bar.style.background = '#ef4444';
+            if(pcts[i]) { pcts[i].textContent = before + '%'; pcts[i].style.color = '#f87171'; }
+            // Phase 2: animate to green "after" bar
+            setTimeout(()=>{
+              bar.style.width = after + '%';
+              bar.style.background = 'var(--secondary)';
+              if(pcts[i]) { pcts[i].textContent = after + '%'; pcts[i].style.color = 'var(--secondary)'; }
+            }, 1400 + i * 160);
+          });
+        }
+      },{threshold:.35}).observe(panel);
+    })();
+
+    // ═══ PHONE NOTIFICATION SLIDE-IN ═══
+    (function(){
+      const notif=document.getElementById('phone2Notification');
+      if(!notif) return;
+      const phone=notif.closest('.phone');
+      if(!phone) return;
+      new IntersectionObserver(([e])=>{
+        if(e.isIntersecting) setTimeout(()=>notif.classList.add('slide-in'),2000);
+      },{threshold:.6}).observe(phone);
+    })();
+
+    // ═══ STEP CARD RADIAL HOVER ═══
+    document.querySelectorAll('.step-card').forEach(card=>{
+      card.addEventListener('mousemove',e=>{
+        const r=card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x',((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--mouse-y',((e.clientY-r.top)/r.height*100)+'%');
+      });
+    });
   </script>
 </body>
 </html>
