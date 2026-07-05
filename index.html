@@ -952,7 +952,7 @@
                 <div class="phone-days"><div class="phone-days-num">14</div><div class="phone-days-label">Days Smoke-Free</div></div>
                 <div class="mini-card first">
                   <div class="mini-label">MONEY SAVED</div>
-                  <div class="mini-value secondary">₹4,200</div>
+                  <div class="mini-value secondary" id="mockupMoneySaved">₹4,200</div>
                 </div>
                 <div class="mini-card">
                   <div class="mini-label">CIGARETTES NOT SMOKED</div>
@@ -1250,24 +1250,24 @@
           <span class="pricing-badge" style="background:rgba(56,189,248,0.1);color:var(--primary);border-color:rgba(56,189,248,0.25)">No Subscriptions</span>
         </div>
         <h3 class="pricing-name">Smono 30-Day Reset</h3>
-        <div class="pricing-original">₹3,999</div>
-        <div class="pricing-price">₹1,990</div>
+        <div class="pricing-original" id="priceOriginal">₹3,999</div>
+        <div class="pricing-price" id="pricePromo">₹1,990</div>
         <div class="pricing-caption">One-time payment. Lifetime access.</div>
         
         <!-- Comparison Block -->
         <div class="pricing-comparison">
           <div class="comparison-item bad">
-            <span class="comp-title">8 Days of Cigarettes</span>
-            <span class="comp-cost">₹2,400</span>
+            <span class="comp-title" id="comparisonBadTitle">8 Days of Cigarettes</span>
+            <span class="comp-cost" id="priceComparisonBad">₹2,400</span>
           </div>
           <div class="comparison-divider">vs</div>
           <div class="comparison-item good">
             <span class="comp-title">Smono Lifetime Reset</span>
-            <span class="comp-cost">₹1,990</span>
+            <span class="comp-cost" id="priceComparisonGood">₹1,990</span>
           </div>
         </div>
 
-        <div class="pricing-savings">Less than 8 days of cigarettes. Pays for itself in a week.</div>
+        <div class="pricing-savings" id="priceSavingsText">Less than 8 days of cigarettes. Pays for itself in a week.</div>
         <ul class="pricing-features">
           <li><span class="pricing-check">✓</span> 30 daily CBT modules (5 min each)</li>
           <li><span class="pricing-check">✓</span> Automatic thought capture &amp; analysis</li>
@@ -1276,7 +1276,7 @@
           <li><span class="pricing-check">✓</span> Trigger pattern AI analysis</li>
           <li><span class="pricing-check">✓</span> Community support circle</li>
         </ul>
-        <button class="pricing-cta" onclick="alert('Checkout initiated! (Demo)')">Start My Reset — ₹1,990</button>
+        <button class="pricing-cta" id="priceCta" onclick="alert('Checkout initiated! (Demo)')">Start My Reset — ₹1,990</button>
         <div class="pricing-trust-row">
           <div class="trust-pill">🔒 Secure payment</div>
           <div class="trust-pill">⚡ 5–8 min daily sessions</div>
@@ -1901,6 +1901,124 @@
         card.style.setProperty('--mouse-y', '-1000%');
       });
     });
+    // ═══ DYNAMIC LOCATION-BASED PRICING ═══
+    (async function initDynamicPricing() {
+      const COUNTRIES = {
+        IN: { currency: 'INR', symbol: '₹', pricePerCigarette: 12,   subscriptionPrice: 1990, subscriptionOriginal: 3999 },
+        US: { currency: 'USD', symbol: '$',   pricePerCigarette: 0.50, subscriptionPrice: 50,   subscriptionOriginal: 99 },
+        GB: { currency: 'GBP', symbol: '£',   pricePerCigarette: 0.85, subscriptionPrice: 40,   subscriptionOriginal: 79 },
+        CA: { currency: 'CAD', symbol: 'C$',  pricePerCigarette: 1.00, subscriptionPrice: 65,   subscriptionOriginal: 129 },
+        AU: { currency: 'AUD', symbol: 'A$',  pricePerCigarette: 2.25, subscriptionPrice: 75,   subscriptionOriginal: 149 },
+        DE: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.37, subscriptionPrice: 45,   subscriptionOriginal: 89 },
+        FR: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.71, subscriptionPrice: 45,   subscriptionOriginal: 89 },
+        JP: { currency: 'JPY', symbol: '¥',   pricePerCigarette: 30,   subscriptionPrice: 7500, subscriptionOriginal: 14900 },
+        BR: { currency: 'BRL', symbol: 'R$',  pricePerCigarette: 0.50, subscriptionPrice: 250,  subscriptionOriginal: 499 },
+        ZA: { currency: 'ZAR', symbol: 'R',   pricePerCigarette: 3.50, subscriptionPrice: 899,  subscriptionOriginal: 1799 },
+        AE: { currency: 'AED', symbol: 'د.إ', pricePerCigarette: 1.00, subscriptionPrice: 185,  subscriptionOriginal: 369 },
+        SA: { currency: 'SAR', symbol: '﷼',   pricePerCigarette: 1.00, subscriptionPrice: 185,  subscriptionOriginal: 369 },
+        SG: { currency: 'SGD', symbol: 'S$',  pricePerCigarette: 0.70, subscriptionPrice: 65,   subscriptionOriginal: 129 },
+        MY: { currency: 'MYR', symbol: 'RM',  pricePerCigarette: 0.90, subscriptionPrice: 220,  subscriptionOriginal: 439 },
+        PH: { currency: 'PHP', symbol: '₱',   pricePerCigarette: 7.50, subscriptionPrice: 2799, subscriptionOriginal: 5599 },
+        ID: { currency: 'IDR', symbol: 'Rp',  pricePerCigarette: 1500, subscriptionPrice: 799000, subscriptionOriginal: 1499000 },
+        NG: { currency: 'NGN', symbol: '₦',   pricePerCigarette: 100,  subscriptionPrice: 29999, subscriptionOriginal: 59999 },
+        KE: { currency: 'KES', symbol: 'KSh', pricePerCigarette: 20,   subscriptionPrice: 6499, subscriptionOriginal: 12999 },
+        PK: { currency: 'PKR', symbol: '₨',   pricePerCigarette: 15,   subscriptionPrice: 13999, subscriptionOriginal: 27999 },
+        BD: { currency: 'BDT', symbol: '৳',   pricePerCigarette: 7,    subscriptionPrice: 5499, subscriptionOriginal: 10999 },
+        MX: { currency: 'MXN', symbol: 'MX$', pricePerCigarette: 4.50, subscriptionPrice: 899,  subscriptionOriginal: 1799 },
+        RU: { currency: 'RUB', symbol: '₽',   pricePerCigarette: 8,    subscriptionPrice: 4499,  subscriptionOriginal: 8999 },
+        KR: { currency: 'KRW', symbol: '₩',   pricePerCigarette: 225,  subscriptionPrice: 65000, subscriptionOriginal: 129000 },
+        IT: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.35, subscriptionPrice: 45,   subscriptionOriginal: 89 },
+        ES: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.36, subscriptionPrice: 45,   subscriptionOriginal: 89 },
+        NL: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.64, subscriptionPrice: 45,   subscriptionOriginal: 89 },
+        SE: { currency: 'SEK', symbol: 'kr',  pricePerCigarette: 3.50, subscriptionPrice: 529,  subscriptionOriginal: 1049 },
+        NZ: { currency: 'NZD', symbol: 'NZ$', pricePerCigarette: 1.80, subscriptionPrice: 80,   subscriptionOriginal: 159 },
+        TH: { currency: 'THB', symbol: '฿',   pricePerCigarette: 6,    subscriptionPrice: 1799, subscriptionOriginal: 3599 },
+        VN: { currency: 'VND', symbol: '₫',   pricePerCigarette: 1500, subscriptionPrice: 1199000, subscriptionOriginal: 2399000 }
+      };
+
+      const DEFAULT_COUNTRY = 'IN';
+      const HIGH_VALUE_CURRENCIES = new Set(['IDR', 'VND', 'KRW', 'NGN', 'KES', 'PKR', 'BDT', 'JPY']);
+
+      function formatMoney(amount, config) {
+        if (HIGH_VALUE_CURRENCIES.has(config.currency)) {
+          return `${config.symbol}${Math.round(amount).toLocaleString()}`;
+        }
+        const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
+        return `${config.symbol}${rounded}`;
+      }
+
+      async function getCountryCode() {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1800);
+          const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+          clearTimeout(timeoutId);
+          const data = await res.json();
+          if (data && data.country_code) {
+            return data.country_code;
+          }
+        } catch (e) {
+          console.warn("Location detection failed, using timezone/locale", e);
+        }
+
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz) {
+            if (tz.includes('Calcutta') || tz.includes('Kolkata') || tz.includes('Delhi')) return 'IN';
+            if (tz.includes('London') || tz.includes('Europe/London')) return 'GB';
+            if (tz.includes('America/')) {
+              if (tz.includes('Toronto') || tz.includes('Vancouver')) return 'CA';
+              return 'US';
+            }
+            if (tz.includes('Sydney') || tz.includes('Melbourne') || tz.includes('Australia')) return 'AU';
+            if (tz.includes('Tokyo') || tz.includes('Asia/Tokyo')) return 'JP';
+            if (tz.includes('Berlin') || tz.includes('Paris') || tz.includes('Rome') || tz.includes('Madrid') || tz.includes('Europe/')) return 'DE';
+          }
+        } catch (e) {}
+
+        return DEFAULT_COUNTRY;
+      }
+
+      const country = await getCountryCode();
+      const config = COUNTRIES[country] || COUNTRIES[DEFAULT_COUNTRY];
+
+      // Formatted values
+      const formattedPromo = formatMoney(config.subscriptionPrice, config);
+      const formattedOriginal = formatMoney(config.subscriptionOriginal, config);
+
+      // Equivalent days of cigarettes (assuming 20 cigarettes per day)
+      const dailyCost = config.pricePerCigarette * 20;
+      const equivalentDays = Math.max(1, Math.round(config.subscriptionPrice / dailyCost));
+      const badComparisonTotal = formatMoney(dailyCost * equivalentDays, config);
+
+      // Update DOM
+      const elements = {
+        priceOriginal: document.getElementById('priceOriginal'),
+        pricePromo: document.getElementById('pricePromo'),
+        comparisonBadTitle: document.getElementById('comparisonBadTitle'),
+        priceComparisonBad: document.getElementById('priceComparisonBad'),
+        priceComparisonGood: document.getElementById('priceComparisonGood'),
+        priceSavingsText: document.getElementById('priceSavingsText'),
+        priceCta: document.getElementById('priceCta'),
+        mockupMoneySaved: document.getElementById('mockupMoneySaved')
+      };
+
+      if (elements.priceOriginal) elements.priceOriginal.textContent = formattedOriginal;
+      if (elements.pricePromo) elements.pricePromo.textContent = formattedPromo;
+      if (elements.comparisonBadTitle) elements.comparisonBadTitle.textContent = `${equivalentDays} Days of Cigarettes`;
+      if (elements.priceComparisonBad) elements.priceComparisonBad.textContent = badComparisonTotal;
+      if (elements.priceComparisonGood) elements.priceComparisonGood.textContent = formattedPromo;
+      if (elements.priceSavingsText) {
+        elements.priceSavingsText.textContent = `Less than ${equivalentDays} days of cigarettes. Pays for itself in a week.`;
+      }
+      if (elements.priceCta) {
+        elements.priceCta.textContent = `Start My Reset — ${formattedPromo}`;
+      }
+      if (elements.mockupMoneySaved) {
+        // Mockup shows 280 cigarettes not smoked
+        elements.mockupMoneySaved.textContent = formatMoney(config.pricePerCigarette * 280, config);
+      }
+    })();
   </script>
 </body>
 </html>
