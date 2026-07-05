@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
-import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain } from 'lucide-react'
+import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { fmt, recordTypeColor, JsonBlock, TimeAgo, KYC_FIELDS } from '../../components/users/userDetailHelpers'
 
 type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity' | 'ai_insights'
 
@@ -83,12 +84,72 @@ export const UserDetail = () => {
 
   const { data: personalizationLogsData } = useQuery({
     queryKey: ['personalization_logs', id],
-    queryFn: () => adminCollectionHelpers.getList('personalization_logs', 1, 20, {
+    queryFn: () => adminCollectionHelpers.getList('personalization_logs', 1, 50, {
       filter: `user = "${id}"`,
       sort: '-created',
     }),
     enabled: !!id && activeTab === 'ai_insights',
   })
+
+  const { data: sessionAiMemoryData } = useQuery({
+    queryKey: ['session_ai_memory', id],
+    queryFn: () => adminCollectionHelpers.getFullList('session_ai_memory', {
+      filter: `user = "${id}"`,
+      sort: '-day_number,-id',
+    }),
+    enabled: !!id && activeTab === 'ai_insights',
+  })
+
+  const { data: notificationEventsData } = useQuery({
+    queryKey: ['notification_events', id],
+    queryFn: () => adminCollectionHelpers.getFullList('notification_events', {
+      filter: `user = "${id}"`,
+      sort: '-id',
+    }),
+    enabled: !!id && activeTab === 'ai_insights',
+  })
+
+  const { data: beliefAssessmentsData } = useQuery({
+    queryKey: ['belief_assessments', id],
+    queryFn: () => adminCollectionHelpers.getFullList('belief_assessments', {
+      filter: `user = "${id}"`,
+      sort: 'assessment_day',
+    }),
+    enabled: !!id && activeTab === 'ai_insights',
+  })
+
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', id],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress', {
+      filter: `user = "${id}"`,
+      expand: 'program_day',
+      sort: '-id',
+    }),
+    enabled: !!id && activeTab === 'program',
+  })
+
+  const { data: stepResponsesData } = useQuery({
+    queryKey: ['step_responses', id],
+    queryFn: () => adminCollectionHelpers.getFullList('step_responses', {
+      filter: `user = "${id}"`,
+      expand: 'step',
+      sort: '-id',
+    }),
+    enabled: !!id && activeTab === 'program',
+  })
+
+  const { data: analyticsEventsData } = useQuery({
+    queryKey: ['analytics_events', id],
+    queryFn: () => adminCollectionHelpers.getFullList('analytics_events', {
+      filter: `user = "${id}"`,
+      sort: recentSort('analytics_events'),
+    }),
+    enabled: !!id && (activeTab === 'activity' || activeTab === 'analytics'),
+  })
+
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [expandedMemoryId, setExpandedMemoryId] = useState<string | null>(null)
+  const [showKyc, setShowKyc] = useState(false)
 
   const user = userData?.data
   const profile = profileData
@@ -366,6 +427,28 @@ export const UserDetail = () => {
                 </div>
               </div>
 
+              {/* Onboarding / KYC */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <button
+                  type="button"
+                  onClick={() => setShowKyc(v => !v)}
+                  className="flex items-center justify-between w-full mb-4"
+                >
+                  <h2 className="text-lg font-semibold">Onboarding (KYC)</h2>
+                  {showKyc ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                </button>
+                {showKyc && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {KYC_FIELDS.map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="text-xs text-neutral-500">{label}</label>
+                        <p className="text-sm font-medium mt-0.5">{fmt((profile as any)?.[key])}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Settings */}
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -504,7 +587,10 @@ export const UserDetail = () => {
           </div>
         )}
 
-        {activeTab === 'program' && (
+        {activeTab === 'program' && (() => {
+          const progressRows = sessionProgressData?.data || []
+          const stepRows = stepResponsesData?.data || []
+          return (
           <div className="space-y-6">
             {currentSession && (
               <div className="bg-white rounded-lg shadow-card p-6">
@@ -516,7 +602,7 @@ export const UserDetail = () => {
                   </div>
                   <div>
                     <label className="text-sm text-neutral-500">Current Day</label>
-                    <p className="font-medium">{currentSession.current_day}/10</p>
+                    <p className="font-medium">{currentSession.current_day}/30</p>
                   </div>
                   <div>
                     <label className="text-sm text-neutral-500">Started</label>
@@ -534,10 +620,69 @@ export const UserDetail = () => {
               </div>
             )}
             <div className="bg-white rounded-lg shadow-card p-6">
-              <p className="text-neutral-500">Program days list will be displayed here</p>
+              <h2 className="text-lg font-semibold mb-4">Session Progress ({progressRows.length})</h2>
+              {progressRows.length === 0 ? (
+                <p className="text-neutral-500">No session progress recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-2 text-neutral-500 font-medium">Day</th>
+                        <th className="pb-2 text-neutral-500 font-medium">Status</th>
+                        <th className="pb-2 text-neutral-500 font-medium">Last step</th>
+                        <th className="pb-2 text-neutral-500 font-medium">Time spent</th>
+                        <th className="pb-2 text-neutral-500 font-medium">Completed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {progressRows.map((row: any) => (
+                        <tr key={row.id} className="border-b last:border-0">
+                          <td className="py-2 font-medium">
+                            {row.expand?.program_day?.day_number != null
+                              ? `Day ${row.expand.program_day.day_number}`
+                              : row.program_day?.slice(0, 8) || '—'}
+                          </td>
+                          <td className="py-2 capitalize">{row.status || '—'}</td>
+                          <td className="py-2">{row.last_step_index ?? '—'}</td>
+                          <td className="py-2">{row.time_spent_minutes != null ? `${row.time_spent_minutes} min` : '—'}</td>
+                          <td className="py-2 text-neutral-600">
+                            {row.completed_at ? new Date(row.completed_at).toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-lg shadow-card p-6">
+              <h2 className="text-lg font-semibold mb-4">Step Responses ({stepRows.length})</h2>
+              {stepRows.length === 0 ? (
+                <p className="text-neutral-500">No step responses yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {stepRows.map((row: any) => (
+                    <div key={row.id} className="border border-neutral-200 rounded-lg p-4">
+                      <div className="flex justify-between text-xs text-neutral-500 mb-2">
+                        <span>Step: {row.expand?.step?.title || row.step?.slice(0, 12)}</span>
+                        <span>{row.created ? new Date(row.created).toLocaleString() : ''}</span>
+                      </div>
+                      <JsonBlock data={row.response_json} />
+                      {row.ai_analysis && (
+                        <div className="mt-2">
+                          <p className="text-xs text-neutral-500 mb-1">AI analysis</p>
+                          <JsonBlock data={row.ai_analysis} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
+          )
+        })()}
 
         {activeTab === 'cravings' && (
           <div className="space-y-6">
@@ -631,24 +776,88 @@ export const UserDetail = () => {
           </div>
         )}
 
-        {activeTab === 'analytics' && (
-          <div className="bg-white rounded-lg shadow-card p-6">
-            <h2 className="text-lg font-semibold mb-4">User Analytics</h2>
-            <p className="text-neutral-500">Analytics charts and visualizations will be displayed here</p>
+        {activeTab === 'analytics' && (() => {
+          const events = analyticsEventsData?.data || []
+          const counts: Record<string, number> = {}
+          events.forEach((e: any) => { counts[e.event_type] = (counts[e.event_type] || 0) + 1 })
+          const comprehension = events.filter((e: any) => e.event_type?.includes('comprehension'))
+          return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-card p-6">
+              <h2 className="text-lg font-semibold mb-4">Event Summary</h2>
+              {events.length === 0 ? (
+                <p className="text-neutral-500">No analytics events yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                    <div key={type} className="p-3 bg-neutral-50 rounded-lg">
+                      <div className="text-xs text-neutral-500 truncate">{type}</div>
+                      <div className="text-xl font-bold">{count}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {comprehension.length > 0 && (
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-4">Comprehension Analytics</h2>
+                <div className="flex gap-4 text-sm">
+                  <span className="text-green-600 font-medium">
+                    Passed: {comprehension.filter((e: any) => e.event_type === 'comprehension_check_passed').length}
+                  </span>
+                  <span className="text-red-600 font-medium">
+                    Failed: {comprehension.filter((e: any) => e.event_type === 'comprehension_check_failed').length}
+                  </span>
+                  <span className="text-amber-600 font-medium">
+                    Re-reads: {comprehension.filter((e: any) => e.event_type === 'comprehension_reread_requested').length}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+          )
+        })()}
 
-        {activeTab === 'activity' && (
+        {activeTab === 'activity' && (() => {
+          const events = analyticsEventsData?.data || []
+          return (
           <div className="bg-white rounded-lg shadow-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Activity Log</h2>
-            <p className="text-neutral-500">Activity timeline will be displayed here</p>
-        </div>
-        )}
+            <h2 className="text-lg font-semibold mb-4">Activity Log ({events.length})</h2>
+            {events.length === 0 ? (
+              <p className="text-neutral-500">No activity recorded yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {events.map((event: any) => (
+                  <div key={event.id} className="flex gap-3 py-2 border-b border-neutral-100 last:border-0 text-sm">
+                    <div className="text-neutral-400 whitespace-nowrap text-xs pt-0.5 min-w-[120px]">
+                      {event.created ? new Date(event.created).toLocaleString() : event.id?.slice(0, 8)}
+                    </div>
+                    <div className="flex-1">
+                      <span className="font-medium">{event.event_type}</span>
+                      {event.meta && Object.keys(event.meta).length > 0 && (
+                        <span className="text-neutral-500 ml-2 text-xs">
+                          {JSON.stringify(event.meta)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )
+        })()}
 
         {activeTab === 'ai_insights' && (() => {
           const bp = behaviorProfileData?.data?.[0]
           const rawData = personalizationLogsData?.data as any
           const logs = rawData?.items || rawData || []
+          const memoryRows = sessionAiMemoryData?.data || []
+          const notifications = notificationEventsData?.data || []
+          const beliefs = beliefAssessmentsData?.data || []
+          const comprehensionChecks = memoryRows.filter((r: any) => r.record_type === 'comprehension_check')
+          const comprehensionPasses = comprehensionChecks.filter((r: any) => r.is_correct).length
+
           return (
             <div className="space-y-6">
               {/* Behavioral Profile */}
@@ -709,49 +918,191 @@ export const UserDetail = () => {
                 )}
               </div>
 
+              {/* Session AI Memory */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-2">Session AI Memory ({memoryRows.length})</h2>
+                <p className="text-sm text-neutral-500 mb-4">
+                  Stored personalization payloads, trigger checks, comprehension results, and re-read events.
+                  {comprehensionChecks.length > 0 && (
+                    <span className="ml-2 font-medium text-neutral-700">
+                      Comprehension: {comprehensionPasses}/{comprehensionChecks.length} passed
+                    </span>
+                  )}
+                </p>
+                {memoryRows.length === 0 ? (
+                  <p className="text-neutral-500">No session AI memory yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {memoryRows.map((row: any) => {
+                      const p = row.payload_json || {}
+                      const expanded = expandedMemoryId === row.id
+                      return (
+                        <div key={row.id} className="border border-neutral-200 rounded-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedMemoryId(expanded ? null : row.id)}
+                            className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-50"
+                          >
+                            {expanded ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${recordTypeColor(row.record_type)}`}>
+                              {row.record_type}
+                            </span>
+                            <span className="text-sm font-medium">Day {row.day_number}</span>
+                            {row.source && <span className="text-xs text-neutral-400">({row.source})</span>}
+                            {row.record_type === 'personalization' && p.session_intro && (
+                              <span className="text-xs text-neutral-500 truncate flex-1">{p.session_intro}</span>
+                            )}
+                            {row.record_type === 'trigger_check' && (
+                              <span className="text-xs text-neutral-500">→ {p.selected || '—'}</span>
+                            )}
+                            {row.record_type === 'comprehension_check' && (
+                              <span className={`text-xs font-medium ${row.is_correct ? 'text-green-600' : 'text-red-600'}`}>
+                                {row.is_correct ? 'Passed' : 'Failed'} — {p.selected || '—'}
+                              </span>
+                            )}
+                            <span className="text-xs text-neutral-400 ml-auto"><TimeAgo date={row.created} /></span>
+                          </button>
+                          {expanded && (
+                            <div className="px-3 pb-3 border-t border-neutral-100">
+                              <JsonBlock data={p} />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Personalization Log */}
               <div className="bg-white rounded-lg shadow-card p-6">
-                <h2 className="text-lg font-semibold mb-4">Personalization Log (Last 7 Days)</h2>
+                <h2 className="text-lg font-semibold mb-4">Personalization Log ({(logs as any[]).length})</h2>
                 {(logs as any[]).length === 0 ? (
                   <p className="text-neutral-500">No personalization events yet.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b text-left">
-                          <th className="pb-2 text-neutral-500 font-medium">Date</th>
-                          <th className="pb-2 text-neutral-500 font-medium">Type</th>
-                          <th className="pb-2 text-neutral-500 font-medium">Day</th>
-                          <th className="pb-2 text-neutral-500 font-medium">Archetype</th>
-                          <th className="pb-2 text-neutral-500 font-medium">Score</th>
-                          <th className="pb-2 text-neutral-500 font-medium">Docs Loaded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(logs as any[]).map((log: any) => (
-                          <tr key={log.id} className="border-b last:border-0">
-                            <td className="py-2 text-neutral-600">{log.created ? formatDistanceToNow(new Date(log.created), { addSuffix: true }) : '-'}</td>
-                            <td className="py-2">
+                  <div className="space-y-2">
+                    {(logs as any[]).map((log: any) => {
+                      const expanded = expandedLogId === log.id
+                      const hasPayload = log.content_payload && Object.keys(log.content_payload).length > 0
+                      return (
+                        <div key={log.id} className="border border-neutral-200 rounded-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                            className="w-full p-3 text-left hover:bg-neutral-50"
+                          >
+                            <div className="flex flex-wrap items-center gap-2 text-sm">
+                              {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                              <span className="text-neutral-600"><TimeAgo date={log.created} /></span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                 log.request_type === 'session_content' ? 'bg-blue-50 text-blue-700' :
                                 log.request_type === 'notification' ? 'bg-purple-50 text-purple-700' :
                                 'bg-neutral-100 text-neutral-600'
                               }`}>{log.request_type}</span>
-                            </td>
-                            <td className="py-2 text-neutral-600">Day {log.day_number}</td>
-                            <td className="py-2 capitalize text-neutral-600">{log.archetype_used?.replace('_', ' ')}</td>
-                            <td className="py-2">
-                              {log.content_fit_score != null ? (
+                              <span>Day {log.day_number}</span>
+                              <span className="capitalize text-neutral-600">{log.archetype_used?.replace('_', ' ')}</span>
+                              {log.content_fit_score != null && (
                                 <span className={`font-medium ${log.content_fit_score >= 8 ? 'text-green-600' : log.content_fit_score >= 6 ? 'text-amber-600' : 'text-red-600'}`}>
                                   {log.content_fit_score}/10
                                 </span>
-                              ) : '-'}
-                            </td>
-                            <td className="py-2 text-xs text-neutral-400">{(log.okf_docs_loaded || []).length} docs</td>
+                              )}
+                              {hasPayload && <span className="text-xs text-green-600">full payload</span>}
+                              <span className="text-xs text-neutral-400 ml-auto">{(log.okf_docs_loaded || []).length} docs</span>
+                            </div>
+                            {log.ai_response_summary && (
+                              <p className="text-xs text-neutral-500 mt-1 ml-6">{log.ai_response_summary}</p>
+                            )}
+                          </button>
+                          {expanded && (
+                            <div className="px-3 pb-3 border-t border-neutral-100 space-y-2">
+                              {hasPayload ? (
+                                <>
+                                  {log.content_payload.session_intro && (
+                                    <div>
+                                      <p className="text-xs font-medium text-neutral-500 mb-1">Session intro</p>
+                                      <p className="text-sm italic">{log.content_payload.session_intro}</p>
+                                    </div>
+                                  )}
+                                  {log.content_payload.journal_prompt && (
+                                    <div>
+                                      <p className="text-xs font-medium text-neutral-500 mb-1">Journal prompt</p>
+                                      <p className="text-sm">{log.content_payload.journal_prompt}</p>
+                                    </div>
+                                  )}
+                                  <JsonBlock data={log.content_payload} />
+                                </>
+                              ) : (
+                                <p className="text-sm text-neutral-400">No content_payload stored for this entry.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Belief Assessments */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-4">Belief Assessments ({beliefs.length})</h2>
+                {beliefs.length === 0 ? (
+                  <p className="text-neutral-500">No belief assessments yet (days 0, 15, 30).</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="pb-2 text-neutral-500 font-medium">Day</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Relaxation</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Enjoyment</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Concentration</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Social</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Stress relief</th>
+                          <th className="pb-2 text-neutral-500 font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {beliefs.map((b: any) => (
+                          <tr key={b.id} className="border-b last:border-0">
+                            <td className="py-2 font-medium">Day {b.assessment_day}</td>
+                            <td className="py-2">{b.belief_relaxation}/10</td>
+                            <td className="py-2">{b.belief_enjoyment}/10</td>
+                            <td className="py-2">{b.belief_concentration}/10</td>
+                            <td className="py-2">{b.belief_social}/10</td>
+                            <td className="py-2">{b.belief_stress_relief}/10</td>
+                            <td className="py-2 font-semibold">{b.total_score ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Notification Events */}
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="text-lg font-semibold mb-4">AI Notifications Sent ({notifications.length})</h2>
+                {notifications.length === 0 ? (
+                  <p className="text-neutral-500">No notification events yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {notifications.map((n: any) => (
+                      <div key={n.id} className="border border-neutral-200 rounded-lg p-4">
+                        <div className="flex justify-between text-xs text-neutral-500 mb-2">
+                          <span className="capitalize">{n.trigger_type?.replace('_', ' ')}</span>
+                          <span>{n.sent_at ? new Date(n.sent_at).toLocaleString() : '—'}</span>
+                        </div>
+                        <p className="font-semibold text-sm">{n.message_title}</p>
+                        <p className="text-sm text-neutral-600 mt-1">{n.message_body}</p>
+                        <div className="flex gap-3 mt-2 text-xs text-neutral-500">
+                          <span>Day {n.day_number ?? '—'}</span>
+                          <span className="capitalize">{n.archetype_at_send?.replace('_', ' ')}</span>
+                          {n.opened_at && <span className="text-green-600">Opened</span>}
+                          {n.led_to_session && <span className="text-blue-600">Led to session</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
