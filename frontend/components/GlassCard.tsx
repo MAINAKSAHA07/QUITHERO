@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import BorderGlow from './ui/BorderGlow'
 
 interface GlassCardProps {
   children: ReactNode
@@ -8,6 +9,7 @@ interface GlassCardProps {
   gradient?: boolean
   onClick?: () => void
   hover?: boolean
+  borderGlow?: boolean
 }
 
 export default function GlassCard({
@@ -17,6 +19,7 @@ export default function GlassCard({
   gradient = false,
   onClick,
   hover = false,
+  borderGlow = true,
 }: GlassCardProps) {
   const baseClasses = {
     default: 'glass',
@@ -24,9 +27,17 @@ export default function GlassCard({
     subtle: 'glass-subtle',
   }
 
+  // Remove padding/shadow from classes when wrapping with BorderGlow to prevent duplicate padding/double borders
   const classes = `${baseClasses[variant]} ${gradient ? 'bg-gradient-to-br from-brand-primary/10 to-brand-accent/10' : ''} ${className} ${onClick ? 'cursor-pointer' : ''}`
 
-  const card = (
+  const card = borderGlow ? (
+    <BorderGlow
+      className={onClick ? 'cursor-pointer' : ''}
+      innerClassName={classes}
+    >
+      {children}
+    </BorderGlow>
+  ) : (
     <div className={`${classes} flex flex-col`} onClick={onClick}>
       {children}
     </div>
@@ -37,6 +48,7 @@ export default function GlassCard({
       <motion.div
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
         whileTap={{ scale: 0.98 }}
+        className="w-full h-full"
       >
         {card}
       </motion.div>
@@ -45,4 +57,5 @@ export default function GlassCard({
 
   return card
 }
+
 

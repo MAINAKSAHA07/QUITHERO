@@ -192,7 +192,11 @@
     .hero-proof-line { font-size: 0.85rem; color: var(--muted); }
 
     /* Hero Canvas and Node Graphics */
-    .hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
+    .hero-visual {
+      display: flex; justify-content: center; align-items: center; position: relative;
+      transform: scale(1.12);
+      margin-left: -24px;
+    }
     .reset-node-container {
       position: relative; width: 380px; height: 380px; border-radius: 50%;
       background: radial-gradient(circle at center, rgba(90, 130, 150, 0.06) 0%, transparent 70%);
@@ -240,7 +244,7 @@
       .hero-content { grid-template-columns: 1fr; text-align: center; }
       .hero-text { max-width: 100%; margin: 0 auto; }
       .hero-ctas { justify-content: center; }
-      .hero-visual { margin-top: 40px; }
+      .hero-visual { margin-top: 40px; transform: scale(1); margin-left: 0; }
     }
 
     /* ═══ STATS ═══ */
@@ -254,7 +258,7 @@
     @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 40px; } }
 
     /* ═══ SCROLL-DRIVEN STORY SECTION ═══ */
-    .reset-story { position: relative; border-bottom: 1px solid var(--border); }
+    .reset-story { position: relative; }
     .story-grid {
       display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: start;
       position: relative; min-height: 220vh; padding-top: 100px; padding-bottom: 100px;
@@ -307,10 +311,12 @@
 
     /* ═══ PARTICLE WORD REVEAL ═══ */
     .particle-banner {
-      width: 100vw; height: 100vh;
+      width: 100%; height: 220px;
       position: relative; overflow: hidden;
-      border-bottom: 1px solid rgba(90, 130, 150, 0.12);
       display: flex; align-items: center; justify-content: center;
+      background: transparent;
+      mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
     }
     #particleBannerCanvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
 
@@ -496,45 +502,8 @@
 
 
 
-    /* ═══ TESTIMONIALS ═══ */
-    .testimonials { padding: 120px 0; overflow: hidden; position: relative; }
-    .testimonials .section-title { margin-bottom: 48px; }
-    .testimonial-wrapper { position: relative; width: 100%; overflow: hidden; }
-    .testimonial-wrapper::before, .testimonial-wrapper::after {
-      content: ''; position: absolute; top: 0; bottom: 0; width: 15%; z-index: 10; pointer-events: none;
-    }
-    .testimonial-wrapper::before { left: 0; background: linear-gradient(to right, var(--bg) 0%, transparent 100%); }
-    .testimonial-wrapper::after { right: 0; background: linear-gradient(to left, var(--bg) 0%, transparent 100%); }
-    
-    .testimonial-track { display: flex; gap: 24px; width: max-content; animation: scrollTrack 40s linear infinite; }
-    .testimonial-track:hover { animation-play-state: paused; }
-    @keyframes scrollTrack { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-    
-    .testimonial-card {
-      width: 340px; flex-shrink: 0; padding: 32px; background: var(--surface);
-      border: 1px solid var(--border); border-radius: var(--radius-card);
-      backdrop-filter: blur(20px); transition: transform 0.3s;
-    }
-    .testimonial-stars { color: #facc15; font-size: 0.9rem; margin-bottom: 16px; letter-spacing: 2px; }
-    .testimonial-quote { font-size: 0.95rem; line-height: 1.7; color: var(--text); margin-bottom: 24px; font-style: italic; }
-    .testimonial-author { display: flex; align-items: center; gap: 12px; }
-    .testimonial-avatar {
-      width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--bg);
-    }
-    .testimonial-name { font-weight: 600; font-size: 0.9rem; }
-    .testimonial-meta { font-size: 0.75rem; color: var(--muted); }
-    .testimonial-tag {
-      display: inline-block; padding: 4px 10px; background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border); border-radius: var(--radius-pill);
-      font-size: 0.7rem; color: var(--muted); margin-top: 16px;
-    }
 
-    @media (max-width: 768px) {
-      .testimonial-track { animation: none; overflow-x: auto; padding: 20px 24px; width: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
-      .testimonial-card { scroll-snap-align: start; }
-      .testimonial-wrapper::before, .testimonial-wrapper::after { display: none; }
-    }
+
 
     /* ═══ SCIENCE ═══ */
     .science { padding: 120px 0; }
@@ -774,6 +743,15 @@
 
     /* Focus styles */
     :focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 4px; }
+
+    /* ═══ BORDER GLOW EFFECT (from React Bits) ═══ */
+    .border-glow {
+      position: relative;
+      border: 1px solid transparent !important;
+      background: linear-gradient(var(--surface), var(--surface)) padding-box,
+                  radial-gradient(150px circle at var(--mouse-x, -1000%) var(--mouse-y, -1000%), rgba(139, 205, 232, 0.75), var(--border)) border-box !important;
+      transition: background 0.15s ease-out, transform 0.3s ease, box-shadow 0.3s ease !important;
+    }
   </style>
 </head>
 <body>
@@ -922,7 +900,7 @@
         <div class="how-steps-connector" aria-hidden="true">
           <div class="how-steps-connector-active"></div>
         </div>
-        <div class="step-card reveal">
+        <div class="step-card border-glow reveal">
           <span class="step-num">1</span>
           <div class="step-node-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -936,7 +914,7 @@
           <h3>Decode your triggers</h3>
           <p>We identify the exact moments, mood, and routines that pull you toward smoking — stress, boredom, habit, social.</p>
         </div>
-        <div class="step-card reveal">
+        <div class="step-card border-glow reveal">
           <span class="step-num">2</span>
           <div class="step-node-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -947,7 +925,7 @@
           <h3>Rewrite the belief</h3>
           <p>Daily 5-minute CBT sessions dissolve the sub-conscious beliefs that keep cigarettes feeling necessary.</p>
         </div>
-        <div class="step-card reveal">
+        <div class="step-card border-glow reveal">
           <span class="step-num">3</span>
           <div class="step-node-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -1094,19 +1072,19 @@
     </div>
     <div class="testimonial-wrapper">
       <div class="testimonial-track" id="testimonialTrack">
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
         <!-- Duplicates for infinite scroll -->
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
-        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I thought I lacked willpower. Turns out I just lacked the right system."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--primary),var(--secondary))">VS</div><div><div class="testimonial-name">Vikram S.</div><div class="testimonial-meta">Smoke-free for 11 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The belief work on Day 4 broke something open. I haven't wanted a cigarette since."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--secondary),#06b6d4)">PM</div><div><div class="testimonial-name">Priya M.</div><div class="testimonial-meta">Smoke-free for 8 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"I smoked 20+ a day for 14 years. Day 10 felt like a different person."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),#f472b6)">RD</div><div><div class="testimonial-name">Rahul D.</div><div class="testimonial-meta">Smoke-free for 6 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"The cost reveal screen hit me hard. ₹3.8 lakh in 10 years. I quit that day."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#a78bfa,var(--primary))">AK</div><div><div class="testimonial-name">Anita K.</div><div class="testimonial-meta">Smoke-free for 4 months</div></div></div><div class="testimonial-tag">Stress smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"No patches, no gum, no cravings. Just daily modules and one massive mindset shift."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,#06b6d4,var(--secondary))">JT</div><div><div class="testimonial-name">James T.</div><div class="testimonial-meta">Smoke-free for 3 months</div></div></div><div class="testimonial-tag">Social smoker</div></div>
+        <div class="testimonial-card border-glow"><div class="testimonial-stars">★★★★★</div><p class="testimonial-quote">"My wife cried when I told her I didn't want to smoke anymore. That's not willpower. That's the reset."</p><div class="testimonial-author"><div class="testimonial-avatar" style="background:linear-gradient(135deg,var(--warm),var(--primary))">CM</div><div><div class="testimonial-name">Carlos M.</div><div class="testimonial-meta">Smoke-free for 5 months</div></div></div><div class="testimonial-tag">Habit smoker</div></div>
       </div>
     </div>
   </section>
@@ -1519,11 +1497,12 @@
       const container = canvas.parentElement;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       function resize() {
-        const r = container.getBoundingClientRect();
-        canvas.width = r.width * dpr;
-        canvas.height = r.height * dpr;
-        canvas.style.width = r.width + 'px';
-        canvas.style.height = r.height + 'px';
+        const w = container.offsetWidth;
+        const h = container.offsetHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
       }
       resize();
       window.addEventListener('resize', resize);
@@ -1690,8 +1669,8 @@
         H = canvas.offsetHeight * dpr;
         canvas.width  = W;
         canvas.height = H;
-        // font ~18% of viewport width, capped at 200px
-        fontSize = Math.min(Math.round(canvas.offsetWidth * 0.18), 200) * dpr;
+        // font ~18% of width, constrained by height to prevent vertical clipping
+        fontSize = Math.min(Math.round(canvas.offsetWidth * 0.18), Math.round(canvas.offsetHeight * 0.65), 140) * dpr;
 
         // Rebuild particle pool for new dimensions
         const allTargets = WORDS.map(w => sampleTargets(w));
@@ -1910,12 +1889,16 @@
       },{threshold:.6}).observe(phone);
     })();
 
-    // ═══ STEP CARD RADIAL HOVER ═══
-    document.querySelectorAll('.step-card').forEach(card=>{
+    // ═══ BORDER GLOW RADIAL HOVER ═══
+    document.querySelectorAll('.border-glow, .step-card').forEach(card=>{
       card.addEventListener('mousemove',e=>{
         const r=card.getBoundingClientRect();
         card.style.setProperty('--mouse-x',((e.clientX-r.left)/r.width*100)+'%');
         card.style.setProperty('--mouse-y',((e.clientY-r.top)/r.height*100)+'%');
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.setProperty('--mouse-x', '-1000%');
+        card.style.setProperty('--mouse-y', '-1000%');
       });
     });
   </script>
