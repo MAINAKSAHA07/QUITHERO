@@ -10,7 +10,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
 import { useCravings } from '../hooks/useCravings'
-import { useSessions } from '../hooks/useSessions'
 import { useAchievements } from '../hooks/useAchievements'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
@@ -41,10 +40,9 @@ const TRIGGER_COLORS: Record<string, string> = {
 }
 
 export default function Progress() {
-  const { user } = useApp()
+  const { user, currentSession } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const { getTrend, getTriggerBreakdown } = useCravings()
-  const { currentSession } = useSessions()
   const { achievements, isUnlocked, checkAndUnlock } = useAchievements()
   
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('week')

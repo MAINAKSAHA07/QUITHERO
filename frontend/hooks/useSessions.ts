@@ -13,7 +13,7 @@ export function useSessions() {
   const [programDays, setProgramDays] = useState<ProgramDay[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const initializedRef = useRef(false)
+  const userIdRef = useRef<string | undefined>(undefined)
 
   const fetchCurrentSession = useCallback(async () => {
     if (!user?.id || _fetchInFlight) return
@@ -23,7 +23,8 @@ export function useSessions() {
     try {
       const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (!result.success || !result.data) {
-        setError(result.error || null)
+        setError(result.error || 'Failed to load program session')
+        setCurrentSession(null)
         return
       }
       let session = result.data
@@ -68,12 +69,18 @@ export function useSessions() {
     }
   }, [user?.id])
 
-  // Fetch once on mount / user change
+  // Reset local session state when user changes
   useEffect(() => {
-    if (user?.id && !initializedRef.current) {
-      initializedRef.current = true
-      fetchCurrentSession()
+    if (userIdRef.current && userIdRef.current !== user?.id) {
+      setCurrentSession(null)
+      setProgramDays([])
+      setError(null)
     }
+    userIdRef.current = user?.id
+  }, [user?.id])
+
+  useEffect(() => {
+    if (user?.id) fetchCurrentSession()
   }, [user?.id, fetchCurrentSession])
 
   const getSessionProgress = useCallback(async (programDayId: string) => {
@@ -115,7 +122,6 @@ export function useSessions() {
     try {
       const result = await sessionService.completeSession(user.id, programDayId, timeSpentMinutes)
       if (result.success) {
-        initializedRef.current = false // allow a fresh fetch next call
         await fetchCurrentSession()
       }
       return result

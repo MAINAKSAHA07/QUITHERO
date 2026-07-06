@@ -7,7 +7,6 @@ import { Progress } from '../components/ui/progress'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import { useApp } from '../context/AppContext'
-import { useSessions } from '../hooks/useSessions'
 import { programService } from '../services/program.service'
 
 import { SessionStatus } from '../types/enums'
@@ -30,8 +29,7 @@ const _cache: {
 
 export default function Sessions() {
   const navigate = useNavigate()
-  const { user, isPremium } = useApp()
-  const { currentSession, fetchCurrentSession } = useSessions()
+  const { user, isPremium, currentSession, fetchCurrentSession } = useApp()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -43,22 +41,18 @@ export default function Sessions() {
     if (!user?.id) return
     setIsLoading(true)
     try {
-      // 1. Resolve programId (from hook state or DB, never re-fetch days if cached)
-      let programId: string | null = null
-
-      if (currentSession?.program) {
-        programId = typeof currentSession.program === 'string'
-          ? currentSession.program
-          : (currentSession.program as any)?.id || null
-      }
-
-      if (!programId) {
+      let session = currentSession
+      if (!session?.program) {
         await fetchCurrentSession()
-        // fetchCurrentSession updates context — re-effect will fire; bail here
         return
       }
 
-      // 2. Fetch program days (cached after first load)
+      // 1. Resolve programId
+      const programId = typeof session.program === 'string'
+        ? session.program
+        : (session.program as any)?.id || null
+
+      if (!programId) return
       let days: ProgramDay[]
       if (!forceRefresh && _cache.programId === programId && _cache.days) {
         days = _cache.days

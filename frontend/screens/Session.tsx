@@ -39,9 +39,12 @@ import {
 } from '../utils/sessionPersonalization'
 
 export default function Session() {
-  const { dayId } = useParams<{ dayId: string }>()
+  const { dayId: dayIdParam, day: dayNumParam } = useParams<{ dayId?: string; day?: string }>()
   const navigate = useNavigate()
-  const { user, userProfile, progressStats, refreshProgress, isPremium } = useApp()
+  const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession } = useApp()
+  const [resolvedDayId, setResolvedDayId] = useState<string | null>(null)
+  const dayId = resolvedDayId
+  const routeDayKey = dayIdParam || dayNumParam
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [, setSessionProgress] = useState<SessionProgress | null>(null)
@@ -81,11 +84,47 @@ export default function Session() {
   )
 
   useEffect(() => {
-    if (user?.id && dayId) {
+    let cancelled = false
+
+    async function resolveDayRoute() {
+      const routeKey = dayIdParam || dayNumParam
+      if (!routeKey) {
+        setResolvedDayId(null)
+        return
+      }
+
+      // PocketBase record ids are alphanumeric; bare numbers are legacy day numbers
+      if (!/^\d+$/.test(routeKey)) {
+        setResolvedDayId(routeKey)
+        return
+      }
+
+      const dayNumber = Number(routeKey)
+      if (!user?.id || !currentSession?.program) {
+        setResolvedDayId(null)
+        return
+      }
+
+      const programId = typeof currentSession.program === 'string'
+        ? currentSession.program
+        : (currentSession.program as any)?.id || currentSession.program
+
+      const dayResult = await programService.getProgramDayByNumber(programId, dayNumber)
+      if (!cancelled) {
+        setResolvedDayId(dayResult.success && dayResult.data?.id ? dayResult.data.id : null)
+      }
+    }
+
+    resolveDayRoute()
+    return () => { cancelled = true }
+  }, [dayIdParam, dayNumParam, user?.id, currentSession?.program, currentSession?.id])
+
+  useEffect(() => {
+    if (user?.id && resolvedDayId) {
       loadSession()
       behaviorTracker.init(user.id)
     }
-  }, [user?.id, dayId, userProfile?.id])
+  }, [user?.id, resolvedDayId, userProfile?.id])
 
   useEffect(() => {
     return () => {
@@ -310,7 +349,7 @@ export default function Session() {
   const handleComprehensionPass = async (result: { selected_index: number; selected: string }) => {
     setComprehensionCheckDone(true)
     setShowComprehensionCheck(false)
-    if (user?.id && personalizedContent?.comprehension_check) {
+    if (user?.id && dayId && personalizedContent?.comprehension_check) {
       const check = personalizedContent.comprehension_check
       sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
         question: check.question,
@@ -339,7 +378,7 @@ export default function Session() {
   const handleTriggerCheckComplete = async (selected: string) => {
     setTriggerCheckDone(true)
     setShowTriggerCheck(false)
-    if (user?.id && personalizedContent?.trigger_check) {
+    if (user?.id && dayId && personalizedContent?.trigger_check) {
       const check = personalizedContent.trigger_check
       const selectedIndex = check.options.indexOf(selected)
       sessionPersonalizationService.saveTriggerCheck(user.id, dayNumber, dayId, {
@@ -453,7 +492,7 @@ export default function Session() {
     )
   }
 
-  if (isLoading) {
+  if (isLoading || (routeDayKey && !dayId && currentSession?.program)) {
     return (
       <div className="min-h-screen min-h-[100dvh] pb-20">
         <TopNavigation left="back" center="Loading..." right="" />
@@ -535,7 +574,7 @@ export default function Session() {
             onPass={handleComprehensionPass}
             onReview={handleComprehensionReview}
             onFail={(result) => {
-              if (user?.id && personalizedContent?.comprehension_check) {
+              if (user?.id && dayId && personalizedContent?.comprehension_check) {
                 const check = personalizedContent.comprehension_check
                 sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
                   question: check.question,

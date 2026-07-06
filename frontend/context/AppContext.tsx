@@ -142,9 +142,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (result.success && result.data) {
         setCurrentSession(result.data)
+      } else {
+        console.error('[AppContext] Failed to load program session:', result.error)
+        setCurrentSession(null)
       }
     } catch (error) {
       console.error('Failed to fetch current session:', error)
+      setCurrentSession(null)
     } finally {
       setSessionLoading(false)
     }

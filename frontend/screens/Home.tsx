@@ -11,7 +11,6 @@ import MilestoneModal from '../components/MilestoneModal'
 import TranslatedText from '../components/TranslatedText'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
-import { useSessions } from '../hooks/useSessions'
 import { cravingService } from '../services/craving.service'
 import { programService } from '../services/program.service'
 import { analyticsService } from '../services/analytics.service'
@@ -30,9 +29,8 @@ const motivationalQuotes = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user, userProfile } = useApp()
+  const { user, userProfile, currentSession, sessionLoading, fetchCurrentSession } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
-  const { currentSession, loading: sessionLoading, fetchCurrentSession } = useSessions()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
   const [slipsCount, setSlipsCount] = useState(0)
