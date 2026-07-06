@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle, Lock, Play, RefreshCw } from 'lucide-react'
-import GlassCard from '../components/GlassCard'
-import { Progress } from '../components/ui/progress'
+import { Check, RefreshCw, Menu } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
+import SmonoLogo from '../components/SmonoLogo'
 import Mascot from '../components/Mascot'
 import BottomNavigation from '../components/BottomNavigation'
+import Sidebar from '../components/Sidebar'
 import { useApp } from '../context/AppContext'
 import { programService } from '../services/program.service'
-
 import { SessionStatus } from '../types/enums'
 import { ProgramDay, SessionProgress } from '../types/models'
 import pb from '../lib/pocketbase'
@@ -26,18 +25,35 @@ interface DayWithProgress {
   status: SessionStatus
 }
 
-// ponytail: simple module-level cache — avoids re-fetching static program data
-//           on every navigation. Cache key = programId. TTL: session lifetime.
 const _cache: {
   programId?: string
   days?: ProgramDay[]
 } = {}
+
+function sessionSubtitle(
+  d: DayWithProgress,
+  isFreemiumLocked: boolean,
+  showAsLocked: boolean
+): string {
+  if (isFreemiumLocked) return 'Premium'
+  if (d.status === SessionStatus.COMPLETED) {
+    const mins = d.progress?.time_spent_minutes ?? d.day.estimated_duration_min
+    return mins ? `Completed · ${mins} min` : 'Completed'
+  }
+  if (d.status === SessionStatus.IN_PROGRESS) {
+    const est = d.day.estimated_duration_min ?? 20
+    return `In progress · ~${est} min`
+  }
+  if (showAsLocked) return 'Locked'
+  return 'Ready'
+}
 
 export default function Sessions() {
   const navigate = useNavigate()
   const { user, isPremium, currentSession, fetchCurrentSession } = useApp()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
@@ -56,10 +72,9 @@ export default function Sessions() {
         return
       }
 
-      // 1. Resolve programId
       const programId = typeof session.program === 'string'
         ? session.program
-        : (session.program as any)?.id || null
+        : (session.program as { id?: string })?.id || null
 
       if (!programId) return
       let days: ProgramDay[]
@@ -73,11 +88,10 @@ export default function Sessions() {
         _cache.days = days
       }
 
-      // 3. ONE batch call for all progress records instead of N individual calls
       const allProgress = await pb.collection('session_progress').getFullList<SessionProgress & { id: string }>({
         filter: `user = "${user.id}"`,
         fields: 'id,program_day,status,last_step_index,completed_at,time_spent_minutes',
-      }).catch(() => [] as any[])
+      }).catch(() => [] as SessionProgress[])
 
       const progressByDay = indexProgressByDayId(allProgress)
 
@@ -105,14 +119,14 @@ export default function Sessions() {
     if (d.day.id) navigate(`/sessions/${d.day.id}`)
   }
 
-  const completedCount = daysWithProgress.filter(d => d.status === SessionStatus.COMPLETED).length
-  const totalDays = daysWithProgress.length || 30
+  const headerChromeBtn =
+    'w-9 h-9 rounded-lg bg-white/60 border border-sky-200/40 flex items-center justify-center hover:bg-white/80 transition-colors touch-target'
 
   if (isLoading) {
     return (
       <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
         <div className="flex-shrink-0">
-          <TopNavigation left="menu" center="Program" right="" />
+          <TopNavigation left="menu" center={<SmonoLogo size="sm" showMascot layout="inline" />} right="" />
         </div>
         <div className="flex flex-col items-center justify-center flex-1 gap-4">
           <Mascot size="lg" pulse className="w-24 h-24 sm:w-32 sm:h-32" />
@@ -127,32 +141,24 @@ export default function Sessions() {
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
       <div className="flex-shrink-0">
         <TopNavigation
-          left="menu"
-          center="Program"
+          left={
+            <button type="button" onClick={() => setSidebarOpen(true)} className={headerChromeBtn} aria-label="Open menu">
+              <Menu className="w-4 h-4 text-text-primary/70" />
+            </button>
+          }
+          center={<SmonoLogo size="sm" showMascot layout="inline" />}
           right={
-            <button onClick={handleRefresh} className="p-2 rounded-full hover:bg-white/5 touch-target">
-              <RefreshCw className="w-5 h-5 text-text-primary" />
+            <button type="button" onClick={handleRefresh} className={headerChromeBtn} aria-label="Refresh sessions">
+              <RefreshCw className="w-4 h-4 text-text-primary/70" />
             </button>
           }
         />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24 space-y-5">
-        {/* Progress Header */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <GlassCard className="p-5">
-            <div className="flex items-center justify-between mb-2">
-              <h1 className="text-xl font-bold text-text-primary">30-Day Reset</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-brand-primary border border-white/5">
-                {completedCount}/{totalDays}
-              </span>
-            </div>
-            <p className="text-xs text-text-primary/60 mb-3">Rewire your brain. One day at a time.</p>
-            <Progress value={(completedCount / totalDays) * 100} className="bg-white/5 h-2" />
-          </GlassCard>
-        </motion.div>
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-24 scrollbar-thin">
+        <h1 className="text-center text-base font-bold text-text-primary mb-4">30-Day Program</h1>
 
-        {/* Day List */}
         <div className="space-y-2">
           {daysWithProgress.map((d, i) => {
             const isCompleted = d.status === SessionStatus.COMPLETED
@@ -160,43 +166,64 @@ export default function Sessions() {
             const isFreemiumLocked = !isPremium && i > 0
             const effectiveLocked = d.isLocked || isFreemiumLocked
             const showAsLocked = effectiveLocked && !isInProgress && !isCompleted
+            const subtitle = sessionSubtitle(d, isFreemiumLocked, showAsLocked)
+
             return (
-              <motion.div
+              <motion.button
                 key={d.day.id}
+                type="button"
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
+                transition={{ delay: Math.min(i * 0.03, 0.45) }}
+                onClick={() => handleDayClick(d, i)}
+                disabled={showAsLocked}
+                className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition-colors ${
+                  isInProgress && !isFreemiumLocked
+                    ? 'border-brand-primary/45 bg-brand-primary/8 hover:bg-brand-primary/12'
+                    : showAsLocked
+                    ? 'border-white/20 bg-white/50 opacity-60 cursor-not-allowed'
+                    : 'border-sky-200/35 bg-white/75 hover:bg-white/90'
+                }`}
               >
-                <GlassCard
-                  className={`cursor-pointer hover:bg-white/10 ${showAsLocked ? 'opacity-50 cursor-not-allowed' : ''} ${isInProgress && !isFreemiumLocked ? 'border-brand-primary/50' : ''}`}
-                  onClick={() => handleDayClick(d, i)}
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm ${
+                    isCompleted && !isFreemiumLocked
+                      ? 'bg-emerald-500 text-white'
+                      : isInProgress && !isFreemiumLocked
+                      ? 'bg-brand-primary text-white'
+                      : 'bg-sky-100 text-brand-primary/70'
+                  }`}
                 >
-                  <div className="p-3.5 flex items-center gap-3">
-                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      isCompleted && !isFreemiumLocked ? 'bg-emerald-500/10 border border-emerald-500/20'
-                      : isInProgress && !isFreemiumLocked ? 'bg-brand-primary/10 border border-brand-primary/20 animate-pulse'
-                      : showAsLocked ? 'bg-white/5 border border-white/5'
-                      : 'bg-brand-primary/10 border border-brand-primary/10'
-                    }`}>
-                      {isCompleted && !isFreemiumLocked
-                        ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-                        : showAsLocked
-                        ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-primary/40" />
-                        : <span className="text-brand-primary font-black text-xs sm:text-sm">{d.day.day_number}</span>
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-text-primary text-xs sm:text-sm truncate">{d.day.title}</p>
-                      <p className="text-[10px] font-semibold text-text-primary/45 uppercase tracking-wide">
-                        {isFreemiumLocked ? 'Premium' : isCompleted ? 'Completed' : isInProgress ? 'In progress' : showAsLocked ? 'Locked' : 'Ready'}
-                      </p>
-                    </div>
-                    {!showAsLocked && !isCompleted && <Play className="w-4 h-4 text-brand-primary flex-shrink-0" />}
-                    {isCompleted && !isFreemiumLocked && <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
-                    {isFreemiumLocked && <Lock className="w-4 h-4 text-amber-400 flex-shrink-0" />}
-                  </div>
-                </GlassCard>
-              </motion.div>
+                  {isCompleted && !isFreemiumLocked ? (
+                    <Check className="w-4 h-4" strokeWidth={3} />
+                  ) : (
+                    <span>{d.day.day_number}</span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-text-primary/55' : 'text-text-primary'}`}>
+                    {d.day.title}
+                  </p>
+                  <p className="text-xs text-text-primary/45 mt-0.5">{subtitle}</p>
+                </div>
+
+                {isCompleted && !isFreemiumLocked && (
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600">
+                    Done
+                  </span>
+                )}
+                {isInProgress && !isFreemiumLocked && (
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary/15 text-brand-primary">
+                    Now
+                  </span>
+                )}
+                {isFreemiumLocked && (
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600">
+                    Pro
+                  </span>
+                )}
+              </motion.button>
             )
           })}
         </div>

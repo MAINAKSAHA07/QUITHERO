@@ -1,5 +1,13 @@
 import { StepType } from '../types/enums'
-import { Step, UserProfile, ProgressStats, ExerciseStepContent, TriggerCheckContent, ComprehensionCheckContent, PersonalizedContent } from '../types/models'
+import {
+  Step,
+  UserProfile,
+  ProgressStats,
+  ExerciseStepContent,
+  TriggerCheckContent,
+  ComprehensionCheckContent,
+  PersonalizedContent,
+} from '../types/models'
 import { getDayComprehensionCheck } from './comprehensionBank'
 import {
   calculateYearlySpend,
@@ -174,10 +182,22 @@ export function buildFallbackTriggerCheck(profile: UserProfile): TriggerCheckCon
   }
 }
 
-/** Step index after which the mid-session comprehension check appears (null if session too short) */
-export function getComprehensionCheckpointIndex(stepCount: number): number | null {
-  if (stepCount < 3) return null
-  return Math.floor(stepCount / 2) - 1
+/** Last reading step before exercises — never blocks tool → reflection path */
+export function getComprehensionCheckpointIndex(steps: Pick<Step, 'type'>[]): number | null {
+  if (steps.length < 5) return null
+
+  const firstExercise = steps.findIndex((s) => s.type === StepType.EXERCISE)
+  const reflectionIdx = steps.findIndex((s) => s.type === StepType.QUESTION_OPEN)
+
+  let idx = firstExercise > 0 ? firstExercise - 1 : Math.min(2, steps.length - 4)
+
+  // ponytail: never gate on the craving tool right before reflection
+  if (reflectionIdx > 0 && idx >= reflectionIdx - 1) {
+    idx = firstExercise > 0 ? firstExercise - 1 : Math.min(2, steps.length - 4)
+  }
+
+  while (idx > 0 && steps[idx]?.type !== StepType.TEXT) idx--
+  return steps[idx]?.type === StepType.TEXT ? idx : null
 }
 
 export function buildFallbackComprehensionCheck(dayNumber: number, dayTitle?: string): ComprehensionCheckContent {

@@ -81,8 +81,8 @@ export default function Session() {
   const dayNumber = programDay?.day_number || 1
 
   const comprehensionCheckpoint = useMemo(
-    () => getComprehensionCheckpointIndex(steps.length),
-    [steps.length]
+    () => getComprehensionCheckpointIndex(steps),
+    [steps]
   )
 
   const statCard = useMemo(() => {
@@ -95,10 +95,35 @@ export default function Session() {
     return getTriggerExerciseHint(userProfile, programDay.day_number)
   }, [userProfile, programDay?.day_number])
 
+  const currentStep = steps[currentStepIndex]
+  const stepRequiresInput =
+    currentStep?.type === StepType.QUESTION_OPEN ||
+    currentStep?.type === StepType.QUESTION_MCQ ||
+    currentStep?.type === StepType.EXERCISE
+
+  const canSwipeForward =
+    !isSaving &&
+    !showTriggerCheck &&
+    !showComprehensionCheck &&
+    currentStepIndex < steps.length - 1 &&
+    !stepRequiresInput
+
+  const canSwipeBack =
+    !showTriggerCheck &&
+    !showComprehensionCheck &&
+    currentStepIndex > 0
+
   const swipeHandlers = useTouchSwipe(
-    () => { if (currentStepIndex < steps.length - 1) moveToNextStep() },
-    () => { if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1) }
+    () => { if (canSwipeForward) moveToNextStep() },
+    () => { if (canSwipeBack) setCurrentStepIndex(currentStepIndex - 1) }
   )
+
+  useEffect(() => {
+    if (!showComprehensionCheck) return
+    if (personalizedContent?.comprehension_check) return
+    setShowComprehensionCheck(false)
+    setComprehensionCheckDone(true)
+  }, [showComprehensionCheck, personalizedContent?.comprehension_check])
 
   useEffect(() => {
     let cancelled = false
@@ -183,14 +208,13 @@ export default function Session() {
       setProgramDay(dayResult.data)
 
       const dayNum = dayResult.data.day_number || 1
-      let sortedStepCount = 0
+      let sorted: Step[] = []
 
       if (stepsResult.success && stepsResult.data) {
-        let sorted = stepsResult.data.sort((a, b) => a.order - b.order)
+        sorted = stepsResult.data.sort((a, b) => a.order - b.order)
         if (userProfile) {
           sorted = injectTriggerBranchSteps(sorted, userProfile, dayNum)
         }
-        sortedStepCount = sorted.length
         setSteps(sorted)
       } else {
         console.error('Failed to fetch steps:', stepsResult.error)
@@ -261,7 +285,7 @@ export default function Session() {
           if (progress.last_step_index && progress.last_step_index > 0) {
             setTriggerCheckDone(true)
           }
-          const checkpoint = getComprehensionCheckpointIndex(sortedStepCount)
+          const checkpoint = getComprehensionCheckpointIndex(sorted)
           if (
             checkpoint !== null &&
             progress.last_step_index != null &&
@@ -307,22 +331,24 @@ export default function Session() {
     }
   }
 
-  const proceedToNextStepIndex = async () => {
-    if (!user?.id || !dayId) return
+  const proceedToNextStepIndex = async (): Promise<boolean> => {
+    if (!user?.id || !dayId) return false
 
     if (currentStepIndex === steps.length - 1) {
       await completeSession()
-    } else {
-      const nextIndex = currentStepIndex + 1
-      setCurrentStepIndex(nextIndex)
-      await sessionService.upsertSessionProgress(user.id, dayId, {
-        last_step_index: nextIndex,
-      })
+      return true
     }
+
+    const nextIndex = currentStepIndex + 1
+    setCurrentStepIndex(nextIndex)
+    await sessionService.upsertSessionProgress(user.id, dayId, {
+      last_step_index: nextIndex,
+    })
+    return true
   }
 
-  const advanceFromStep = async (stepResponse?: unknown) => {
-    if (!user?.id || !dayId || !steps[currentStepIndex]) return
+  const advanceFromStep = async (stepResponse?: unknown): Promise<boolean> => {
+    if (!user?.id || !dayId || !steps[currentStepIndex]) return false
 
     if (!sessionStartTime) {
       beginSessionTimer()
@@ -345,40 +371,57 @@ export default function Session() {
         if (!saved.success) {
           console.error('Failed to save step response:', saved.error)
           alert('Could not save your answer. Please try again.')
-          return
+          return false
         }
       }
 
-      const needsComprehension =
+      const atTextCheckpoint =
+        currentStep.type === StepType.TEXT &&
         comprehensionCheckpoint !== null &&
-        currentStepIndex === comprehensionCheckpoint &&
+        currentStepIndex === comprehensionCheckpoint
+
+      const skippedComprehension =
+        comprehensionCheckpoint !== null &&
         !comprehensionCheckDone &&
-        personalizedContent?.comprehension_check
+        currentStepIndex > comprehensionCheckpoint
+
+      if (skippedComprehension) {
+        setComprehensionCheckDone(true)
+      }
+
+      const needsComprehension =
+        atTextCheckpoint &&
+        !comprehensionCheckDone &&
+        !skippedComprehension &&
+        Boolean(personalizedContent?.comprehension_check)
 
       if (needsComprehension) {
         setShowComprehensionCheck(true)
-        return
+        return false
       }
 
       if (currentStepIndex === steps.length - 1) {
         await completeSession()
-      } else {
-        const nextIndex = currentStepIndex + 1
-        setCurrentStepIndex(nextIndex)
-        await sessionService.upsertSessionProgress(user.id, dayId, {
-          last_step_index: nextIndex,
-        })
+        return true
       }
+
+      const nextIndex = currentStepIndex + 1
+      setCurrentStepIndex(nextIndex)
+      await sessionService.upsertSessionProgress(user.id, dayId, {
+        last_step_index: nextIndex,
+      })
+      return true
     } catch (error) {
       console.error('Failed to move to next step:', error)
       alert('Failed to move to next step. Please try again.')
+      return false
     } finally {
       setIsSaving(false)
     }
   }
 
-  const moveToNextStep = async (stepResponse?: unknown) => {
-    if (!user?.id || !dayId || !steps[currentStepIndex]) return
+  const moveToNextStep = async (stepResponse?: unknown): Promise<boolean> => {
+    if (!user?.id || !dayId || !steps[currentStepIndex]) return false
 
     const needsTriggerCheck =
       currentStepIndex === 0 &&
@@ -388,10 +431,10 @@ export default function Session() {
 
     if (needsTriggerCheck) {
       setShowTriggerCheck(true)
-      return
+      return false
     }
 
-    await advanceFromStep(stepResponse)
+    return advanceFromStep(stepResponse)
   }
 
   const handleComprehensionPass = async (result: { selected_index: number; selected: string }) => {
@@ -481,9 +524,7 @@ export default function Session() {
     }
   }
 
-  const handleStepResponse = (response: unknown) => {
-    moveToNextStep(response)
-  }
+  const handleStepResponse = (response: unknown) => moveToNextStep(response)
 
   const renderStepComponent = () => {
     if (!steps[currentStepIndex]) return null
@@ -569,12 +610,7 @@ export default function Session() {
     )
   }
 
-  const currentStep = steps[currentStepIndex]
   const isLastStep = currentStepIndex === steps.length - 1
-  const stepRequiresInput =
-    currentStep?.type === StepType.QUESTION_OPEN ||
-    currentStep?.type === StepType.QUESTION_MCQ ||
-    currentStep?.type === StepType.EXERCISE
 
   return (
     <div className="min-h-screen min-h-[100dvh] pb-24">
@@ -608,30 +644,33 @@ export default function Session() {
         )}
 
         {showComprehensionCheck && personalizedContent?.comprehension_check && (
-          <ComprehensionCheck
-            check={personalizedContent.comprehension_check}
-            onPass={handleComprehensionPass}
-            onReview={handleComprehensionReview}
-            onFail={(result) => {
-              if (user?.id && dayId && personalizedContent?.comprehension_check) {
-                const check = personalizedContent.comprehension_check
-                sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
-                  question: check.question,
-                  options: check.options,
-                  selected_index: result.selected_index,
-                  selected: result.selected,
-                  correct_index: check.correct_index,
-                  is_correct: false,
-                  thought_of_the_day: check.thought_of_the_day,
-                }).catch(() => {})
-                analyticsService.trackEvent('comprehension_check_failed', { day: dayNumber }, user.id).catch(() => {})
-              }
-            }}
-          />
+          <div className="relative z-10 mb-4">
+            <ComprehensionCheck
+              check={personalizedContent.comprehension_check}
+              onPass={handleComprehensionPass}
+              onReview={handleComprehensionReview}
+              onFail={(result) => {
+                if (user?.id && dayId && personalizedContent?.comprehension_check) {
+                  const check = personalizedContent.comprehension_check
+                  sessionPersonalizationService.saveComprehensionCheck(user.id, dayNumber, dayId, {
+                    question: check.question,
+                    options: check.options,
+                    selected_index: result.selected_index,
+                    selected: result.selected,
+                    correct_index: check.correct_index,
+                    is_correct: false,
+                    thought_of_the_day: check.thought_of_the_day,
+                  }).catch(() => {})
+                  analyticsService.trackEvent('comprehension_check_failed', { day: dayNumber }, user.id).catch(() => {})
+                }
+              }}
+            />
+          </div>
         )}
 
-        {!showTriggerCheck && !showComprehensionCheck && (
-          <GlassCard className="p-4 sm:p-6 mb-4 sm:mb-6">
+        {!showTriggerCheck && (
+          <div className={showComprehensionCheck ? 'pointer-events-none opacity-40 mb-4' : 'mb-4'}>
+          <GlassCard className="p-4 sm:p-6">
             <div className="mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
                 {programDay.title}
@@ -654,10 +693,11 @@ export default function Session() {
               {renderStepComponent()}
             </div>
           </GlassCard>
+          </div>
         )}
 
-        {!showTriggerCheck && !showComprehensionCheck && (
-          <div className="flex gap-3 w-full">
+        {!showTriggerCheck && (
+          <div className={`flex gap-3 w-full ${showComprehensionCheck ? 'pointer-events-none opacity-40' : ''}`}>
             <GlassButton
               variant="secondary"
               onClick={() => {

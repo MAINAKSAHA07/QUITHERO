@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Step } from '../../types/models'
 import { ExerciseStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
-import { CheckCircle, Play, Pause, RotateCcw } from 'lucide-react'
+import { Play, Pause, RotateCcw } from 'lucide-react'
 import ExerciseWorksheet from './ExerciseWorksheet'
 import {
   splitExerciseInstructions,
@@ -15,7 +15,7 @@ import {
 
 interface ExerciseComponentProps {
   step: Step
-  onNext: (response?: unknown) => void
+  onNext: (response?: unknown) => void | Promise<boolean | void>
   focusLabel?: string
 }
 
@@ -27,7 +27,7 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
   const paragraphs = formatInstructionParagraphs(body)
   const duration = content.duration_seconds || 0
 
-  const [completed, setCompleted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(duration)
   const [isActive, setIsActive] = useState(false)
   const [worksheetData, setWorksheetData] = useState<WorksheetPayload | null>(null)
@@ -37,23 +37,31 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
     ...(worksheet && worksheetData ? { worksheet: worksheetData } : {}),
   })
 
+  const finishExercise = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await onNext(buildPayload())
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
-    } else if (timeLeft === 0 && duration > 0) {
+    } else if (timeLeft === 0 && duration > 0 && !isSubmitting) {
       setIsActive(false)
-      setCompleted(true)
-      setTimeout(() => onNext(buildPayload()), 1500)
+      void finishExercise()
     }
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [isActive, timeLeft, duration, onNext, worksheetData, worksheet])
+  }, [isActive, timeLeft, duration, isSubmitting])
 
   const handleComplete = () => {
-    setCompleted(true)
-    setTimeout(() => onNext(buildPayload()), 800)
+    void finishExercise()
   }
 
   const handleReset = () => {
@@ -109,7 +117,7 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
         <ExerciseWorksheet format={worksheet} onChange={setWorksheetData} />
       )}
 
-      {duration > 0 && !completed && (
+      {duration > 0 && (
         <div className="flex flex-col items-center gap-5 py-4">
           <motion.div
             className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-brand-primary/20 via-brand-accent/20 to-brand-primary/30 border border-brand-primary/30 flex flex-col items-center justify-center relative shadow-glass-md"
@@ -157,34 +165,24 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
         </div>
       )}
 
-      {completed ? (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="flex flex-col items-center gap-2 py-4"
-        >
-          <CheckCircle className="w-12 h-12 text-emerald-400" />
-          <span className="text-emerald-400 font-bold text-base">Exercise Completed!</span>
-        </motion.div>
-      ) : (
-        <div className="flex gap-2.5 pt-2">
-          {duration > 0 && (
-            <GlassButton
-              onClick={handleComplete}
-              className="flex-1 py-3.5 sm:py-4 font-semibold text-text-primary/70 border-white/5 hover:border-white/10 bg-white/5"
-            >
-              Skip Timer
-            </GlassButton>
-          )}
+      <div className="flex gap-2.5 pt-2">
+        {duration > 0 && (
           <GlassButton
             onClick={handleComplete}
-            disabled={duration > 0 && timeLeft > 0 && isActive}
-            className="flex-[2] py-3.5 sm:py-4 font-bold"
+            disabled={isSubmitting}
+            className="flex-1 py-3.5 sm:py-4 font-semibold text-text-primary/70 border-white/5 hover:border-white/10 bg-white/5"
           >
-            Mark Complete
+            Skip Timer
           </GlassButton>
-        </div>
-      )}
+        )}
+        <GlassButton
+          onClick={handleComplete}
+          disabled={(duration > 0 && timeLeft > 0 && isActive) || isSubmitting}
+          className="flex-[2] py-3.5 sm:py-4 font-bold"
+        >
+          {isSubmitting ? 'Saving…' : 'Mark Complete'}
+        </GlassButton>
+      </div>
     </div>
   )
 }
