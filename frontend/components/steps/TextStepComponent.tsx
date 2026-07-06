@@ -1,6 +1,7 @@
 import { Step } from '../../types/models'
 import { TextStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
+import { sanitizeStepText } from '../../utils/stepContentFormat'
 
 interface TextStepComponentProps {
   step: Step
@@ -92,7 +93,7 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
           <h3 className="text-lg sm:text-xl font-bold text-text-primary leading-snug">{content.title}</h3>
         )}
         <div className="text-text-primary/90 leading-relaxed space-y-3 sm:space-y-4 text-sm sm:text-[15px]">
-          {formatText(content.text || '')}
+          {formatText(sanitizeStepText(content.text || ''))}
         </div>
       </div>
       <div className="pt-3 sm:pt-4">

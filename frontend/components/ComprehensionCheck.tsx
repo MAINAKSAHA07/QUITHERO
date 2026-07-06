@@ -4,6 +4,7 @@ import { BookOpen, Sparkles, X } from 'lucide-react'
 import GlassCard from './GlassCard'
 import GlassButton from './GlassButton'
 import { ComprehensionCheckContent } from '../types/models'
+import { sanitizePersonalizedText } from '../utils/stepContentFormat'
 
 interface ComprehensionCheckProps {
   check: ComprehensionCheckContent
@@ -13,6 +14,13 @@ interface ComprehensionCheckProps {
 }
 
 export default function ComprehensionCheck({ check, onPass, onReview, onFail }: ComprehensionCheckProps) {
+  const cleanCheck: ComprehensionCheckContent = {
+    ...check,
+    question: sanitizePersonalizedText(check.question),
+    options: check.options.map((o) => sanitizePersonalizedText(o)),
+    thought_of_the_day: check.thought_of_the_day.map((t) => sanitizePersonalizedText(t)) as [string, string],
+    reread_hint: sanitizePersonalizedText(check.reread_hint),
+  }
   const [selected, setSelected] = useState<number | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [showThoughtPopup, setShowThoughtPopup] = useState(false)
@@ -20,10 +28,10 @@ export default function ComprehensionCheck({ check, onPass, onReview, onFail }: 
   const handleSubmit = () => {
     if (selected === null) return
     setSubmitted(true)
-    if (selected === check.correct_index) {
-      setTimeout(() => onPass({ selected_index: selected, selected: check.options[selected] }), 600)
+    if (selected === cleanCheck.correct_index) {
+      setTimeout(() => onPass({ selected_index: selected, selected: cleanCheck.options[selected] }), 600)
     } else {
-      onFail?.({ selected_index: selected, selected: check.options[selected] })
+      onFail?.({ selected_index: selected, selected: cleanCheck.options[selected] })
       setShowThoughtPopup(true)
     }
   }
@@ -42,15 +50,15 @@ export default function ComprehensionCheck({ check, onPass, onReview, onFail }: 
             <BookOpen className="w-3.5 h-3.5" />
             Quick comprehension check
           </span>
-          <h3 className="text-base font-bold text-text-primary mt-2 leading-snug">{check.question}</h3>
+          <h3 className="text-base font-bold text-text-primary mt-2 leading-snug">{cleanCheck.question}</h3>
           <p className="text-xs text-text-primary/55 mt-1">Make sure you&apos;ve absorbed today&apos;s lesson.</p>
         </div>
 
         <div className="space-y-2">
-          {check.options.map((option, index) => {
+          {cleanCheck.options.map((option, index) => {
             const isSelected = selected === index
-            const isCorrect = submitted && index === check.correct_index
-            const isWrongPick = submitted && isSelected && index !== check.correct_index
+            const isCorrect = submitted && index === cleanCheck.correct_index
+            const isWrongPick = submitted && isSelected && index !== cleanCheck.correct_index
 
             let style = 'border-white/10 bg-white/5 hover:border-brand-accent/40'
             if (isSelected && !submitted) style = 'border-brand-accent bg-brand-accent/10'
@@ -61,7 +69,7 @@ export default function ComprehensionCheck({ check, onPass, onReview, onFail }: 
               <button
                 key={index}
                 type="button"
-                disabled={submitted && selected === check.correct_index}
+                disabled={submitted && selected === cleanCheck.correct_index}
                 onClick={() => !submitted && setSelected(index)}
                 className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm font-medium ${style}`}
               >
@@ -71,7 +79,7 @@ export default function ComprehensionCheck({ check, onPass, onReview, onFail }: 
           })}
         </div>
 
-        {submitted && selected === check.correct_index && (
+        {submitted && selected === cleanCheck.correct_index && (
           <p className="mt-3 text-sm text-emerald-400 font-semibold">✓ Well understood. Continuing…</p>
         )}
 
@@ -120,14 +128,14 @@ export default function ComprehensionCheck({ check, onPass, onReview, onFail }: 
 
                 <div className="space-y-3 mb-5">
                   <p className="text-text-primary font-semibold leading-relaxed italic">
-                    &ldquo;{check.thought_of_the_day[0]}&rdquo;
+                    &ldquo;{cleanCheck.thought_of_the_day[0]}&rdquo;
                   </p>
                   <p className="text-text-primary/80 text-sm leading-relaxed italic">
-                    &ldquo;{check.thought_of_the_day[1]}&rdquo;
+                    &ldquo;{cleanCheck.thought_of_the_day[1]}&rdquo;
                   </p>
                 </div>
 
-                <p className="text-sm text-text-primary/70 mb-5">{check.reread_hint}</p>
+                <p className="text-sm text-text-primary/70 mb-5">{cleanCheck.reread_hint}</p>
 
                 <div className="flex flex-col gap-2">
                   <GlassButton onClick={onReview} fullWidth className="py-3 font-bold">

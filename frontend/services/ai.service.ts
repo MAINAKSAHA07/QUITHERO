@@ -453,6 +453,8 @@ class AIPersonalizationService {
       if (!content.comprehension_check) {
         content.comprehension_check = buildFallbackComprehensionCheck(dayNumber)
       }
+      // ponytail: day-bank questions test the actual lesson; AI often repeats generic checks
+      content.comprehension_check = buildFallbackComprehensionCheck(dayNumber)
 
       if (content.session_intro || content.trigger_check || content.comprehension_check) {
         this.contentCache.set(key, content)

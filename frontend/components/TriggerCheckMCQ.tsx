@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import GlassCard from './GlassCard'
 import GlassButton from './GlassButton'
 import { TriggerCheckContent } from '../types/models'
+import { sanitizePersonalizedText } from '../utils/stepContentFormat'
 
 interface TriggerCheckMCQProps {
   check: TriggerCheckContent
@@ -10,16 +11,18 @@ interface TriggerCheckMCQProps {
 }
 
 export default function TriggerCheckMCQ({ check, onComplete }: TriggerCheckMCQProps) {
+  const question = sanitizePersonalizedText(check.question)
+  const options = check.options.map((o) => sanitizePersonalizedText(o))
   const [selected, setSelected] = useState<string | null>(null)
 
   return (
     <GlassCard className="p-5 mb-4 border-brand-primary/20 bg-brand-primary/5">
       <div className="mb-4">
         <span className="text-xs font-bold uppercase tracking-wide text-brand-primary">Quick check-in</span>
-        <h3 className="text-base font-bold text-text-primary mt-2 leading-snug">{check.question}</h3>
+        <h3 className="text-base font-bold text-text-primary mt-2 leading-snug">{question}</h3>
       </div>
       <div className="space-y-2">
-        {check.options.map((option) => {
+        {options.map((option) => {
           const isSelected = selected === option
           return (
             <motion.button

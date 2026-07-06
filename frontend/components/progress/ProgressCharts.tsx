@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import {
   BarChart,
   Bar,
@@ -133,6 +134,40 @@ export function TriggerBreakdownChart({ data }: { data: TriggerSlice[] }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+export function ChartPreviewShell({
+  children,
+  isPreview,
+  ctaLabel,
+  onCta,
+}: {
+  children: ReactNode
+  isPreview: boolean
+  ctaLabel?: string
+  onCta?: () => void
+}) {
+  if (!isPreview) return <>{children}</>
+
+  return (
+    <div className="relative">
+      <div className="opacity-[0.38] pointer-events-none select-none saturate-[0.85]">{children}</div>
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2.5 pb-1 pt-10 bg-gradient-to-t from-white/95 via-white/75 to-transparent">
+        <span className="text-[11px] font-semibold text-text-primary/55 uppercase tracking-wide">
+          Sample preview
+        </span>
+        {ctaLabel && onCta && (
+          <button
+            type="button"
+            onClick={onCta}
+            className="text-xs font-bold text-brand-primary px-4 py-2 rounded-full bg-white border border-brand-primary/25 shadow-sm active:scale-[0.98] transition-transform"
+          >
+            {ctaLabel}
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { StepType } from '../types/enums'
 import { Step, UserProfile, ProgressStats, ExerciseStepContent, TriggerCheckContent, ComprehensionCheckContent, PersonalizedContent } from '../types/models'
+import { getDayComprehensionCheck } from './comprehensionBank'
 import {
   calculateYearlySpend,
   calculateCigarettesAvoidedYear,
@@ -179,60 +180,8 @@ export function getComprehensionCheckpointIndex(stepCount: number): number | nul
   return Math.floor(stepCount / 2) - 1
 }
 
-const DAY_COMPREHENSION_FALLBACKS: Record<number, Omit<ComprehensionCheckContent, 'question'> & { question?: string }> = {
-  1: {
-    question: 'What is the main purpose of understanding your smoking pattern?',
-    options: [
-      'To feel guilty about past choices',
-      'To see how the habit works so you can change it sustainably',
-      'To prove you have enough willpower',
-      'To find excuses to keep smoking',
-    ],
-    correct_index: 1,
-    thought_of_the_day: [
-      'Awareness is not guilt—it is power.',
-      'The trap only works when you cannot see it clearly.',
-    ],
-    reread_hint: 'Re-read the opening section—the core idea is about seeing the pattern, not blaming yourself.',
-  },
-  4: {
-    question: 'What does nicotine actually do to stress levels?',
-    options: [
-      'It permanently lowers cortisol and relaxes you',
-      'It temporarily relieves withdrawal, then raises stress overall',
-      'It has no effect on stress hormones',
-      'It only affects stress when combined with coffee',
-    ],
-    correct_index: 1,
-    thought_of_the_day: [
-      'The cigarette did not calm you—it paused the alarm it created.',
-      'Real relief comes from breaking the loop, not feeding it.',
-    ],
-    reread_hint: 'Look back at the section on the relaxation myth—that is today\'s key insight.',
-  },
-}
-
 export function buildFallbackComprehensionCheck(dayNumber: number, dayTitle?: string): ComprehensionCheckContent {
-  const preset = DAY_COMPREHENSION_FALLBACKS[dayNumber]
-  if (preset?.question) {
-    return preset as ComprehensionCheckContent
-  }
-  const label = dayTitle || `Day ${dayNumber}`
-  return {
-    question: `What is the core insight from ${label}?`,
-    options: [
-      'Willpower alone is the best way to quit',
-      'Understanding why you smoke helps lasting change',
-      'Cutting down gradually is always enough',
-      'Cravings mean you are failing',
-    ],
-    correct_index: 1,
-    thought_of_the_day: [
-      'Every paragraph you absorb strengthens your quit muscle.',
-      'Understanding beats white-knuckling—take another pass when ready.',
-    ],
-    reread_hint: 'Scroll back and re-read the main lesson—you may have skimmed past the key point.',
-  }
+  return getDayComprehensionCheck(dayNumber, dayTitle)
 }
 
 export function injectTriggerBranchSteps(

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Step } from '../../types/models'
 import { OpenStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
-import { splitReflectionPrompts } from '../../utils/stepContentFormat'
+import { splitReflectionPrompts, sanitizeStepText } from '../../utils/stepContentFormat'
 
 interface OpenQuestionComponentProps {
   step: Step
@@ -38,7 +38,7 @@ export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComp
   const content = step.content_json as OpenStepContent
   const [answer, setAnswer] = useState('')
 
-  const prompts = splitReflectionPrompts(content.question || '')
+  const prompts = splitReflectionPrompts(sanitizeStepText(content.question || ''))
   const hasMultiplePrompts = prompts.length > 1
 
   const handleSubmit = () => {

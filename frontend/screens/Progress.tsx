@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
 import Mascot from '../components/Mascot'
@@ -11,11 +12,12 @@ import TranslatedText from '../components/TranslatedText'
 import {
   CravingTrendChart,
   TriggerBreakdownChart,
-  ChartEmptyState,
   ChartLoadingState,
+  ChartPreviewShell,
   type ChartPoint,
   type TriggerSlice,
 } from '../components/progress/ProgressCharts'
+import { PREVIEW_CRAVING_TREND_WEEK, PREVIEW_TRIGGER_BREAKDOWN } from '../utils/progressPreviewData'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
 import { useAchievements } from '../hooks/useAchievements'
@@ -53,6 +55,7 @@ const TIME_FILTERS = [
 ]
 
 export default function Progress() {
+  const navigate = useNavigate()
   const { user, currentSession, userProfile, progressStats } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const {
@@ -259,6 +262,11 @@ export default function Progress() {
   )
 
   const isRefreshing = chartsLoading || progressLoading
+  const hasCravingData = cravingTrend.length > 0
+  const hasTriggerData = triggerBreakdown.length > 0
+  const displayCravingTrend = hasCravingData ? cravingTrend : PREVIEW_CRAVING_TREND_WEEK
+  const displayTriggerBreakdown = hasTriggerData ? triggerBreakdown : PREVIEW_TRIGGER_BREAKDOWN
+  const displayTimeFilter = hasCravingData ? timeFilter : 'week'
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
@@ -352,7 +360,12 @@ export default function Progress() {
           <h3 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wide">
             <TranslatedText text="Insights" />
           </h3>
-          <WeeklyInsights cravingTrend={cravingTrend} achievements={formattedAchievements} />
+          <WeeklyInsights
+            cravingTrend={hasCravingData ? cravingTrend : PREVIEW_CRAVING_TREND_WEEK}
+            achievements={formattedAchievements}
+            isPreview={!hasCravingData}
+            onLogCraving={() => navigate('/craving')}
+          />
         </GlassCard>
 
         {/* Craving trend chart */}
@@ -363,10 +376,14 @@ export default function Progress() {
           <p className="text-xs text-text-primary/50 mb-4">Daily craving logs over time</p>
           {chartsLoading ? (
             <ChartLoadingState />
-          ) : cravingTrend.length === 0 ? (
-            <ChartEmptyState message="Log cravings to see your patterns here" />
           ) : (
-            <CravingTrendChart data={cravingTrend} variant={timeFilter} />
+            <ChartPreviewShell
+              isPreview={!hasCravingData}
+              ctaLabel="Log your first craving"
+              onCta={() => navigate('/craving')}
+            >
+              <CravingTrendChart data={displayCravingTrend} variant={displayTimeFilter} />
+            </ChartPreviewShell>
           )}
         </GlassCard>
 
@@ -378,10 +395,14 @@ export default function Progress() {
           <p className="text-xs text-text-primary/50 mb-4">What sets off your cravings</p>
           {chartsLoading ? (
             <ChartLoadingState />
-          ) : triggerBreakdown.length === 0 ? (
-            <ChartEmptyState message="No trigger data yet — log a craving with a trigger" />
           ) : (
-            <TriggerBreakdownChart data={triggerBreakdown} />
+            <ChartPreviewShell
+              isPreview={!hasTriggerData}
+              ctaLabel="Log a craving with trigger"
+              onCta={() => navigate('/craving')}
+            >
+              <TriggerBreakdownChart data={displayTriggerBreakdown} />
+            </ChartPreviewShell>
           )}
         </GlassCard>
 
@@ -564,7 +585,17 @@ function AchievementCard({ achievement }: { achievement: { icon?: string; title:
   )
 }
 
-function WeeklyInsights({ cravingTrend, achievements }: { cravingTrend: ChartPoint[]; achievements: any[] }) {
+function WeeklyInsights({
+  cravingTrend,
+  achievements,
+  isPreview,
+  onLogCraving,
+}: {
+  cravingTrend: ChartPoint[]
+  achievements: any[]
+  isPreview?: boolean
+  onLogCraving?: () => void
+}) {
   const thisWeekTotal = cravingTrend.slice(-7).reduce((s, d) => s + (d.cravings || 0), 0)
   const lastWeekTotal = cravingTrend.slice(-14, -7).reduce((s, d) => s + (d.cravings || 0), 0)
   const diff = lastWeekTotal > 0 ? Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100) : 0
@@ -577,17 +608,30 @@ function WeeklyInsights({ cravingTrend, achievements }: { cravingTrend: ChartPoi
   return (
     <div className="space-y-2">
       {cravingTrend.length >= 2 && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-black/[0.03]">
-          <span className="text-sm text-text-primary/75">Recent cravings</span>
+        <div
+          className={`flex items-center justify-between p-3 rounded-xl bg-black/[0.03] ${isPreview ? 'opacity-50' : ''}`}
+        >
+          <span className="text-sm text-text-primary/75">
+            {isPreview ? 'Recent cravings (sample)' : 'Recent cravings'}
+          </span>
           <span className="text-sm font-bold text-text-primary tabular-nums">
             {thisWeekTotal}
-            {diff !== 0 && lastWeekTotal > 0 && (
-              <span className={`ml-1 text-xs ${diff < 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                ({diff > 0 ? '+' : ''}{diff}%)
+            {(diff !== 0 && lastWeekTotal > 0) || isPreview ? (
+              <span className={`ml-1 text-xs ${diff < 0 || isPreview ? 'text-emerald-600' : 'text-red-500'}`}>
+                ({isPreview ? '-43%' : `${diff > 0 ? '+' : ''}${diff}%`})
               </span>
-            )}
+            ) : null}
           </span>
         </div>
+      )}
+      {isPreview && onLogCraving && (
+        <button
+          type="button"
+          onClick={onLogCraving}
+          className="w-full p-3 rounded-xl border border-dashed border-brand-primary/30 text-sm font-semibold text-brand-primary active:scale-[0.99] transition-transform"
+        >
+          Log a craving to unlock your insights
+        </button>
       )}
       {nextAchievement && (
         <div className="p-3 rounded-xl bg-black/[0.03]">

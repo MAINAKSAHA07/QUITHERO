@@ -2,9 +2,22 @@
 export function sanitizePersonalizedText(text: string): string {
   if (!text) return text
   return text
-    .replace(/^[\s\-–—•]+/, '')
-    .replace(/\b(archetype|CBT|personalization|onboarding profile|tuned to your)\b/gi, '')
+    .replace(/^[\s\-–—•*]+/, '')
+    .replace(/^(?:AI|A\.I\.)\s*[-:–—]\s*/i, '')
+    .replace(/^\[(?:AI|system)\]\s*/i, '')
+    .replace(/\b(archetype|CBT|personalization|onboarding profile|tuned to your|as an AI)\b/gi, '')
+    .replace(/\s*[-–—]\s*$/g, '')
     .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+/** Sanitize program step copy (less aggressive than personalization strip) */
+export function sanitizeStepText(text: string): string {
+  if (!text) return text
+  return text
+    .replace(/^(?:AI|A\.I\.)\s*[-:–—]\s*/gim, '')
+    .replace(/\b(as an AI|personalization engine)\b/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
@@ -13,6 +26,59 @@ export type WorksheetFormat =
   | { kind: 'grid'; headers: string[]; rowLabels: string[] }
   | { kind: 'fields'; fields: { label: string; hint?: string }[] }
   | { kind: 'lines'; fields: { label: string }[] }
+  | { kind: 'repeat'; rows: number; fields: { label: string; hint?: string }[] }
+
+const WORD_TO_NUM: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+}
+
+function shortenBulletLabel(bullet: string): string {
+  const capture = bullet.search(/[.:] Capture|\. Rewrite/i)
+  const period = bullet.indexOf('. ')
+  let end = bullet.length
+  if (capture > 0) end = Math.min(end, capture)
+  else if (period > 0 && period < 70) end = period + 1
+  const label = bullet.slice(0, end).replace(/[.:]$/, '').trim()
+  return label.length > 55 ? `${label.slice(0, 52)}…` : label
+}
+
+function parseMinRows(text: string): number | null {
+  const atLeast = text.match(/at least (\w+)/i)
+  if (atLeast) return WORD_TO_NUM[atLeast[1].toLowerCase()] ?? null
+  return null
+}
+
+/** Bullet lists after "write down two things" / "note three quick things" → repeatable row form */
+function detectRepeatFromBullets(instructions: string): {
+  format: WorksheetFormat
+  body: string
+} | null {
+  const parts = instructions.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+    if (!/write down (\w+) things?|note (\w+) quick things|answer,?\s+in writing/i.test(part)) continue
+
+    const fieldBullets: string[] = []
+    let j = i + 1
+    while (j < parts.length && /^[•-]\s/.test(parts[j])) {
+      fieldBullets.push(parts[j].replace(/^[•-]\s*/, ''))
+      j++
+    }
+    if (fieldBullets.length < 2) continue
+
+    const rows = parseMinRows(instructions) ?? 5
+    const fields = fieldBullets.map((b) => ({
+      label: shortenBulletLabel(b),
+      hint: b.length > shortenBulletLabel(b).length + 8 ? b : undefined,
+    }))
+
+    const body = [...parts.slice(0, i + 1), ...parts.slice(j)].join('\n\n')
+    return { format: { kind: 'repeat', rows, fields }, body }
+  }
+
+  return null
+}
 
 function isWorksheetLine(line: string): boolean {
   if (!line || line.startsWith('•') || line.startsWith('- ')) return false
@@ -81,6 +147,11 @@ export function splitExerciseInstructions(instructions: string): {
   suffixLines: string[]
   worksheet: WorksheetFormat | null
 } {
+  const repeat = detectRepeatFromBullets(instructions)
+  if (repeat) {
+    return { body: repeat.body, suffixLines: [], worksheet: repeat.format }
+  }
+
   const parts = instructions.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
   let suffixStart = parts.length
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -146,3 +217,4 @@ export type WorksheetPayload =
   | { kind: 'grid'; headers: string[]; rows: { label: string; values: string[] }[] }
   | { kind: 'fields'; values: Record<string, string> }
   | { kind: 'lines'; values: Record<string, string> }
+  | { kind: 'repeat'; rows: { values: Record<string, string> }[] }

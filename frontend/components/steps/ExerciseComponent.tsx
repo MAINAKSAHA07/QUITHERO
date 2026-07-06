@@ -9,6 +9,7 @@ import {
   splitExerciseInstructions,
   formatInstructionBullets,
   formatInstructionParagraphs,
+  sanitizeStepText,
   WorksheetPayload,
 } from '../../utils/stepContentFormat'
 
@@ -20,7 +21,7 @@ interface ExerciseComponentProps {
 
 export default function ExerciseComponent({ step, onNext, focusLabel }: ExerciseComponentProps) {
   const content = step.content_json as ExerciseStepContent
-  const rawInstructions = content.instructions || content.text || ''
+  const rawInstructions = sanitizeStepText(content.instructions || content.text || '')
   const { body, worksheet } = splitExerciseInstructions(rawInstructions)
   const bullets = formatInstructionBullets(body)
   const paragraphs = formatInstructionParagraphs(body)

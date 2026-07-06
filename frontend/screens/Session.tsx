@@ -225,18 +225,26 @@ export default function Session() {
 
         // ponytail: hydrate checks immediately so step-0 trigger gate isn't skipped while AI loads
         if (profileFallback) {
+          const comprehension = buildFallbackComprehensionCheck(dayNum, dayResult.data?.title)
           const stored = await sessionPersonalizationService.getStoredPersonalization(user.id, dayNum)
-          setPersonalizedContent(stored ? { ...profileFallback, ...stored } : profileFallback)
+          setPersonalizedContent(
+            stored
+              ? { ...profileFallback, ...stored, comprehension_check: comprehension }
+              : { ...profileFallback, comprehension_check: comprehension }
+          )
         }
 
         aiService.getPersonalizedSessionContent(user.id, dayNum, dayId)
           .then(content => {
+            const comprehension = buildFallbackComprehensionCheck(dayNum, dayResult.data?.title)
             if (content) {
               setPersonalizedContent(
-                profileFallback ? { ...profileFallback, ...content } : content
+                profileFallback
+                  ? { ...profileFallback, ...content, comprehension_check: comprehension }
+                  : { ...content, comprehension_check: comprehension }
               )
             } else if (profileFallback) {
-              saveFallback(profileFallback)
+              saveFallback({ ...profileFallback, comprehension_check: comprehension })
             }
           })
           .catch(() => {

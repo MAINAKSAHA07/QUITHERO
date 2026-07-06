@@ -41,6 +41,13 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
     return {}
   })
 
+  const [repeatData, setRepeatData] = useState<Record<string, string>[]>(() => {
+    if (format.kind !== 'repeat') return []
+    return Array.from({ length: format.rows }, () =>
+      Object.fromEntries(format.fields.map((f) => [f.label, '']))
+    )
+  })
+
   const emitStress = (rows: typeof stressRows) => {
     onChange({ kind: 'stress', rows })
   }
@@ -59,6 +66,10 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
 
   const emitFields = (data: Record<string, string>, kind: 'fields' | 'lines') => {
     onChange({ kind, values: data })
+  }
+
+  const emitRepeat = (rows: Record<string, string>[]) => {
+    onChange({ kind: 'repeat', rows: rows.map((values) => ({ values })) })
   }
 
   const gridColTemplate = useMemo(() => {
@@ -171,6 +182,45 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
               rows={2}
               className={`${inputClass} resize-none min-h-[56px]`}
             />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (format.kind === 'repeat') {
+    return (
+      <div className="mt-4 space-y-3">
+        {repeatData.map((row, ri) => (
+          <div
+            key={ri}
+            className="rounded-xl border border-black/[0.06] bg-white/60 p-3 space-y-2.5"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wide text-brand-primary">
+              Entry {ri + 1}
+            </p>
+            {format.fields.map((field) => (
+              <div key={field.label}>
+                <label className="text-xs font-semibold text-text-primary/80 block mb-1">
+                  {field.label}
+                </label>
+                <textarea
+                  value={row[field.label] || ''}
+                  onChange={(e) => {
+                    setRepeatData((prev) => {
+                      const next = prev.map((r, idx) =>
+                        idx === ri ? { ...r, [field.label]: e.target.value } : r
+                      )
+                      emitRepeat(next)
+                      return next
+                    })
+                  }}
+                  placeholder={field.hint}
+                  rows={2}
+                  className={`${inputClass} resize-none min-h-[52px] text-sm`}
+                />
+              </div>
+            ))}
           </div>
         ))}
       </div>
