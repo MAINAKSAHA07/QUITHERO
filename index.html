@@ -75,7 +75,7 @@
       border-bottom: 1px solid var(--border);
       box-shadow: 0 4px 20px rgba(139, 205, 232, 0.04);
     }
-    .nav .container { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .nav .container { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; }
     .nav-logo {
       font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;
       color: var(--primary); display: flex; align-items: center; gap: 8px;
@@ -116,7 +116,7 @@
     /* ═══ HERO ═══ */
     .hero {
       min-height: 100vh; display: flex; align-items: center;
-      padding: 120px 0 80px; position: relative; overflow: hidden;
+      padding: 120px 0 100px; position: relative; overflow: visible;
     }
     .hero-bg {
       position: absolute; inset: 0; z-index: 0;
@@ -129,7 +129,7 @@
     @keyframes orbFloat1 { from { transform: translate(0,0) } to { transform: translate(40px,-30px) } }
     @keyframes orbFloat2 { from { transform: translate(0,0) } to { transform: translate(-30px,30px) } }
 
-    .hero-content { position: relative; z-index: 1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; }
+    .hero-content { position: relative; z-index: 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: center; }
     .hero-text { max-width: 580px; }
     .hero-pill {
       display: inline-block; padding: 6px 16px; border-radius: var(--radius-pill);
@@ -193,14 +193,21 @@
 
     /* Hero Canvas and Node Graphics */
     .hero-visual {
-      display: flex; justify-content: center; align-items: center; position: relative;
-      transform: scale(1.12);
-      margin-left: -24px;
+      position: relative;
+      min-height: 380px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
     }
     .reset-node-container {
-      position: relative; width: 380px; height: 380px; border-radius: 50%;
+      position: relative; width: 340px; height: 340px; border-radius: 50%;
       background: radial-gradient(circle at center, rgba(90, 130, 150, 0.06) 0%, transparent 70%);
       display: flex; justify-content: center; align-items: center;
+      z-index: 1;
+      flex-shrink: 0;
+      margin: 0 auto;
     }
     #heroCanvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
     .node-center-label {
@@ -244,7 +251,16 @@
       .hero-content { grid-template-columns: 1fr; text-align: center; }
       .hero-text { max-width: 100%; margin: 0 auto; }
       .hero-ctas { justify-content: center; }
-      .hero-visual { margin-top: 40px; transform: scale(1); margin-left: 0; }
+      .hero-trust-badges { justify-content: center; }
+      .hero-avatar-row { justify-content: center; }
+      .hero-visual { margin-top: 32px; padding: 0 12px; min-height: 300px; }
+      .reset-node-container { width: 300px; height: 300px; }
+      .micro-label.label-craving,
+      .micro-label.label-reset { display: none; }
+    }
+
+    @media (max-width: 768px) {
+      .reset-node-container { max-width: 260px; width: 260px; height: 260px; }
     }
 
     /* ═══ STATS ═══ */
@@ -797,12 +813,7 @@
     /* ═══ FOOTER ═══ */
     .footer { padding: 60px 0 40px; border-top: 1px solid var(--border); }
     .footer-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; }
-    .footer-logo {
-      font-family: var(--font-display); font-size: 1.4rem; font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; margin-bottom: 8px;
-    }
+    .footer-logo { margin-bottom: 4px; }
     .footer-tagline { font-size: 0.85rem; color: var(--muted); }
     .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
     .footer-links a { font-size: 0.85rem; color: var(--muted); transition: color 0.2s; }
@@ -816,7 +827,160 @@
     .footer-social svg { width: 16px; height: 16px; fill: var(--muted); }
     .footer-bottom { text-align: center; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
 
-    @media (max-width: 768px) { .footer-content { flex-direction: column; text-align: center; } }
+    @media (max-width: 768px) { .footer-content { flex-direction: column; text-align: center; } .footer-brand { justify-content: center; } }
+
+    /* ═══ SMONO LOGO + MASCOT ═══ */
+    .smono-wordmark {
+      display: inline-flex; align-items: center; font-weight: 900;
+      letter-spacing: -0.03em; line-height: 1; font-family: var(--font-body);
+    }
+    .smono-wordmark .sm { color: #A8D4EA; }
+    .smono-wordmark .no { color: #FDB47B; }
+    .smono-wordmark .logo-o { width: 1.05em; height: 1.05em; margin: 0 1px; flex-shrink: 0; }
+    .smono-wordmark.lg { font-size: 1.35rem; }
+    .smono-wordmark.xl { font-size: 1.6rem; }
+    .nav-logo { gap: 10px; }
+    .nav-mascot { width: 34px; height: 34px; object-fit: contain; flex-shrink: 0; }
+    .footer-brand { display: flex; align-items: center; gap: 12px; }
+    .footer-mascot { width: 44px; height: 44px; object-fit: contain; }
+
+    /* ═══ APP PREVIEW MOCKUPS ═══ */
+    .app-preview {
+      padding: 100px 0 40px;
+      background: linear-gradient(180deg, transparent, rgba(139, 205, 232, 0.06) 40%, transparent);
+    }
+    .app-mockup-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
+      margin-top: 52px; align-items: end;
+    }
+    .app-mockup-card { text-align: center; }
+    .app-mockup-card .phone { margin: 0 auto; }
+    .app-mockup-caption {
+      margin-top: 20px; font-size: 0.95rem; font-weight: 600; color: var(--text);
+    }
+    .app-mockup-caption span {
+      display: block; font-size: 0.8rem; font-weight: 400; color: var(--muted); margin-top: 4px;
+    }
+    .phone-gallery { width: 255px; height: 520px; transform: scale(0.92); }
+    .phone-gallery:hover { transform: scale(0.94) translateY(-6px); }
+
+    /* In-phone app chrome */
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 2px 10px; border-bottom: 1px solid rgba(139, 205, 232, 0.2); margin-bottom: 10px;
+    }
+    .app-header-center { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .app-header-mascot { width: 28px; height: 28px; object-fit: contain; }
+    .app-header .smono-wordmark { font-size: 0.95rem; }
+    .app-icon-btn {
+      width: 26px; height: 26px; border-radius: 8px; background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(139, 205, 232, 0.3); display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; color: var(--muted);
+    }
+
+    .stat-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
+    }
+    .stat-tile {
+      padding: 8px 6px; border-radius: 10px; background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(139, 205, 232, 0.25); text-align: center;
+    }
+    .stat-tile .val { font-size: 0.95rem; font-weight: 800; color: var(--primary); line-height: 1.1; }
+    .stat-tile .val.peach { color: var(--peach); }
+    .stat-tile .val.sage { color: var(--sage); }
+    .stat-tile .lbl { font-size: 0.48rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+    .program-card {
+      padding: 12px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(139, 205, 232, 0.18), rgba(246, 184, 132, 0.14));
+      border: 1px solid rgba(139, 205, 232, 0.3); margin-bottom: 10px; position: relative; overflow: hidden;
+    }
+    .program-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .program-eyebrow { font-size: 0.48rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; }
+    .program-day { font-size: 1.35rem; font-weight: 800; color: var(--text); line-height: 1.1; margin-top: 2px; }
+    .program-mascot { width: 40px; height: 40px; object-fit: contain; opacity: 0.95; }
+    .program-bar-wrap { margin: 8px 0; }
+    .program-bar { height: 5px; background: rgba(139, 205, 232, 0.2); border-radius: 99px; overflow: hidden; }
+    .program-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--primary), var(--peach)); width: 7%; }
+    .program-pct { font-size: 0.55rem; color: var(--muted); margin-bottom: 8px; }
+    .program-cta {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 8px 10px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary-light), var(--peach));
+      color: #fff; font-size: 0.62rem; font-weight: 700; text-align: center; line-height: 1.2;
+    }
+
+    .today-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .today-pill {
+      padding: 4px 8px; border-radius: 99px; font-size: 0.52rem; font-weight: 600;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .today-pill.resisted { background: rgba(110, 164, 143, 0.15); color: var(--sage); }
+    .today-pill.slipped { background: rgba(242, 140, 107, 0.15); color: var(--coral); }
+
+    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+    .quick-btn {
+      padding: 8px 2px; border-radius: 10px; background: rgba(255,255,255,0.8);
+      border: 1px solid rgba(139, 205, 232, 0.25); text-align: center; font-size: 0.48rem; font-weight: 600; color: var(--text);
+    }
+    .quick-btn .qb-icon { font-size: 0.85rem; display: block; margin-bottom: 3px; }
+
+    .app-tabbar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 4px 6px 10px;
+      background: rgba(255,255,255,0.95); border-top: 1px solid rgba(139, 205, 232, 0.25);
+      display: grid; grid-template-columns: 1fr 1fr 44px 1fr 1fr;
+      align-items: end; gap: 0;
+    }
+    .tab-item { font-size: 0.45rem; color: var(--muted); text-align: center; font-weight: 600; padding-bottom: 2px; }
+    .tab-item.active { color: var(--primary); }
+    .tab-fab-slot { display: flex; justify-content: center; align-items: flex-end; height: 100%; }
+    .tab-fab {
+      width: 32px; height: 32px; border-radius: 50%; margin-bottom: 10px;
+      background: linear-gradient(135deg, var(--primary-light), var(--peach));
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.95rem; font-weight: 300;
+      box-shadow: 0 4px 12px rgba(63, 141, 210, 0.3);
+      position: relative; z-index: 2;
+    }
+    .phone-screen.has-tabbar .phone-content { padding-bottom: 52px; }
+
+    /* Sessions list mockup */
+    .session-item {
+      display: flex; align-items: center; gap: 8px; padding: 9px 10px; margin-bottom: 6px;
+      border-radius: 12px; background: rgba(255,255,255,0.85); border: 1px solid rgba(139, 205, 232, 0.22);
+    }
+    .session-item.active-item { border-color: var(--primary); background: rgba(139, 205, 232, 0.12); }
+    .session-num {
+      width: 28px; height: 28px; border-radius: 50%; font-size: 0.65rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      background: rgba(139, 205, 232, 0.2); color: var(--primary);
+    }
+    .session-item.done .session-num { background: var(--sage); color: #fff; }
+    .session-item.current .session-num { background: var(--primary); color: #fff; }
+    .session-info { flex: 1; min-width: 0; text-align: left; }
+    .session-title { font-size: 0.62rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .session-sub { font-size: 0.5rem; color: var(--muted); }
+    .session-badge { font-size: 0.45rem; font-weight: 700; padding: 2px 6px; border-radius: 99px; }
+    .session-badge.done { background: rgba(110, 164, 143, 0.2); color: var(--sage); }
+    .session-badge.now { background: rgba(63, 141, 210, 0.15); color: var(--primary); }
+
+    /* Progress chart mockup */
+    .chart-area {
+      height: 90px; margin: 8px 0 12px; padding: 8px;
+      background: rgba(255,255,255,0.7); border-radius: 12px; border: 1px solid rgba(139, 205, 232, 0.2);
+      display: flex; align-items: flex-end; gap: 4px; justify-content: space-between;
+    }
+    .chart-bar {
+      flex: 1; border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, var(--primary-light), rgba(139, 205, 232, 0.3));
+      min-height: 8px;
+    }
+
+
+    @media (max-width: 1024px) {
+      .app-mockup-grid { grid-template-columns: 1fr; max-width: 300px; margin-left: auto; margin-right: auto; gap: 48px; }
+    }
 
     /* ═══ SCROLL ANIMATIONS ═══ */
     .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
@@ -862,8 +1026,16 @@
   <!-- Navigation -->
   <nav class="nav" role="navigation" aria-label="Main navigation">
     <div class="container">
-      <a href="#" class="nav-logo" aria-label="Smono home"><span class="nav-logo-leaf">🌿</span>Smono</a>
+      <a href="#" class="nav-logo" aria-label="Smono home">
+        <img src="mascot.png" alt="" class="nav-mascot" role="presentation">
+        <span class="smono-wordmark lg" aria-hidden="true">
+          <span class="sm">sm</span>
+          <svg class="logo-o" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" stroke-width="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" stroke-width="10" stroke-linecap="round"/></svg>
+          <span class="no">no</span>
+        </span>
+      </a>
       <div class="nav-links">
+        <a href="#app-preview">App</a>
         <a href="#reset-story">How it works</a>
         <a href="#science">Science</a>
         <a href="#testimonials">Stories</a>
@@ -876,6 +1048,7 @@
     </div>
   </nav>
   <div class="mobile-menu" role="menu">
+    <a href="#app-preview" role="menuitem">App</a>
     <a href="#reset-story" role="menuitem">How it works</a>
     <a href="#science" role="menuitem">Science</a>
     <a href="#testimonials" role="menuitem">Stories</a>
@@ -924,14 +1097,14 @@
           <canvas id="heroCanvas"></canvas>
           <div class="node-center-label">
             <span class="day-eyebrow">Your Reset</span>
-            <span class="day-num">Day 7</span>
+            <span class="day-num">Day 2</span>
             <span class="day-total">/ 30</span>
             <span class="day-sub">You're building<br>something stronger.</span>
           </div>
-          <div class="micro-label label-trigger" style="top: 12%; left: 12%;">Trigger</div>
-          <div class="micro-label label-belief" style="bottom: 16%; left: 10%;">Belief</div>
-          <div class="micro-label label-craving" style="top: 22%; right: 8%;">Craving</div>
-          <div class="micro-label label-reset" style="bottom: 12%; right: 14%;">Reset</div>
+          <div class="micro-label label-trigger" style="top: 6%; left: 4%;">Trigger</div>
+          <div class="micro-label label-belief" style="bottom: 22%; left: 0%;">Belief</div>
+          <div class="micro-label label-craving" style="top: 10%; right: 2%;">Craving</div>
+          <div class="micro-label label-reset" style="bottom: 6%; right: 4%;">Reset</div>
         </div>
       </div>
     </div>
@@ -1036,6 +1209,205 @@
           </div>
           <h3>Practice the reset</h3>
           <p>Build a repeatable response for high-risk moments, replacing cravings with a sense of control.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Preview Mockups -->
+  <section class="app-preview" id="app-preview">
+    <div class="container">
+      <h2 class="section-title reveal">See the app in your pocket</h2>
+      <p class="section-sub reveal">Home dashboard, daily sessions, and progress — built around the same mascot and brand you’ll see every day.</p>
+      <div class="app-mockup-grid">
+        <!-- Home -->
+        <div class="app-mockup-card reveal">
+          <div class="phone phone-gallery phone-home">
+            <div class="phone-screen has-tabbar">
+              <div class="phone-island"></div>
+              <div class="phone-status"><span>9:41</span><span>●●● ⚡ 92%</span></div>
+              <div class="phone-content">
+                <div class="app-header">
+                  <div class="app-icon-btn">☰</div>
+                  <div class="app-header-center">
+                    <img src="mascot.png" alt="" class="app-header-mascot" role="presentation">
+                    <span class="smono-wordmark" aria-hidden="true">
+                      <span class="sm">sm</span>
+                      <svg class="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" stroke-width="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" stroke-width="10" stroke-linecap="round"/></svg>
+                      <span class="no">no</span>
+                    </span>
+                  </div>
+                  <div class="app-icon-btn">↻</div>
+                </div>
+                <div class="stat-grid">
+                  <div class="stat-tile"><div class="val">2</div><div class="lbl">Day · Program</div></div>
+                  <div class="stat-tile"><div class="val peach">2</div><div class="lbl">Cigs Avoided</div></div>
+                  <div class="stat-tile"><div class="val sage">₹24</div><div class="lbl">Money Saved</div></div>
+                  <div class="stat-tile"><div class="val">1.6mg</div><div class="lbl">Nicotine Avoided</div></div>
+                </div>
+                <div class="program-card">
+                  <div class="program-card-top">
+                    <div>
+                      <div class="program-eyebrow">30-DAY PROGRAM</div>
+                      <div class="program-day">Day 2</div>
+                    </div>
+                    <img src="mascot.png" alt="" class="program-mascot" role="presentation">
+                  </div>
+                  <div class="program-pct">7% complete</div>
+                  <div class="program-bar-wrap"><div class="program-bar"><div class="program-bar-fill" style="width:7%"></div></div></div>
+                  <div class="program-cta">Continue Program →</div>
+                </div>
+                <div class="today-row">
+                  <span class="today-pill resisted">🛡 2 resisted</span>
+                  <span class="today-pill slipped">🚬 1 slipped</span>
+                </div>
+                <div class="quick-grid">
+                  <div class="quick-btn"><span class="qb-icon">🛡</span>Resisted</div>
+                  <div class="quick-btn"><span class="qb-icon">🌬</span>Breathe</div>
+                  <div class="quick-btn"><span class="qb-icon">🚬</span>Log Slip</div>
+                  <div class="quick-btn"><span class="qb-icon">＋</span>Craving</div>
+                </div>
+              </div>
+              <div class="app-tabbar">
+                <div class="tab-item active">Home</div>
+                <div class="tab-item">Sessions</div>
+                <div class="tab-fab-slot"><div class="tab-fab">+</div></div>
+                <div class="tab-item">Progress</div>
+                <div class="tab-item">Profile</div>
+              </div>
+            </div>
+          </div>
+          <p class="app-mockup-caption">Home<span>Stats, quick actions, and your daily reset</span></p>
+        </div>
+
+        <!-- Sessions -->
+        <div class="app-mockup-card reveal">
+          <div class="phone phone-gallery">
+            <div class="phone-screen has-tabbar">
+              <div class="phone-island"></div>
+              <div class="phone-status"><span>9:41</span><span>●●● ⚡ 88%</span></div>
+              <div class="phone-content">
+                <div class="app-header">
+                  <div class="app-icon-btn">☰</div>
+                  <div class="app-header-center">
+                    <img src="mascot.png" alt="" class="app-header-mascot" role="presentation">
+                    <span class="smono-wordmark" aria-hidden="true">
+                      <span class="sm">sm</span>
+                      <svg class="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" stroke-width="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" stroke-width="10" stroke-linecap="round"/></svg>
+                      <span class="no">no</span>
+                    </span>
+                  </div>
+                  <div class="app-icon-btn">↻</div>
+                </div>
+                <div class="phone-section-title" style="margin-top:4px">30-Day Program</div>
+                <div class="session-item done">
+                  <div class="session-num">✓</div>
+                  <div class="session-info">
+                    <div class="session-title">Day 1 — Your Journey</div>
+                    <div class="session-sub">Completed · 18 min</div>
+                  </div>
+                  <span class="session-badge done">Done</span>
+                </div>
+                <div class="session-item done">
+                  <div class="session-num">✓</div>
+                  <div class="session-info">
+                    <div class="session-title">Day 2 — How Nicotine Hooks</div>
+                    <div class="session-sub">Completed · 32 min</div>
+                  </div>
+                  <span class="session-badge done">Done</span>
+                </div>
+                <div class="session-item current active-item">
+                  <div class="session-num">3</div>
+                  <div class="session-info">
+                    <div class="session-title">Day 3 — The Pleasure Illusion</div>
+                    <div class="session-sub">In progress · ~29 min</div>
+                  </div>
+                  <span class="session-badge now">Now</span>
+                </div>
+                <div class="session-item">
+                  <div class="session-num">4</div>
+                  <div class="session-info">
+                    <div class="session-title">Day 4 — The Relaxation Myth</div>
+                    <div class="session-sub">Locked</div>
+                  </div>
+                </div>
+                <div class="session-item" style="opacity:0.55">
+                  <div class="session-num">5</div>
+                  <div class="session-info">
+                    <div class="session-title">Day 5 — Concentration & Boredom</div>
+                    <div class="session-sub">Locked</div>
+                  </div>
+                </div>
+              </div>
+              <div class="app-tabbar">
+                <div class="tab-item">Home</div>
+                <div class="tab-item active">Sessions</div>
+                <div class="tab-fab-slot"><div class="tab-fab">+</div></div>
+                <div class="tab-item">Progress</div>
+                <div class="tab-item">Profile</div>
+              </div>
+            </div>
+          </div>
+          <p class="app-mockup-caption">Sessions<span>30 guided CBT days, one unlock at a time</span></p>
+        </div>
+
+        <!-- Progress -->
+        <div class="app-mockup-card reveal">
+          <div class="phone phone-gallery">
+            <div class="phone-screen has-tabbar">
+              <div class="phone-island"></div>
+              <div class="phone-status"><span>9:41</span><span>●●● ⚡ 95%</span></div>
+              <div class="phone-content">
+                <div class="app-header">
+                  <div class="app-icon-btn">☰</div>
+                  <div class="app-header-center">
+                    <img src="mascot.png" alt="" class="app-header-mascot" role="presentation">
+                    <span class="smono-wordmark" aria-hidden="true">
+                      <span class="sm">sm</span>
+                      <svg class="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" stroke-width="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" stroke-width="10" stroke-linecap="round"/></svg>
+                      <span class="no">no</span>
+                    </span>
+                  </div>
+                  <div class="app-icon-btn">↻</div>
+                </div>
+                <div class="phone-section-title" style="margin-top:4px">Craving Trend</div>
+                <div class="chart-area" aria-hidden="true">
+                  <div class="chart-bar" style="height:35%"></div>
+                  <div class="chart-bar" style="height:55%"></div>
+                  <div class="chart-bar" style="height:42%"></div>
+                  <div class="chart-bar" style="height:68%"></div>
+                  <div class="chart-bar" style="height:38%"></div>
+                  <div class="chart-bar" style="height:28%"></div>
+                  <div class="chart-bar" style="height:22%"></div>
+                </div>
+                <div class="phone-section-title">Trigger Breakdown</div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Stress</span><span>42%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width:42%"></div></div>
+                </div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Habit</span><span>28%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width:28%"></div></div>
+                </div>
+                <div class="trigger-row">
+                  <div class="trigger-info"><span>Social</span><span>18%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width:18%"></div></div>
+                </div>
+                <div class="trigger-row" style="margin-bottom:0">
+                  <div class="trigger-info"><span>Boredom</span><span>12%</span></div>
+                  <div class="mini-bar"><div class="mini-bar-fill" style="width:12%"></div></div>
+                </div>
+              </div>
+              <div class="app-tabbar">
+                <div class="tab-item">Home</div>
+                <div class="tab-item">Sessions</div>
+                <div class="tab-fab-slot"><div class="tab-fab">+</div></div>
+                <div class="tab-item active">Progress</div>
+                <div class="tab-item">Profile</div>
+              </div>
+            </div>
+          </div>
+          <p class="app-mockup-caption">Progress<span>Craving trends and trigger patterns over time</span></p>
         </div>
       </div>
     </div>
@@ -1489,8 +1861,17 @@
     <div class="container">
       <div class="footer-content">
         <div class="footer-brand">
-          <div class="footer-logo">Smono</div>
-          <p class="footer-tagline">Remove the desire. Not just the cigarette.</p>
+          <img src="mascot.png" alt="" class="footer-mascot" role="presentation">
+          <div>
+            <div class="footer-logo">
+              <span class="smono-wordmark xl" aria-hidden="true">
+                <span class="sm">sm</span>
+                <svg class="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" stroke-width="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" stroke-width="10" stroke-linecap="round"/></svg>
+                <span class="no">no</span>
+              </span>
+            </div>
+            <p class="footer-tagline">Remove the desire. Not just the cigarette.</p>
+          </div>
         </div>
         <div class="footer-links">
           <a href="/privacy">Privacy Policy</a>
