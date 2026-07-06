@@ -29,7 +29,7 @@ const motivationalQuotes = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user, userProfile, currentSession, sessionLoading, fetchCurrentSession } = useApp()
+  const { user, userProfile, currentSession, sessionLoading, progressStats } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
@@ -39,23 +39,17 @@ export default function Home() {
   const [milestoneDay, setMilestoneDay] = useState<number | null>(null)
   const [quickLogging, setQuickLogging] = useState(false)
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (refreshProgress = false) => {
     if (!user?.id) return
     setIsRefreshing(true)
     try {
       const slipsResult = await cravingService.getCountByType(user.id, 'slip')
       setSlipsCount(slipsResult.success && slipsResult.data !== undefined ? slipsResult.data : 0)
-      await refreshProgressData()
-      await fetchCurrentSession()
+      if (refreshProgress) await refreshProgressData()
       const today = new Date().getDate()
       setMotivationalQuote(motivationalQuotes[today % motivationalQuotes.length])
-
-      // H4: Today's craving/slip counts — fetch all and filter client-side
-      // (cravings collection may lack `created` system field)
       try {
-        const allCravingsResult = await cravingService.getAll({
-          filter: `user="${user.id}"`,
-        })
+        const allCravingsResult = await cravingService.getAll({ filter: `user="${user.id}"` })
         if (allCravingsResult.success && allCravingsResult.data) {
           const items = allCravingsResult.data
           setTodayCravings(items.filter((c: any) => c.type === 'craving').length)
@@ -67,9 +61,12 @@ export default function Home() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [user?.id, refreshProgressData, fetchCurrentSession])
+  }, [user?.id, refreshProgressData])
 
-  // H3: Check for milestone celebrations
+  useEffect(() => {
+    if (user?.id) loadData()
+  }, [user?.id, loadData])
+
   useEffect(() => {
     const days = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     if (days > 0) {
@@ -82,7 +79,6 @@ export default function Home() {
     }
   }, [calculation, stats])
 
-  // H6: Quick log craving from home
   const handleQuickResist = async () => {
     if (!user?.id || quickLogging) return
     setQuickLogging(true)
@@ -102,20 +98,20 @@ export default function Home() {
 
   useEffect(() => {
     if (user?.id) {
-      loadData()
       analyticsService.trackPageView('home', user.id)
     }
-  }, [user?.id, loadData])
+  }, [user?.id])
 
   const displayStats = useMemo(() => {
-    const daysSmokeFree = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
-    const moneySaved = calculation?.money_saved ?? stats?.money_saved ?? 0
-    const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? 0
-    const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
+    const daysSmokeFree = calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? progressStats?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
+    const moneySaved = calculation?.money_saved ?? progressStats?.money_saved ?? stats?.money_saved ?? 0
+    const nicotinePerCig = getCountryConfig(userProfile?.country).nicotinePerCigarette
+    const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? cigarettesNotSmoked * nicotinePerCig
     const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
     const currencySymbol = getCountryConfig(userProfile?.country).symbol
     return { daysSmokeFree, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed, cigarettesNotSmoked }
-  }, [stats, calculation, slipsCount, userProfile?.country])
+  }, [stats, calculation, progressStats, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
   const programProgress = Math.round((currentDay / 30) * 100)
@@ -148,7 +144,7 @@ export default function Home() {
           left="menu"
           center="smono"
           right={
-            <button onClick={loadData} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target">
+            <button onClick={() => loadData(true)} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target">
               <RefreshCw className={`w-5 h-5 text-text-primary ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
             </button>
           }

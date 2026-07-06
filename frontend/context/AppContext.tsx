@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { authHelpers } from '../lib/pocketbase'
 import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
@@ -59,23 +59,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_language', lang)
   }
 
-  // Sync language from user profile when profile is loaded
+  // Sync language from user profile when profile is loaded (one-way: profile → app)
   useEffect(() => {
-    if (userProfile?.language) {
-      // If profile has a language, use it and sync to localStorage
-      if (userProfile.language !== language) {
-        setLanguageState(userProfile.language)
-        localStorage.setItem('app_language', userProfile.language)
-      }
-    } else if (userProfile && !userProfile.language) {
-      // If profile exists but has no language, save current language to profile
-      if (user?.id && language) {
-        profileService.updateProfile(user.id, {
-          language: language as any,
-        }).catch(console.error)
-      }
+    if (userProfile?.language && userProfile.language !== language) {
+      setLanguageState(userProfile.language)
+      localStorage.setItem('app_language', userProfile.language)
     }
-  }, [userProfile?.language, user?.id, language])
+  }, [userProfile?.language, language])
+
+  // Backfill missing profile language once — not on every render
+  const languageBackfillDone = useRef(false)
+  useEffect(() => {
+    if (languageBackfillDone.current || !user?.id || !userProfile || userProfile.language) return
+    languageBackfillDone.current = true
+    profileService.updateProfile(user.id, { language: language as any }).catch(console.error)
+  }, [user?.id, userProfile, language])
 
   // Sync with PocketBase auth state on mount
   useEffect(() => {
@@ -91,8 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Fetch user profile when user changes
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     if (!user?.id) return
     setProfileLoading(true)
     try {
@@ -105,10 +102,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setProfileLoading(false)
     }
-  }
+  }, [user?.id])
 
   // Update user profile - accepts full profile or partial updates
-  const updateUserProfile = async (data: Partial<UserProfile> | UserProfile) => {
+  const updateUserProfile = useCallback(async (data: Partial<UserProfile> | UserProfile) => {
     if (!user?.id) return
     setProfileLoading(true)
     try {
@@ -132,12 +129,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setProfileLoading(false)
     }
-  }
+  }, [user?.id])
 
-  // Fetch current session
-  const fetchCurrentSession = async () => {
+  const fetchCurrentSession = useCallback(async () => {
     if (!user?.id) return
-    setSessionLoading(true)
+    const silent = currentSession !== null
+    if (!silent) setSessionLoading(true)
     try {
       const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (result.success && result.data) {
@@ -150,14 +147,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.error('Failed to fetch current session:', error)
       setCurrentSession(null)
     } finally {
-      setSessionLoading(false)
+      if (!silent) setSessionLoading(false)
     }
-  }
+  }, [user?.id, currentSession])
 
-  // Refresh progress stats
-  const refreshProgress = async () => {
+  const refreshProgress = useCallback(async () => {
     if (!user?.id) return
-    setProgressLoading(true)
+    const silent = progressStats !== null
+    if (!silent) setProgressLoading(true)
     try {
       const result = await progressService.calculateProgress(user.id)
       if (result.success) {
@@ -169,42 +166,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to refresh progress:', error)
     } finally {
-      setProgressLoading(false)
+      if (!silent) setProgressLoading(false)
     }
-  }
+  }, [user?.id, progressStats])
 
-  // Clear all user data on logout
-  const clearUserData = () => {
+  const clearUserData = useCallback(() => {
     setUserProfile(null)
     setProgressStats(null)
     setCurrentSession(null)
     setUser(null)
     setIsAuthenticated(false)
-  }
+    languageBackfillDone.current = false
+  }, [])
 
-  // Auto-fetch when user is set
+  const initialLoadDone = useRef<string | null>(null)
+
+  // Load user data once per login — avoid refetch loops that flicker the UI
   useEffect(() => {
-    if (user?.id && isAuthenticated) {
-      fetchUserProfile()
-      fetchCurrentSession()
-      refreshProgress()
-      // Check achievements on app open
-      achievementService.checkAndUnlock(user.id).catch(console.error)
-      // Silently refresh behavioral profile if stale (>24h or never computed)
-      behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
-      
-      // Request notification permission and schedule reminders
-      if (userProfile?.enable_reminders && userProfile?.daily_reminder_time) {
-        import('../utils/notifications').then(({ NotificationService }) => {
-          NotificationService.requestPermission().then((granted) => {
-            if (granted && userProfile.daily_reminder_time) {
-              NotificationService.scheduleDailyReminder(userProfile.daily_reminder_time)
-            }
-          })
-        })
-      }
+    if (!user?.id || !isAuthenticated) {
+      initialLoadDone.current = null
+      return
     }
-  }, [user?.id, isAuthenticated, userProfile?.enable_reminders, userProfile?.daily_reminder_time])
+    if (initialLoadDone.current === user.id) return
+    initialLoadDone.current = user.id
+
+    fetchUserProfile()
+    fetchCurrentSession()
+    refreshProgress()
+    achievementService.checkAndUnlock(user.id).catch(console.error)
+    behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
+  }, [user?.id, isAuthenticated, fetchUserProfile, fetchCurrentSession, refreshProgress])
+
+  // Reminder setup — separate from data load so profile fetch does not retrigger everything
+  useEffect(() => {
+    if (!user?.id || !userProfile?.enable_reminders || !userProfile.daily_reminder_time) return
+    import('../utils/notifications').then(({ NotificationService }) => {
+      NotificationService.requestPermission().then((granted) => {
+        if (granted && userProfile.daily_reminder_time) {
+          NotificationService.scheduleDailyReminder(userProfile.daily_reminder_time)
+        }
+      })
+    })
+  }, [user?.id, userProfile?.enable_reminders, userProfile?.daily_reminder_time])
 
   return (
     <AppContext.Provider

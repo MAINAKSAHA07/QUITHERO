@@ -239,6 +239,7 @@ export interface ProgressStats {
   cigarettes_not_smoked?: number
   money_saved?: number
   life_regained_hours?: number
+  nicotine_not_consumed?: number
   health_improvement_percent?: number
   last_calculated?: string
   created?: string

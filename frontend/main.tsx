@@ -9,7 +9,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
+// ponytail: SW fights Vite HMR in dev — cache stale bundles and cause constant flicker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
+  if (import.meta.env.PROD) {
+    navigator.serviceWorker.register('/sw.js')
+  } else {
+    navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister()))
+  }
 }
 

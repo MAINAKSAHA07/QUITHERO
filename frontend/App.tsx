@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect, ReactNode } from 'react'
 import SplashScreen from './screens/SplashScreen'
 import LanguageSelection from './screens/LanguageSelection'
@@ -21,7 +21,6 @@ import SubscriptionConfirmation from './screens/SubscriptionConfirmation'
 import LegalScreen from './screens/LegalScreen'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import OfflineBanner from './components/OfflineBanner'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useApp()
@@ -30,10 +29,8 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 function AppRoutes() {
-  const location = useLocation()
-
   return (
-    <Routes location={location} key={location.pathname}>
+    <Routes>
       {/* Public routes */}
       <Route path="/language" element={<LanguageSelection />} />
       <Route path="/" element={<Navigate to="/onboarding" replace />} />
@@ -85,7 +82,6 @@ function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <OfflineBanner />
         <Router
           future={{
             v7_startTransition: true,

@@ -146,6 +146,7 @@ export class ProgressService extends BaseService {
         cigarettes_not_smoked: calculation.cigarettes_not_smoked,
         money_saved: calculation.money_saved,
         life_regained_hours: calculation.life_regained_hours,
+        nicotine_not_consumed: calculation.nicotine_not_consumed,
         last_calculated: new Date().toISOString(),
       }
 

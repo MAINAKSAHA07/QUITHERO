@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
@@ -41,7 +41,7 @@ import {
 export default function Session() {
   const { dayId: dayIdParam, day: dayNumParam } = useParams<{ dayId?: string; day?: string }>()
   const navigate = useNavigate()
-  const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession } = useApp()
+  const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession, profileLoading } = useApp()
   const [resolvedDayId, setResolvedDayId] = useState<string | null>(null)
   const dayId = resolvedDayId
   const routeDayKey = dayIdParam || dayNumParam
@@ -60,6 +60,7 @@ export default function Session() {
   const [showTriggerCheck, setShowTriggerCheck] = useState(false)
   const [comprehensionCheckDone, setComprehensionCheckDone] = useState(false)
   const [showComprehensionCheck, setShowComprehensionCheck] = useState(false)
+  const loadedDayRef = useRef<string | null>(null)
 
   const dayNumber = programDay?.day_number || 1
 
@@ -120,11 +121,16 @@ export default function Session() {
   }, [dayIdParam, dayNumParam, user?.id, currentSession?.program, currentSession?.id])
 
   useEffect(() => {
-    if (user?.id && resolvedDayId) {
-      loadSession()
-      behaviorTracker.init(user.id)
-    }
-  }, [user?.id, resolvedDayId, userProfile?.id])
+    if (!user?.id || !resolvedDayId || profileLoading) return
+    if (loadedDayRef.current === resolvedDayId) return
+    loadedDayRef.current = resolvedDayId
+    loadSession()
+    behaviorTracker.init(user.id)
+  }, [user?.id, resolvedDayId, profileLoading])
+
+  useEffect(() => {
+    loadedDayRef.current = null
+  }, [routeDayKey])
 
   useEffect(() => {
     return () => {

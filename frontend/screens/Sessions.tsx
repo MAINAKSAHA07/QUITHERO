@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CheckCircle, Lock, Play, RefreshCw } from 'lucide-react'
@@ -32,18 +32,21 @@ export default function Sessions() {
   const { user, isPremium, currentSession, fetchCurrentSession } = useApp()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
     if (user?.id) loadSessions(false)
-  }, [user?.id, currentSession?.id]) // key on .id not the whole object to prevent re-fire
+  }, [user?.id, currentSession?.id])
 
   const loadSessions = async (forceRefresh = false) => {
     if (!user?.id) return
-    setIsLoading(true)
+    if (!hasLoadedOnce.current) setIsLoading(true)
+    let waitingForSession = false
     try {
       let session = currentSession
       if (!session?.program) {
         await fetchCurrentSession()
+        waitingForSession = true
         return
       }
 
@@ -84,13 +87,15 @@ export default function Sessions() {
         const isLocked = i === 0 ? false : prevStatus !== SessionStatus.COMPLETED
         return { day, progress, isLocked, status }
       }))
+      hasLoadedOnce.current = true
     } finally {
-      setIsLoading(false)
+      if (!waitingForSession) setIsLoading(false)
     }
   }
 
   const handleRefresh = () => {
-    _cache.programId = undefined // bust cache on manual refresh
+    _cache.programId = undefined
+    hasLoadedOnce.current = false
     loadSessions(true)
   }
 

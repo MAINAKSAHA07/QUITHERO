@@ -10,10 +10,10 @@ export function useProgress() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user?.id) return
 
-    setLoading(true)
+    if (!opts?.silent) setLoading(true)
     setError(null)
     try {
       const result = await progressService.getByUserId(user.id)
@@ -25,49 +25,46 @@ export function useProgress() {
     } catch (err: any) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [user?.id])
 
-  const calculateProgress = useCallback(async () => {
+  const calculateProgress = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user?.id) {
       setLoading(false)
       return { success: false, error: 'User not found' }
     }
 
-    setLoading(true)
+    const silent = opts?.silent ?? false
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const result = await progressService.calculateProgress(user.id)
       if (result.success && result.data) {
         setCalculation(result.data)
-        // Also fetch updated stats
-        await fetchStats()
-        setLoading(false)
+        await fetchStats({ silent: true })
+        if (!silent) setLoading(false)
         return { success: true, data: result.data }
       } else {
         setError(result.error || 'Failed to calculate progress')
-        setLoading(false)
+        if (!silent) setLoading(false)
         return { success: false, error: result.error }
       }
     } catch (err: any) {
       setError(err.message)
-      setLoading(false)
+      if (!silent) setLoading(false)
       return { success: false, error: err.message }
     }
   }, [user?.id, fetchStats])
 
   const refresh = useCallback(async () => {
-    return await calculateProgress()
-  }, [calculateProgress])
+    const hasData = stats !== null || calculation !== null
+    return await calculateProgress({ silent: hasData })
+  }, [calculateProgress, stats, calculation])
 
   useEffect(() => {
-    if (user?.id) {
-      // Only fetch stats on mount, don't calculate progress automatically
-      // Progress calculation should be triggered manually or after data changes
-      fetchStats()
-    }
-  }, [user?.id])
+    if (user?.id) fetchStats({ silent: true })
+  }, [user?.id, fetchStats])
 
   return {
     stats,
