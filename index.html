@@ -449,6 +449,106 @@
     .noti-title { font-size: 0.75rem; font-weight: 700; color: var(--text); }
     .noti-sub { font-size: 0.6rem; color: var(--muted); }
 
+    /* Interactive progress mockup */
+    .mockup-controls {
+      margin-top: 28px; padding: 20px; border-radius: 16px;
+      background: rgba(255, 255, 255, 0.7); border: 1px solid rgba(139, 205, 232, 0.35);
+    }
+    .mockup-try-label { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+    .mockup-field { margin-bottom: 14px; }
+    .mockup-field label {
+      display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px;
+    }
+    .mockup-field label strong { color: var(--text); font-weight: 600; }
+    .mockup-field input[type="range"] {
+      width: 100%; accent-color: var(--primary); cursor: pointer;
+    }
+    .mockup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .mockup-btn {
+      padding: 10px 16px; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight: 600;
+      border: 1px solid rgba(139, 205, 232, 0.45); background: #fff; color: var(--text); cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .mockup-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(139, 205, 232, 0.2); }
+    .mockup-btn.primary {
+      background: var(--secondary); color: #fff; border-color: transparent;
+    }
+    .mockup-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .phone-breath-overlay {
+      position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+      align-items: center; padding: 48px 10px 14px;
+      background: linear-gradient(180deg, rgba(244, 251, 255, 0.98) 0%, rgba(255, 241, 230, 0.98) 100%);
+      opacity: 0; pointer-events: none; transition: opacity 0.35s ease;
+    }
+    .phone-breath-overlay.active { opacity: 1; pointer-events: auto; }
+    .breath-session {
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      width: 100%; height: 100%; min-height: 0;
+    }
+    .breath-session-top { text-align: center; width: 100%; }
+    .breath-round-label {
+      font-size: 0.55rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 6px;
+    }
+    .breath-dots { display: flex; gap: 4px; align-items: center; justify-content: center; }
+    .breath-dot {
+      border-radius: 999px; transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.35); border: 1px solid rgba(255, 255, 255, 0.45);
+    }
+    .breath-dot.done {
+      width: 18px; height: 5px; border: none;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    .breath-dot.current { width: 18px; height: 5px; border: none; background: rgba(63, 141, 210, 0.55); }
+    .breath-dot.pending { width: 5px; height: 5px; }
+    .breath-orb-stage {
+      position: relative; width: 130px; height: 130px;
+      display: flex; align-items: center; justify-content: center; flex: 1;
+    }
+    .breath-glow {
+      position: absolute; width: 72px; height: 72px; border-radius: 50%;
+      filter: blur(16px); pointer-events: none;
+      animation: breathGlowPulse 2.5s ease-in-out infinite;
+      transform: scale(1);
+      transition: transform var(--breath-dur, 5s) var(--breath-ease, ease);
+    }
+    .breath-mid {
+      position: absolute; width: 68px; height: 68px; border-radius: 50%; opacity: 0.25;
+      transform: scale(1);
+      transition: transform var(--breath-dur, 5s) var(--breath-ease, ease), background 0.25s ease;
+    }
+    .breath-orb {
+      position: relative; width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 32px rgba(63, 141, 210, 0.35);
+      transform: scale(1);
+      transition: transform var(--breath-dur, 5s) var(--breath-ease, ease), background 0.25s ease;
+    }
+    .breath-orb-text { text-align: center; padding: 0 4px; }
+    .breath-phase-title {
+      font-size: 0.62rem; font-weight: 800; color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); line-height: 1.15;
+    }
+    .breath-phase-sub { font-size: 0.48rem; color: rgba(255, 255, 255, 0.8); font-weight: 500; margin-top: 2px; }
+    .breath-555-tag {
+      font-size: 0.5rem; color: var(--muted); font-weight: 600; margin-top: 4px; opacity: 0.85;
+    }
+    @keyframes breathGlowPulse {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 0.65; }
+    }
+    .phone-days-num.bump { animation: dayBump 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes dayBump {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    .phone-milestone {
+      text-align: center; font-size: 0.65rem; font-weight: 600; color: var(--secondary);
+      margin-top: 4px; min-height: 1em; opacity: 0; transition: opacity 0.3s ease;
+    }
+    .phone-milestone.show { opacity: 1; }
+
     @media (max-width: 768px) {
       .showcase-row, .showcase-row.reverse { grid-template-columns: 1fr; direction: ltr; gap: 40px; }
       .showcase-row.reverse > * { direction: ltr; }
@@ -736,6 +836,8 @@
       #heroCanvas, #storyCanvas, #particleBannerCanvas, #finalCtaCanvas { display: none !important; }
       .reduced-motion-fallback-text { display: block !important; }
       .phone-ring-progress { stroke-dashoffset: 0 !important; }
+      .breath-glow { animation: none !important; }
+      .phone-days-num.bump { animation: none !important; }
       .mini-bar-fill { width: var(--width) !important; transition: none !important; }
       .story-step { opacity: 1 !important; transform: none !important; }
       html { scroll-behavior: auto !important; }
@@ -948,22 +1050,46 @@
             <div class="phone-screen">
               <div class="phone-island"></div>
               <div class="phone-status"><span>9:41</span><span>●●● ⚡ 92%</span></div>
-              <div class="phone-content">
-                <div class="phone-days"><div class="phone-days-num">14</div><div class="phone-days-label">Days Smoke-Free</div></div>
-                <div class="mini-card first">
-                  <div class="mini-label">MONEY SAVED</div>
-                  <div class="mini-value secondary" id="mockupMoneySaved">₹4,200</div>
+              <div class="phone-content" id="phone2Content">
+                <div id="phone2ProgressView">
+                  <div class="phone-days">
+                    <div class="phone-days-num" id="mockupDaysNum">14</div>
+                    <div class="phone-days-label">Days Smoke-Free</div>
+                    <div class="phone-milestone" id="mockupMilestone" aria-live="polite"></div>
+                  </div>
+                  <div class="mini-card first">
+                    <div class="mini-label">Money Saved</div>
+                    <div class="mini-value secondary" id="mockupMoneySaved">₹3,360</div>
+                  </div>
+                  <div class="mini-card">
+                    <div class="mini-label">Cigarettes Not Smoked</div>
+                    <div class="mini-value primary" id="mockupCigsNotSmoked">280</div>
+                  </div>
+                  <div class="phone-notification" id="phone2Notification">
+                    <div class="noti-icon">🛡️</div>
+                    <div class="noti-text">
+                      <div class="noti-title">Craving Rescued</div>
+                      <div class="noti-sub" id="phone2NotiSub">Breathing reset completed</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="mini-card">
-                  <div class="mini-label">CIGARETTES NOT SMOKED</div>
-                  <div class="mini-value primary">280</div>
-                </div>
-                <!-- Sliding Notification -->
-                <div class="phone-notification" id="phone2Notification">
-                  <div class="noti-icon">🛡️</div>
-                  <div class="noti-text">
-                    <div class="noti-title">Craving Rescued</div>
-                    <div class="noti-sub">10 min deep breathe reset completed</div>
+                <div class="phone-breath-overlay" id="phone2Breath" aria-hidden="true">
+                  <div class="breath-session">
+                    <div class="breath-session-top">
+                      <p class="breath-round-label" id="breathRoundLabel">Round 1 of 5</p>
+                      <div class="breath-dots" id="breathDots" aria-hidden="true"></div>
+                      <p class="breath-555-tag">5-5-5 Breathing</p>
+                    </div>
+                    <div class="breath-orb-stage">
+                      <div class="breath-glow" id="breathGlow"></div>
+                      <div class="breath-mid" id="breathMid"></div>
+                      <div class="breath-orb" id="breathOrb">
+                        <div class="breath-orb-text">
+                          <div class="breath-phase-title" id="breathPhase">Breathe In</div>
+                          <div class="breath-phase-sub" id="breathSub">Slowly...</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -978,6 +1104,21 @@
             <li>Real-time money savings calculator</li>
             <li>Health recovery timeline based on medical data</li>
           </ul>
+          <div class="mockup-controls" id="mockupControls">
+            <p class="mockup-try-label">Try it — adjust your habit, then rescue a craving.</p>
+            <div class="mockup-field">
+              <label><span>Cigarettes per day</span><strong id="mockupCigsLabel">20</strong></label>
+              <input type="range" id="mockupCigsPerDay" min="5" max="40" value="20" aria-label="Cigarettes per day">
+            </div>
+            <div class="mockup-field">
+              <label><span>Days smoke-free</span><strong id="mockupDaysLabel">14</strong></label>
+              <input type="range" id="mockupDays" min="1" max="30" value="14" aria-label="Days smoke-free">
+            </div>
+            <div class="mockup-actions">
+              <button type="button" class="mockup-btn" id="mockupAddDay">+1 smoke-free day</button>
+              <button type="button" class="mockup-btn primary" id="mockupRescue">Rescue a craving</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1251,23 +1392,23 @@
         </div>
         <h3 class="pricing-name">Smono 30-Day Reset</h3>
         <div class="pricing-original" id="priceOriginal">₹3,999</div>
-        <div class="pricing-price" id="pricePromo">₹1,990</div>
+        <div class="pricing-price" id="pricePromo">₹1,999</div>
         <div class="pricing-caption">One-time payment. Lifetime access.</div>
         
         <!-- Comparison Block -->
         <div class="pricing-comparison">
           <div class="comparison-item bad">
-            <span class="comp-title" id="comparisonBadTitle">8 Days of Cigarettes</span>
-            <span class="comp-cost" id="priceComparisonBad">₹2,400</span>
+            <span class="comp-title" id="comparisonBadTitle">17 Days of Cigarettes</span>
+            <span class="comp-cost" id="priceComparisonBad">₹2,040</span>
           </div>
           <div class="comparison-divider">vs</div>
           <div class="comparison-item good">
             <span class="comp-title">Smono Lifetime Reset</span>
-            <span class="comp-cost" id="priceComparisonGood">₹1,990</span>
+            <span class="comp-cost" id="priceComparisonGood">₹1,999</span>
           </div>
         </div>
 
-        <div class="pricing-savings" id="priceSavingsText">Less than 8 days of cigarettes. Pays for itself in a week.</div>
+        <div class="pricing-savings" id="priceSavingsText">Less than 17 days of cigarettes. Pays for itself in a week.</div>
         <ul class="pricing-features">
           <li><span class="pricing-check">✓</span> 30 daily CBT modules (5 min each)</li>
           <li><span class="pricing-check">✓</span> Automatic thought capture &amp; analysis</li>
@@ -1276,7 +1417,7 @@
           <li><span class="pricing-check">✓</span> Trigger pattern AI analysis</li>
           <li><span class="pricing-check">✓</span> Community support circle</li>
         </ul>
-        <button class="pricing-cta" id="priceCta" onclick="alert('Checkout initiated! (Demo)')">Start My Reset — ₹1,990</button>
+        <button class="pricing-cta" id="priceCta" onclick="alert('Checkout initiated! (Demo)')">Start My Reset — ₹1,999</button>
         <div class="pricing-trust-row">
           <div class="trust-pill">🔒 Secure payment</div>
           <div class="trust-pill">⚡ 5–8 min daily sessions</div>
@@ -1878,16 +2019,224 @@
       },{threshold:.35}).observe(panel);
     })();
 
-    // ═══ PHONE NOTIFICATION SLIDE-IN ═══
-    (function(){
-      const notif=document.getElementById('phone2Notification');
-      if(!notif) return;
-      const phone=notif.closest('.phone');
-      if(!phone) return;
-      new IntersectionObserver(([e])=>{
-        if(e.isIntersecting) setTimeout(()=>notif.classList.add('slide-in'),2000);
-      },{threshold:.6}).observe(phone);
-    })();
+    // ═══ INTERACTIVE PROGRESS MOCKUP (phone-2) ═══
+  window.initInteractiveMockup = function(config, formatMoney, calcMoneySaved) {
+    const moneySaved = calcMoneySaved || ((cigs, cfg) => cigs * cfg.pricePerCigarette);
+    const els = {
+      days: document.getElementById('mockupDays'),
+      daysLabel: document.getElementById('mockupDaysLabel'),
+      daysNum: document.getElementById('mockupDaysNum'),
+      cigs: document.getElementById('mockupCigsPerDay'),
+      cigsLabel: document.getElementById('mockupCigsLabel'),
+      money: document.getElementById('mockupMoneySaved'),
+      cigsTotal: document.getElementById('mockupCigsNotSmoked'),
+      milestone: document.getElementById('mockupMilestone'),
+      addDay: document.getElementById('mockupAddDay'),
+      rescue: document.getElementById('mockupRescue'),
+      notif: document.getElementById('phone2Notification'),
+      notiSub: document.getElementById('phone2NotiSub'),
+      breath: document.getElementById('phone2Breath'),
+      glow: document.getElementById('breathGlow'),
+      mid: document.getElementById('breathMid'),
+      orb: document.getElementById('breathOrb'),
+      phase: document.getElementById('breathPhase'),
+      sub: document.getElementById('breathSub'),
+      roundLabel: document.getElementById('breathRoundLabel'),
+      dots: document.getElementById('breathDots'),
+    };
+    if (!els.days || !els.cigs) return;
+
+    // Mirrors frontend/screens/Breathing.tsx — 5-5-5 cycle
+    const BREATH = {
+      TOTAL_ROUNDS: 5,
+      INHALE_DURATION: 5000,
+      HOLD_DURATION: 5000,
+      EXHALE_DURATION: 5000,
+      REST_DURATION: 2000,
+      phases: {
+        inhale: {
+          gradient: 'linear-gradient(to bottom right, #3F8DD2, #7dd3fc)',
+          glow: 'rgba(168, 212, 234, 0.55)',
+          scale: 1.5,
+          label: 'Breathe In',
+          sub: 'Slowly...',
+          ease: 'cubic-bezier(0.4, 0, 1, 1)',
+        },
+        hold: {
+          gradient: 'linear-gradient(to bottom right, #a78bfa, #3F8DD2)',
+          glow: 'rgba(167, 139, 250, 0.5)',
+          scale: 1.5,
+          label: 'Hold',
+          sub: 'Keep holding...',
+          ease: 'linear',
+        },
+        exhale: {
+          gradient: 'linear-gradient(to bottom right, #F6B884, #fda4af)',
+          glow: 'rgba(253, 180, 123, 0.5)',
+          scale: 0.8,
+          label: 'Breathe Out',
+          sub: 'Release slowly...',
+          ease: 'cubic-bezier(0, 0, 0.2, 1)',
+        },
+        rest: {
+          gradient: 'linear-gradient(to bottom right, #6ee7b7, #5eead4)',
+          glow: 'rgba(110, 231, 183, 0.45)',
+          scale: 1,
+          label: 'Rest',
+          sub: 'Take a moment...',
+          ease: 'linear',
+        },
+      },
+    };
+
+    const MILESTONES = { 7: '1 week smoke-free!', 14: 'Two weeks — huge win', 21: 'Habit loop breaking', 30: 'Full program complete' };
+    let rescueRunning = false;
+    let breathAbort = false;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function renderBreathDots(round) {
+      if (!els.dots) return;
+      els.dots.innerHTML = '';
+      for (let i = 0; i < BREATH.TOTAL_ROUNDS; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'breath-dot ' + (i < round - 1 ? 'done' : i === round - 1 ? 'current' : 'pending');
+        els.dots.appendChild(dot);
+      }
+      if (els.roundLabel) els.roundLabel.textContent = `Round ${round} of ${BREATH.TOTAL_ROUNDS}`;
+    }
+
+    function applyBreathPhase(phase, durationMs) {
+      const cfg = BREATH.phases[phase];
+      if (!cfg || !els.orb) return;
+      const dur = `${durationMs}ms`;
+      [els.glow, els.mid, els.orb].forEach((el) => {
+        if (!el) return;
+        el.style.setProperty('--breath-dur', dur);
+        el.style.setProperty('--breath-ease', cfg.ease);
+      });
+      els.orb.style.background = cfg.gradient;
+      if (els.mid) els.mid.style.background = cfg.gradient;
+      if (els.glow) els.glow.style.background = cfg.glow;
+      const s = cfg.scale;
+      els.orb.style.transform = `scale(${s})`;
+      if (els.mid) els.mid.style.transform = `scale(${s * 1.18})`;
+      if (els.glow) els.glow.style.transform = `scale(${s * 1.4})`;
+      if (els.phase) els.phase.textContent = cfg.label;
+      if (els.sub) els.sub.textContent = cfg.sub;
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function breathingStep(phase, round) {
+      if (breathAbort) return;
+      renderBreathDots(round);
+
+      if (phase === 'exhale') {
+        applyBreathPhase('exhale', BREATH.EXHALE_DURATION);
+        await wait(BREATH.EXHALE_DURATION);
+        if (breathAbort) return;
+        if (round >= BREATH.TOTAL_ROUNDS) return;
+        return breathingStep('rest', round);
+      }
+
+      let duration;
+      let nextPhase;
+      let nextRound = round;
+
+      switch (phase) {
+        case 'inhale':
+          duration = BREATH.INHALE_DURATION;
+          nextPhase = 'hold';
+          break;
+        case 'hold':
+          duration = BREATH.HOLD_DURATION;
+          nextPhase = 'exhale';
+          break;
+        case 'rest':
+          duration = BREATH.REST_DURATION;
+          nextPhase = 'inhale';
+          nextRound = round + 1;
+          break;
+        default:
+          return;
+      }
+
+      applyBreathPhase(phase, duration);
+      await wait(duration);
+      if (breathAbort) return;
+      return breathingStep(nextPhase, nextRound);
+    }
+
+    async function runBreathingDemo() {
+      if (rescueRunning) return;
+      rescueRunning = true;
+      breathAbort = false;
+      if (els.rescue) els.rescue.disabled = true;
+      if (els.addDay) els.addDay.disabled = true;
+      if (els.notif) els.notif.classList.remove('slide-in');
+
+      if (els.breath) {
+        els.breath.classList.add('active');
+        els.breath.setAttribute('aria-hidden', 'false');
+      }
+
+      if (reducedMotion) {
+        applyBreathPhase('inhale', 400);
+        await wait(800);
+      } else {
+        await breathingStep('inhale', 1);
+      }
+
+      if (els.breath) {
+        els.breath.classList.remove('active');
+        els.breath.setAttribute('aria-hidden', 'true');
+      }
+      if (els.notiSub) els.notiSub.textContent = '5-5-5 breathing reset completed';
+      if (els.notif) els.notif.classList.add('slide-in');
+
+      rescueRunning = false;
+      if (els.rescue) els.rescue.disabled = false;
+      if (els.addDay) els.addDay.disabled = false;
+    }
+
+    function updateStats(bumpDay) {
+      const days = +els.days.value;
+      const cigsPerDay = +els.cigs.value;
+      const totalCigs = days * cigsPerDay;
+      els.daysLabel.textContent = String(days);
+      els.cigsLabel.textContent = String(cigsPerDay);
+      els.daysNum.textContent = String(days);
+      els.cigsTotal.textContent = String(totalCigs);
+      els.money.textContent = formatMoney(moneySaved(totalCigs, config), config);
+      const msg = MILESTONES[days];
+      if (els.milestone) {
+        els.milestone.textContent = msg || '';
+        els.milestone.classList.toggle('show', !!msg);
+      }
+      if (bumpDay && els.daysNum) {
+        els.daysNum.classList.remove('bump');
+        void els.daysNum.offsetWidth;
+        els.daysNum.classList.add('bump');
+      }
+    }
+
+    els.days.addEventListener('input', () => updateStats(false));
+    els.cigs.addEventListener('input', () => updateStats(false));
+    if (els.addDay) {
+      els.addDay.addEventListener('click', () => {
+        const next = Math.min(30, +els.days.value + 1);
+        els.days.value = String(next);
+        updateStats(true);
+      });
+    }
+    if (els.rescue) els.rescue.addEventListener('click', runBreathingDemo);
+
+    updateStats(false);
+  };
+
+    // ═══ PHONE NOTIFICATION SLIDE-IN (disabled — user triggers via Rescue button) ═══
 
     // ═══ BORDER GLOW RADIAL HOVER ═══
     document.querySelectorAll('.border-glow, .step-card').forEach(card=>{
@@ -1902,9 +2251,10 @@
       });
     });
     // ═══ DYNAMIC LOCATION-BASED PRICING ═══
+    // Mirrors frontend/utils/currency.ts + progress.service.ts + Paywall.tsx
     (async function initDynamicPricing() {
       const COUNTRIES = {
-        IN: { currency: 'INR', symbol: '₹', pricePerCigarette: 12,   subscriptionPrice: 1990, subscriptionOriginal: 3999 },
+        IN: { currency: 'INR', symbol: '₹',   pricePerCigarette: 12,   subscriptionPrice: 1999, subscriptionOriginal: 3999 },
         US: { currency: 'USD', symbol: '$',   pricePerCigarette: 0.50, subscriptionPrice: 50,   subscriptionOriginal: 99 },
         GB: { currency: 'GBP', symbol: '£',   pricePerCigarette: 0.85, subscriptionPrice: 40,   subscriptionOriginal: 79 },
         CA: { currency: 'CAD', symbol: 'C$',  pricePerCigarette: 1.00, subscriptionPrice: 65,   subscriptionOriginal: 129 },
@@ -1925,7 +2275,7 @@
         PK: { currency: 'PKR', symbol: '₨',   pricePerCigarette: 15,   subscriptionPrice: 13999, subscriptionOriginal: 27999 },
         BD: { currency: 'BDT', symbol: '৳',   pricePerCigarette: 7,    subscriptionPrice: 5499, subscriptionOriginal: 10999 },
         MX: { currency: 'MXN', symbol: 'MX$', pricePerCigarette: 4.50, subscriptionPrice: 899,  subscriptionOriginal: 1799 },
-        RU: { currency: 'RUB', symbol: '₽',   pricePerCigarette: 8,    subscriptionPrice: 4499,  subscriptionOriginal: 8999 },
+        RU: { currency: 'RUB', symbol: '₽',   pricePerCigarette: 8,    subscriptionPrice: 4499, subscriptionOriginal: 8999 },
         KR: { currency: 'KRW', symbol: '₩',   pricePerCigarette: 225,  subscriptionPrice: 65000, subscriptionOriginal: 129000 },
         IT: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.35, subscriptionPrice: 45,   subscriptionOriginal: 89 },
         ES: { currency: 'EUR', symbol: '€',   pricePerCigarette: 0.36, subscriptionPrice: 45,   subscriptionOriginal: 89 },
@@ -1937,14 +2287,26 @@
       };
 
       const DEFAULT_COUNTRY = 'IN';
+      const PAYWALL_DAILY_CIGS = 10; // Paywall.tsx default when profile unset
       const HIGH_VALUE_CURRENCIES = new Set(['IDR', 'VND', 'KRW', 'NGN', 'KES', 'PKR', 'BDT', 'JPY']);
 
       function formatMoney(amount, config) {
         if (HIGH_VALUE_CURRENCIES.has(config.currency)) {
           return `${config.symbol}${Math.round(amount).toLocaleString()}`;
         }
-        const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 10) / 10;
-        return `${config.symbol}${rounded}`;
+        const rounded = amount >= 100 ? Math.round(amount) : Math.round(amount * 100) / 100;
+        const display = rounded % 1 === 0 ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
+        return `${config.symbol}${display}`;
+      }
+
+      /** progress.service.ts: cigarettesNotSmoked * pricePerCigarette */
+      function calcMoneySaved(cigarettes, config) {
+        return cigarettes * config.pricePerCigarette;
+      }
+
+      /** Paywall.tsx: dailyCigs * pricePerCigarette */
+      function calcDailySpend(dailyCigs, config) {
+        return dailyCigs * config.pricePerCigarette;
       }
 
       async function getCountryCode() {
@@ -1986,10 +2348,10 @@
       const formattedPromo = formatMoney(config.subscriptionPrice, config);
       const formattedOriginal = formatMoney(config.subscriptionOriginal, config);
 
-      // Equivalent days of cigarettes (assuming 20 cigarettes per day)
-      const dailyCost = config.pricePerCigarette * 20;
-      const equivalentDays = Math.max(1, Math.round(config.subscriptionPrice / dailyCost));
-      const badComparisonTotal = formatMoney(dailyCost * equivalentDays, config);
+      // Pricing comparison — Paywall uses 10 cigs/day default, not pack price
+      const dailySpend = calcDailySpend(PAYWALL_DAILY_CIGS, config);
+      const equivalentDays = Math.max(1, Math.round(config.subscriptionPrice / dailySpend));
+      const badComparisonTotal = formatMoney(dailySpend * equivalentDays, config);
 
       // Update DOM
       const elements = {
@@ -2014,10 +2376,7 @@
       if (elements.priceCta) {
         elements.priceCta.textContent = `Start My Reset — ${formattedPromo}`;
       }
-      if (elements.mockupMoneySaved) {
-        // Mockup shows 280 cigarettes not smoked
-        elements.mockupMoneySaved.textContent = formatMoney(config.pricePerCigarette * 280, config);
-      }
+      window.initInteractiveMockup?.(config, formatMoney, calcMoneySaved);
     })();
   </script>
 </body>
