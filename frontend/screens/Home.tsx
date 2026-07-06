@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Calendar, Cigarette, Droplet, Wind, ArrowRight, Quote, RefreshCw, Shield, Plus } from 'lucide-react'
+import { Calendar, Cigarette, Droplet, Wind, ArrowRight, RefreshCw, Shield, Plus } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { Progress } from '../components/ui/progress'
 import TopNavigation from '../components/TopNavigation'
+import SmonoLogo from '../components/SmonoLogo'
+import Mascot from '../components/Mascot'
 import BottomNavigation from '../components/BottomNavigation'
 import MilestoneModal from '../components/MilestoneModal'
 import TranslatedText from '../components/TranslatedText'
@@ -142,7 +144,7 @@ export default function Home() {
       <div className="flex-shrink-0">
         <TopNavigation
           left="menu"
-          center="smono"
+          center={<SmonoLogo size="sm" showMascot layout="inline" />}
           right={
             <button onClick={() => loadData(true)} disabled={isRefreshing || progressLoading} className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target">
               <RefreshCw className={`w-5 h-5 text-text-primary ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
@@ -168,14 +170,17 @@ export default function Home() {
         {/* Program Progress */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
           <GlassCard className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-xs font-semibold text-text-primary/50 uppercase tracking-wide">30-Day Program</p>
-                <p className="text-2xl font-black text-text-primary">Day {currentDay}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-brand-primary">{programProgress}%</p>
-                <p className="text-xs font-medium text-text-primary/50">complete</p>
+            <div className="flex items-center gap-3 mb-3">
+              <Mascot size="xs" className="flex-shrink-0" />
+              <div className="flex-1 flex items-center justify-between min-w-0">
+                <div>
+                  <p className="text-xs font-semibold text-text-primary/50 uppercase tracking-wide">30-Day Program</p>
+                  <p className="text-2xl font-black text-text-primary">Day {currentDay}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-brand-primary">{programProgress}%</p>
+                  <p className="text-xs font-medium text-text-primary/50">complete</p>
+                </div>
               </div>
             </div>
             <Progress value={programProgress} className="mb-4 bg-white/5 h-2" />
@@ -249,8 +254,8 @@ export default function Home() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}>
           <GlassCard className="p-5 border-brand-primary/10 bg-brand-primary/5">
             <div className="flex items-start gap-3">
-              <Quote className="w-5 h-5 text-brand-primary flex-shrink-0 mt-0.5" />
-              <div>
+              <Mascot size="sm" className="flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
                 <p className="text-text-primary font-bold text-sm leading-snug mb-1">{motivationalQuote.text}</p>
                 <p className="text-text-primary/60 text-xs whitespace-pre-line leading-relaxed">{motivationalQuote.details}</p>
               </div>

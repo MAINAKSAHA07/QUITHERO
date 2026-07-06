@@ -21,6 +21,7 @@ import SubscriptionConfirmation from './screens/SubscriptionConfirmation'
 import LegalScreen from './screens/LegalScreen'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import InstallPrompt from './components/InstallPrompt'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useApp()
@@ -89,6 +90,7 @@ function App() {
           }}
         >
           <AppRoutes />
+          <InstallPrompt />
         </Router>
       </AppProvider>
     </ErrorBoundary>

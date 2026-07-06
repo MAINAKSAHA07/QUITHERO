@@ -47,7 +47,9 @@ export class AchievementService extends BaseService {
       // Get user's unlocked achievements
       const unlocked = await this.getUserAchievements(userId)
       const unlockedKeys = unlocked.success && unlocked.data
-        ? unlocked.data.map((ua: any) => ua.achievement?.key || ua.expand?.achievement?.key).filter(Boolean)
+        ? unlocked.data
+            .map((ua: any) => ua.expand?.achievement?.key)
+            .filter(Boolean)
         : []
 
       // Get user stats

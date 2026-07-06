@@ -56,7 +56,7 @@ export default function SplashScreen() {
           }}
           className="mb-8 flex flex-col items-center"
         >
-          <SmonoLogo size="xl" />
+          <SmonoLogo size="xl" showMascot />
         </motion.div>
         <motion.p
           initial={{ opacity: 0, y: 10 }}

@@ -1,100 +1,118 @@
 /**
- * Push Notifications utility
- * Handles browser notification permissions and scheduling
+ * Browser notifications — foreground reminders + SW-backed alerts (PWA / iOS standalone).
  */
 
+const REMINDER_STORAGE_KEY = 'smono_next_reminder'
+let activeReminderTimeout: number | null = null
+
 export class NotificationService {
-  /**
-   * Request notification permission
-   */
   static async requestPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-      console.warn('This browser does not support notifications')
+      console.warn('Notifications not supported')
       return false
     }
-
-    if (Notification.permission === 'granted') {
-      return true
-    }
-
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission()
-      return permission === 'granted'
-    }
-
-    return false
+    if (Notification.permission === 'granted') return true
+    if (Notification.permission === 'denied') return false
+    return (await Notification.requestPermission()) === 'granted'
   }
 
-  /**
-   * Check if notifications are supported and permitted
-   */
   static isSupported(): boolean {
     return 'Notification' in window && Notification.permission === 'granted'
   }
 
-  /**
-   * Show a notification
-   */
-  static showNotification(title: string, options?: NotificationOptions): Notification | null {
-    if (!this.isSupported()) {
-      return null
+  /** Show via service worker when available (required for iOS PWA background alerts). */
+  static triggerNativeNotification(title: string, body: string, url = '/') {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+    const fallback = () => {
+      try {
+        new Notification(title, { body, icon: '/mascot.png' })
+      } catch (e) {
+        console.error('Notification failed:', e)
+      }
     }
 
-    try {
-      return new Notification(title, {
-        icon: '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        ...options,
-      })
-    } catch (error) {
-      console.error('Failed to show notification:', error)
-      return null
+    if ('serviceWorker' in navigator) {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('sw timeout')), 600)
+      )
+      Promise.race([navigator.serviceWorker.ready, timeout])
+        .then((reg) =>
+          reg.showNotification(title, {
+            body,
+            icon: '/mascot.png',
+            badge: '/mascot.png',
+            tag: 'smono-alert',
+            data: { url },
+          })
+        )
+        .catch(() => fallback())
+    } else {
+      fallback()
     }
   }
 
-  /**
-   * Schedule a daily reminder
-   */
+  static showNotification(title: string, options?: NotificationOptions) {
+    if (!this.isSupported()) return null
+    this.triggerNativeNotification(title, options?.body || '', options?.data?.url)
+    return null
+  }
+
   static scheduleDailyReminder(time: string, callback?: () => void): number | null {
-    if (!this.isSupported()) {
-      return null
+    if (!this.isSupported()) return null
+
+    if (activeReminderTimeout) {
+      clearTimeout(activeReminderTimeout)
+      activeReminderTimeout = null
     }
 
     const [hours, minutes] = time.split(':').map(Number)
-    const now = new Date()
     const reminderTime = new Date()
     reminderTime.setHours(hours, minutes, 0, 0)
-
-    // If time has passed today, schedule for tomorrow
-    if (reminderTime.getTime() <= now.getTime()) {
+    if (reminderTime.getTime() <= Date.now()) {
       reminderTime.setDate(reminderTime.getDate() + 1)
     }
 
-    const msUntilReminder = reminderTime.getTime() - now.getTime()
+    localStorage.setItem(
+      REMINDER_STORAGE_KEY,
+      JSON.stringify({ time, nextAt: reminderTime.getTime() })
+    )
 
-    const timeoutId = window.setTimeout(() => {
-      this.showNotification('smono', {
-        body: 'Time for your daily check-in! How are you feeling today?',
-        tag: 'daily-reminder',
-        requireInteraction: false,
-      })
-
-      if (callback) {
-        callback()
-      }
-
-      // Schedule next day's reminder
+    const msUntil = reminderTime.getTime() - Date.now()
+    activeReminderTimeout = window.setTimeout(() => {
+      this.triggerNativeNotification(
+        'smono',
+        'Time for your daily check-in. How are you feeling today?',
+        '/home'
+      )
+      callback?.()
       this.scheduleDailyReminder(time, callback)
-    }, msUntilReminder)
+    }, msUntil)
 
-    return timeoutId
+    return activeReminderTimeout
   }
 
-  /**
-   * Cancel a scheduled reminder
-   */
+  /** Fire missed reminder if user opens app after scheduled time. */
+  static checkDueReminder() {
+    try {
+      const raw = localStorage.getItem(REMINDER_STORAGE_KEY)
+      if (!raw || !this.isSupported()) return
+      const { time, nextAt } = JSON.parse(raw) as { time: string; nextAt: number }
+      if (Date.now() >= nextAt) {
+        this.triggerNativeNotification(
+          'smono',
+          'Time for your daily check-in. How are you feeling today?',
+          '/home'
+        )
+        this.scheduleDailyReminder(time)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   static cancelReminder(timeoutId: number): void {
     clearTimeout(timeoutId)
+    if (activeReminderTimeout === timeoutId) activeReminderTimeout = null
   }
 }
-

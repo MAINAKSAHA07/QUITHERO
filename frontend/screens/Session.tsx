@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
+import Mascot from '../components/Mascot'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import CompletionModal from '../components/CompletionModal'
@@ -33,10 +34,15 @@ import {
   injectTriggerBranchSteps,
   buildFallbackTriggerCheck,
   buildFallbackComprehensionCheck,
+  buildFallbackPersonalizedContent,
   getComprehensionCheckpointIndex,
   isInjectedStep,
   getTriggerExerciseHint,
 } from '../utils/sessionPersonalization'
+import {
+  getSessionDuration,
+  sessionTimerKey,
+} from '../utils/sessionDuration'
 
 export default function Session() {
   const { dayId: dayIdParam, day: dayNumParam } = useParams<{ dayId?: string; day?: string }>()
@@ -53,6 +59,7 @@ export default function Session() {
   const [isSaving, setIsSaving] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
+  const [completedDurationSeconds, setCompletedDurationSeconds] = useState(0)
   const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
   const [showBeliefAssessment, setShowBeliefAssessment] = useState(false)
   const [beliefDay, setBeliefDay] = useState<0 | 15 | 30>(15)
@@ -61,6 +68,15 @@ export default function Session() {
   const [comprehensionCheckDone, setComprehensionCheckDone] = useState(false)
   const [showComprehensionCheck, setShowComprehensionCheck] = useState(false)
   const loadedDayRef = useRef<string | null>(null)
+
+  const beginSessionTimer = () => {
+    if (sessionStartTime) return
+    const now = new Date()
+    setSessionStartTime(now)
+    if (dayId) {
+      sessionStorage.setItem(sessionTimerKey(dayId), String(now.getTime()))
+    }
+  }
 
   const dayNumber = programDay?.day_number || 1
 
@@ -199,24 +215,32 @@ export default function Session() {
           sessionPersonalizationService.saveContentPayload(user.id, dayNum, content, 'fallback', dayId).catch(() => {})
         }
 
+        const profileFallback = userProfile
+          ? {
+              ...buildFallbackPersonalizedContent(userProfile, dayNum, dayResult.data?.title),
+              trigger_check: buildFallbackTriggerCheck(userProfile),
+              comprehension_check: buildFallbackComprehensionCheck(dayNum, dayResult.data?.title),
+            }
+          : null
+
+        // ponytail: hydrate checks immediately so step-0 trigger gate isn't skipped while AI loads
+        if (profileFallback) {
+          const stored = await sessionPersonalizationService.getStoredPersonalization(user.id, dayNum)
+          setPersonalizedContent(stored ? { ...profileFallback, ...stored } : profileFallback)
+        }
+
         aiService.getPersonalizedSessionContent(user.id, dayNum, dayId)
           .then(content => {
             if (content) {
-              setPersonalizedContent(content)
-            } else if (userProfile) {
-              saveFallback({
-                trigger_check: buildFallbackTriggerCheck(userProfile),
-                comprehension_check: buildFallbackComprehensionCheck(dayNum, dayResult.data?.title),
-              })
+              setPersonalizedContent(
+                profileFallback ? { ...profileFallback, ...content } : content
+              )
+            } else if (profileFallback) {
+              saveFallback(profileFallback)
             }
           })
           .catch(() => {
-            if (userProfile) {
-              saveFallback({
-                trigger_check: buildFallbackTriggerCheck(userProfile),
-                comprehension_check: buildFallbackComprehensionCheck(dayNum, dayResult.data?.title),
-              })
-            }
+            if (profileFallback) saveFallback(profileFallback)
           })
       }
 
@@ -248,7 +272,13 @@ export default function Session() {
             analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
           }
 
-          setSessionStartTime(new Date())
+          if (progress.status === SessionStatus.IN_PROGRESS && dayId) {
+            const stored = sessionStorage.getItem(sessionTimerKey(dayId))
+            if (stored) {
+              const resumed = new Date(Number(stored))
+              if (!Number.isNaN(resumed.getTime())) setSessionStartTime(resumed)
+            }
+          }
         } else {
           const newProgressResult = await sessionService.upsertSessionProgress(user.id, dayId, {
             status: SessionStatus.IN_PROGRESS,
@@ -257,7 +287,6 @@ export default function Session() {
           if (newProgressResult.success && newProgressResult.data) {
             setSessionProgress(newProgressResult.data)
           }
-          setSessionStartTime(new Date())
           analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
         }
       } else {
@@ -288,7 +317,7 @@ export default function Session() {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return
 
     if (!sessionStartTime) {
-      setSessionStartTime(new Date())
+      beginSessionTimer()
       try {
         await sessionService.upsertSessionProgress(user.id, dayId, {
           status: SessionStatus.IN_PROGRESS,
@@ -304,7 +333,12 @@ export default function Session() {
       const currentStep = steps[currentStepIndex]
 
       if (stepResponse && currentStep.id && !isInjectedStep(currentStep.id)) {
-        await sessionService.saveStepResponse(user.id, currentStep.id, stepResponse)
+        const saved = await sessionService.saveStepResponse(user.id, currentStep.id, stepResponse)
+        if (!saved.success) {
+          console.error('Failed to save step response:', saved.error)
+          alert('Could not save your answer. Please try again.')
+          return
+        }
       }
 
       const needsComprehension =
@@ -411,12 +445,12 @@ export default function Session() {
     setIsSaving(true)
     try {
       const endTime = new Date()
-      const startTime = sessionStartTime || new Date()
-      const timeSpentMinutes = Math.max(1, Math.round(
-        (endTime.getTime() - startTime.getTime()) / 1000 / 60
-      ))
+      const startTime = sessionStartTime ?? endTime
+      const { totalSeconds, minutesForStorage } = getSessionDuration(startTime, endTime)
+      setCompletedDurationSeconds(totalSeconds)
+      if (dayId) sessionStorage.removeItem(sessionTimerKey(dayId))
 
-      const result = await sessionService.completeSession(user.id, dayId, timeSpentMinutes)
+      const result = await sessionService.completeSession(user.id, dayId, minutesForStorage)
 
       if (result.success) {
         await achievementService.checkAndUnlock(user.id)
@@ -424,7 +458,7 @@ export default function Session() {
         await analyticsService.trackSessionCompleted(
           user.id,
           programDay?.day_number || 1,
-          timeSpentMinutes
+          minutesForStorage
         )
         behaviorProfileService.computeAndSave(user.id).catch(() => {})
         setShowCompletionModal(true)
@@ -460,7 +494,6 @@ export default function Session() {
           <OpenQuestionComponent
             step={step}
             onNext={handleStepResponse}
-            aiPlaceholder={personalizedContent?.journal_prompt}
           />
         )
 
@@ -468,7 +501,7 @@ export default function Session() {
         return (
           <ExerciseComponent
             step={step}
-            onNext={() => moveToNextStep()}
+            onNext={(response) => moveToNextStep(response)}
             focusLabel={
               isInjectedStep(step.id) ? triggerExerciseHint : undefined
             }
@@ -504,11 +537,7 @@ export default function Session() {
         <TopNavigation left="back" center="Loading..." right="" />
         <div className="app-container px-3 sm:px-4 pt-6">
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-            <img
-              src="/mascot.png"
-              alt="Loading..."
-              className="w-32 h-32 sm:w-48 sm:h-48 object-contain animate-pulse"
-            />
+            <Mascot size="xl" pulse className="w-32 h-32 sm:w-48 sm:h-48" />
             <p className="text-text-primary/70 text-sm sm:text-base font-medium">Loading session...</p>
           </div>
         </div>
@@ -534,6 +563,10 @@ export default function Session() {
 
   const currentStep = steps[currentStepIndex]
   const isLastStep = currentStepIndex === steps.length - 1
+  const stepRequiresInput =
+    currentStep?.type === StepType.QUESTION_OPEN ||
+    currentStep?.type === StepType.QUESTION_MCQ ||
+    currentStep?.type === StepType.EXERCISE
 
   return (
     <div className="min-h-screen min-h-[100dvh] pb-24">
@@ -557,14 +590,6 @@ export default function Session() {
 
         {statCard && currentStepIndex === 0 && !showTriggerCheck && !showComprehensionCheck && (
           <SessionStatCard stat={statCard} />
-        )}
-
-        {personalizedContent?.session_intro && currentStepIndex === 0 && !showTriggerCheck && !showComprehensionCheck && (
-          <GlassCard className="p-5 mb-4 bg-brand-primary/5 border-brand-primary/10">
-            <p className="text-text-primary/90 text-sm leading-relaxed italic">
-              {personalizedContent.session_intro}
-            </p>
-          </GlassCard>
         )}
 
         {showTriggerCheck && personalizedContent?.trigger_check && (
@@ -617,44 +642,9 @@ export default function Session() {
               </div>
             </div>
 
-            {personalizedContent?.exercise_motivation && currentStep.type === StepType.EXERCISE && (
-              <p className="text-text-primary/80 text-sm mb-3 italic">
-                {personalizedContent.exercise_motivation}
-              </p>
-            )}
-
             <div className="mt-4">
               {renderStepComponent()}
             </div>
-          </GlassCard>
-        )}
-
-        {personalizedContent?.closing_reflection && isLastStep && !showTriggerCheck && !showComprehensionCheck && (
-          <GlassCard className="p-5 mb-4 bg-brand-accent/5 border-brand-accent/10">
-            <p className="text-text-primary/90 text-sm leading-relaxed italic">
-              {personalizedContent.closing_reflection}
-            </p>
-            {personalizedContent.journal_prompt && (
-              <div className="mt-3 flex flex-col gap-2">
-                <p className="text-brand-accent text-xs font-medium">
-                  Journal prompt: {personalizedContent.journal_prompt}
-                </p>
-                <GlassButton
-                  variant="secondary"
-                  className="py-2.5 text-sm font-semibold"
-                  onClick={() =>
-                    navigate('/journal', {
-                      state: {
-                        prompt: personalizedContent.journal_prompt,
-                        openModal: true,
-                      },
-                    })
-                  }
-                >
-                  Write in Journal
-                </GlassButton>
-              </div>
-            )}
           </GlassCard>
         )}
 
@@ -673,7 +663,7 @@ export default function Session() {
             >
               <ArrowLeft className="w-5 h-5" />
             </GlassButton>
-            {!isLastStep && (
+            {!isLastStep && !stepRequiresInput && (
               <GlassButton
                 onClick={() => moveToNextStep()}
                 disabled={isSaving}
@@ -696,11 +686,7 @@ export default function Session() {
         isOpen={showCompletionModal}
         onClose={() => setShowCompletionModal(false)}
         dayNumber={programDay.day_number || 1}
-        timeSpentMinutes={
-          sessionStartTime
-            ? Math.round((new Date().getTime() - sessionStartTime.getTime()) / 1000 / 60)
-            : 0
-        }
+        timeSpentSeconds={completedDurationSeconds}
         stepsCompleted={steps.length}
         hasNextDay={(programDay.day_number || 0) < 30}
         onNextDay={() => {

@@ -28,6 +28,8 @@ import { useApp } from '../context/AppContext'
 import pb, { authHelpers } from '../lib/pocketbase'
 import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
+import Mascot from '../components/Mascot'
+import SmonoLogo from '../components/SmonoLogo'
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -379,7 +381,7 @@ export default function Profile() {
               {user?.avatar ? (
                 <img src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-brand-primary" />
+                <Mascot size="md" />
               )}
               <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <Edit className="w-5 h-5 text-white" />
@@ -446,7 +448,8 @@ export default function Profile() {
             ) : (
               <>
                 <h2 className="text-2xl font-bold text-text-primary mb-1">{user?.name || 'Guest'}</h2>
-                <p className="text-text-primary/70 mb-4">{user?.email || ''}</p>
+                <p className="text-text-primary/70 mb-3">{user?.email || ''}</p>
+                <SmonoLogo size="sm" className="justify-center mb-4" />
                 <button
                   onClick={() => setIsEditing(true)}
                   className="glass-button-secondary px-4 py-2 text-sm"
@@ -553,8 +556,17 @@ export default function Profile() {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setNotifications({ ...notifications, daily: !notifications.daily })
+                onClick={async () => {
+                  const enabling = !notifications.daily
+                  if (enabling) {
+                    const { enablePushNotifications } = await import('../utils/pushNotifications')
+                    const result = await enablePushNotifications()
+                    if (!result.ok) {
+                      setError(result.error || 'Enable notifications in your browser settings to use daily reminders.')
+                      return
+                    }
+                  }
+                  setNotifications({ ...notifications, daily: enabling })
                   handleSaveSettings()
                 }}
                 className={`relative w-14 h-8 rounded-full transition-colors ${

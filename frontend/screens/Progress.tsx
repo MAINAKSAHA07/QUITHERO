@@ -1,24 +1,32 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target, Loader2 } from 'lucide-react'
+import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
+import Mascot from '../components/Mascot'
+import SmonoLogo from '../components/SmonoLogo'
 import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
 import AchievementNotification from '../components/AchievementNotification'
 import TranslatedText from '../components/TranslatedText'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
+import {
+  CravingTrendChart,
+  TriggerBreakdownChart,
+  ChartEmptyState,
+  ChartLoadingState,
+  type ChartPoint,
+  type TriggerSlice,
+} from '../components/progress/ProgressCharts'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
-import { useCravings } from '../hooks/useCravings'
 import { useAchievements } from '../hooks/useAchievements'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { beliefService, BeliefDelta } from '../services/belief.service'
 import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
-import { formatMoney } from '../utils/currency'
+import { formatMoney, getCountryConfig } from '../utils/currency'
+import { cravingService } from '../services/craving.service'
 
-// Health milestones configuration
 const HEALTH_MILESTONES = [
   { time: '20 minutes', days: 0, title: 'Heart rate normalizes', completed: (days: number) => days >= 0 },
   { time: '12 hours', days: 0.5, title: 'CO levels drop', completed: (days: number) => days >= 0.5 },
@@ -30,7 +38,6 @@ const HEALTH_MILESTONES = [
   { time: '3 months', days: 90, title: 'Lung capacity increases', completed: (days: number) => days >= 90 },
 ]
 
-// Trigger colors mapping
 const TRIGGER_COLORS: Record<string, string> = {
   [CravingTrigger.STRESS]: '#F58634',
   [CravingTrigger.SOCIAL]: '#D45A1C',
@@ -39,25 +46,34 @@ const TRIGGER_COLORS: Record<string, string> = {
   [CravingTrigger.OTHER]: '#9B59B6',
 }
 
+const TIME_FILTERS = [
+  { id: 'week' as const, label: 'This Week' },
+  { id: 'month' as const, label: 'This Month' },
+  { id: 'all' as const, label: 'All Time' },
+]
+
 export default function Progress() {
-  const { user, currentSession } = useApp()
+  const { user, currentSession, userProfile, progressStats } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
-  const { getTrend, getTriggerBreakdown } = useCravings()
-  const { achievements, isUnlocked, checkAndUnlock } = useAchievements()
-  
+  const {
+    achievements,
+    isUnlocked,
+    checkAndUnlock,
+    loading: achievementsLoading,
+    fetchUserAchievements,
+  } = useAchievements()
+
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('week')
-  const [cravingTrend, setCravingTrend] = useState<any[]>([])
-  const [triggerBreakdown, setTriggerBreakdown] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [cravingTrend, setCravingTrend] = useState<ChartPoint[]>([])
+  const [triggerBreakdown, setTriggerBreakdown] = useState<TriggerSlice[]>([])
+  const [chartsLoading, setChartsLoading] = useState(false)
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null)
   const [showNotification, setShowNotification] = useState(false)
-  const [userCountry, setUserCountry] = useState<string | undefined>(undefined)
   const [beliefDeltas, setBeliefDeltas] = useState<BeliefDelta[]>([])
   const [preQuitData, setPreQuitData] = useState<{
     isPreQuit: boolean
     daysUntilQuit: number
     quitDateStr: string
-    totalCravings: number
     totalResisted: number
     programDay: number
     programPercent: number
@@ -65,173 +81,204 @@ export default function Progress() {
     nicotineAvoided: number
   } | null>(null)
 
-  // Load data on mount, when filter changes, or when session day resolves
+  const userCountry = userProfile?.country
+
   useEffect(() => {
-    if (user?.id) {
-      loadData()
-      analyticsService.trackPageView('progress', user.id)
+    if (!user?.id) return
+
+    let cancelled = false
+
+    const run = async () => {
+      setChartsLoading(true)
+      try {
+        const refreshResult = await refreshProgressData()
+        const freshCalc =
+          refreshResult && 'success' in refreshResult && refreshResult.success ? refreshResult.data : null
+
+        try {
+          const profileResult = await profileService.getByUserId(user.id)
+          if (!cancelled && profileResult.success && profileResult.data) {
+            const quitDate = profileResult.data.quit_date ? new Date(profileResult.data.quit_date) : null
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            if (quitDate && quitDate.getTime() > today.getTime()) {
+              const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              const day = currentSession?.current_day || 1
+              setPreQuitData({
+                isPreQuit: true,
+                daysUntilQuit: daysUntil,
+                quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                totalResisted: freshCalc?.cigarettes_not_smoked ?? 0,
+                programDay: day,
+                programPercent: Math.round((day / 30) * 100),
+                moneySaved: formatMoney(freshCalc?.money_saved ?? 0, profileResult.data.country),
+                nicotineAvoided: Math.round((freshCalc?.nicotine_not_consumed ?? 0) * 10) / 10,
+              })
+            } else {
+              setPreQuitData(null)
+            }
+          }
+        } catch { /* continue */ }
+
+        const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
+        const trendResult = await cravingService.getTrend(user.id, days)
+        if (!cancelled && trendResult.success && trendResult.data) {
+          const formatted = trendResult.data
+            .map((item: { date: string; count: number }) => {
+              try {
+                const date = new Date(item.date)
+                const day =
+                  timeFilter === 'week'
+                    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
+                    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                return { day, cravings: item.count, date: item.date }
+              } catch {
+                return { day: item.date, cravings: item.count, date: item.date }
+              }
+            })
+            .sort((a: ChartPoint, b: ChartPoint) => new Date(a.date!).getTime() - new Date(b.date!).getTime())
+          setCravingTrend(formatted)
+        } else if (!cancelled) {
+          setCravingTrend([])
+        }
+
+        const breakdownResult = await cravingService.getTriggerBreakdown(user.id)
+        if (!cancelled && breakdownResult.success && breakdownResult.data) {
+          setTriggerBreakdown(
+            breakdownResult.data.map((item: { name: string; value: number }) => ({
+              name: item.name.charAt(0).toUpperCase() + item.name.slice(1).replace('_', ' '),
+              value: item.value,
+              color: TRIGGER_COLORS[item.name] || '#9B59B6',
+            }))
+          )
+        } else if (!cancelled) {
+          setTriggerBreakdown([])
+        }
+
+        const beliefResult = await beliefService.getBeliefDelta(user.id)
+        if (!cancelled && beliefResult.success && beliefResult.data) {
+          setBeliefDeltas(beliefResult.data)
+        }
+
+        const unlockResult = await checkAndUnlock()
+        if (!cancelled) await fetchUserAchievements()
+        if (!cancelled && unlockResult?.success && unlockResult.newlyUnlocked?.length) {
+          setNewlyUnlocked(unlockResult.newlyUnlocked[0])
+          setShowNotification(true)
+          setTimeout(() => {
+            setShowNotification(false)
+            setNewlyUnlocked(null)
+          }, 5000)
+        }
+      } catch (error) {
+        console.error('Failed to load progress data:', error)
+      } finally {
+        if (!cancelled) setChartsLoading(false)
+      }
     }
+
+    run()
+    analyticsService.trackPageView('progress', user.id)
+    return () => { cancelled = true }
+    // ponytail: stable deps only — refreshProgressData identity changes when stats update
   }, [user?.id, timeFilter, currentSession?.current_day])
 
-  const loadData = async () => {
+  const handleRefresh = useCallback(async () => {
     if (!user?.id) return
-    setLoading(true)
+    setChartsLoading(true)
     try {
-      // Refresh progress and get the fresh calculation data
-      const refreshResult = await refreshProgressData()
-      const freshCalc = refreshResult && 'success' in refreshResult && refreshResult.success ? refreshResult.data : null
-
-      // Check if user is in pre-quit phase
-      try {
-        const profileResult = await profileService.getByUserId(user.id)
-        if (profileResult.success && profileResult.data) {
-          setUserCountry(profileResult.data.country)
-          const quitDate = profileResult.data.quit_date ? new Date(profileResult.data.quit_date) : null
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          if (quitDate && quitDate.getTime() > today.getTime()) {
-            const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            const day = currentSession?.current_day || 1
-            setPreQuitData({
-              isPreQuit: true,
-              daysUntilQuit: daysUntil,
-              quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              totalCravings: freshCalc?.cigarettes_smoked ?? 0,
-              totalResisted: freshCalc?.cigarettes_not_smoked ?? 0,
-              programDay: day,
-              programPercent: Math.round((day / 30) * 100),
-              moneySaved: formatMoney(freshCalc?.money_saved ?? 0, profileResult.data.country),
-              nicotineAvoided: Math.round((freshCalc?.nicotine_not_consumed ?? 0) * 10) / 10,
-            })
-          } else {
-            setPreQuitData(null)
-          }
-        }
-      } catch { /* continue with normal flow */ }
-
-      // Get craving trend
+      await refreshProgressData()
       const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
-      const trendResult = await getTrend(days)
-      if (trendResult.success && 'data' in trendResult && trendResult.data) {
-        // Format data for chart (convert dates to day names for week, or keep dates for month/all)
-        const formatted = trendResult.data.map((item: any) => {
-          try {
-            const date = new Date(item.date)
-            if (timeFilter === 'week') {
-              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-              return { day: dayNames[date.getDay()], cravings: item.count, date: item.date }
-            } else {
-              return { day: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cravings: item.count, date: item.date }
-            }
-          } catch {
-            return { day: item.date, cravings: item.count, date: item.date }
-          }
-        })
-        // Sort by date
-        formatted.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        setCravingTrend(formatted)
-      } else {
-        setCravingTrend([])
+      const [trendResult, breakdownResult] = await Promise.all([
+        cravingService.getTrend(user.id, days),
+        cravingService.getTriggerBreakdown(user.id),
+      ])
+      if (trendResult.success && trendResult.data) {
+        setCravingTrend(
+          trendResult.data
+            .map((item: { date: string; count: number }) => ({
+              day:
+                timeFilter === 'week'
+                  ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(item.date).getDay()]
+                  : new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              cravings: item.count,
+              date: item.date,
+            }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        )
       }
-
-      // Get trigger breakdown
-      const breakdownResult = await getTriggerBreakdown()
-      if (breakdownResult.success && 'data' in breakdownResult && breakdownResult.data) {
-        const formatted = breakdownResult.data.map((item: any) => ({
-          name: item.name.charAt(0).toUpperCase() + item.name.slice(1).replace('_', ' '),
-          value: item.value,
-          color: TRIGGER_COLORS[item.name] || '#9B59B6',
-        }))
-        setTriggerBreakdown(formatted)
+      if (breakdownResult.success && breakdownResult.data) {
+        setTriggerBreakdown(
+          breakdownResult.data.map((item: { name: string; value: number }) => ({
+            name: item.name.charAt(0).toUpperCase() + item.name.slice(1).replace('_', ' '),
+            value: item.value,
+            color: TRIGGER_COLORS[item.name] || '#9B59B6',
+          }))
+        )
       }
-
-      // Fetch belief deltas
-      const beliefResult = await beliefService.getBeliefDelta(user.id)
-      if (beliefResult.success && beliefResult.data) {
-        setBeliefDeltas(beliefResult.data)
-      }
-
-      // Check for new achievements
-      const unlockResult = await checkAndUnlock()
-      if (unlockResult.success && unlockResult.newlyUnlocked && unlockResult.newlyUnlocked.length > 0) {
-        setNewlyUnlocked(unlockResult.newlyUnlocked[0])
-        setShowNotification(true)
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-          setShowNotification(false)
-          setNewlyUnlocked(null)
-        }, 5000)
-      }
-    } catch (error) {
-      console.error('Failed to load progress data:', error)
+      await checkAndUnlock()
+      await fetchUserAchievements()
     } finally {
-      setLoading(false)
+      setChartsLoading(false)
     }
-  }
+  }, [user?.id, timeFilter, refreshProgressData, checkAndUnlock, fetchUserAchievements])
 
-  // Calculate health milestones
   const healthMilestones = useMemo(() => {
-    const daysSmokeFree = stats?.days_smoke_free || calculation?.days_smoke_free || 0
+    const daysSmokeFree =
+      calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     return HEALTH_MILESTONES.map((milestone) => ({
       ...milestone,
       completed: milestone.completed(daysSmokeFree),
     }))
-  }, [stats?.days_smoke_free, calculation?.days_smoke_free])
+  }, [stats?.days_smoke_free, calculation?.days_smoke_free, progressStats?.days_smoke_free])
 
-  // Get overall stats
   const overallStats = useMemo(() => {
-    return {
-      daysSmokeFree: stats?.days_smoke_free || calculation?.days_smoke_free || 0,
-      moneySaved: Math.round(stats?.money_saved || calculation?.money_saved || 0),
-      cigarettesNotSmoked: Math.round(stats?.cigarettes_not_smoked || calculation?.cigarettes_not_smoked || 0),
-      lifeRegained: Math.round((stats?.life_regained_hours || calculation?.life_regained_hours || 0)),
-      healthImprovement: Math.min(100, Math.round((stats?.days_smoke_free || calculation?.days_smoke_free || 0) * 2)),
-    }
-  }, [stats, calculation])
+    const daysSmokeFree =
+      calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const cigarettesNotSmoked =
+      calculation?.cigarettes_not_smoked ?? progressStats?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
+    const nicotinePerCig = getCountryConfig(userCountry).nicotinePerCigarette
+    const nicotineAvoided =
+      calculation?.nicotine_not_consumed ?? cigarettesNotSmoked * nicotinePerCig
 
-  // Format achievements with unlock status
-  const formattedAchievements = useMemo(() => {
-    return achievements.map((achievement) => ({
-      ...achievement,
-      unlocked: isUnlocked(achievement.key),
-    }))
-  }, [achievements, isUnlocked])
+    return {
+      daysSmokeFree,
+      moneySaved: calculation?.money_saved ?? progressStats?.money_saved ?? stats?.money_saved ?? 0,
+      cigarettesNotSmoked,
+      nicotineAvoided: Math.round(nicotineAvoided * 10) / 10,
+      lifeRegained: Math.round(
+        calculation?.life_regained_hours ?? progressStats?.life_regained_hours ?? stats?.life_regained_hours ?? 0
+      ),
+      healthImprovement: Math.min(100, Math.round(daysSmokeFree * 2)),
+    }
+  }, [stats, calculation, progressStats, userCountry])
+
+  const formattedAchievements = useMemo(
+    () => achievements.map((a) => ({ ...a, unlocked: isUnlocked(a.key) })),
+    [achievements, isUnlocked]
+  )
+
+  const isRefreshing = chartsLoading || progressLoading
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      {/* Pinned Top Navigation */}
       <div className="flex-shrink-0">
         <TopNavigation
           left="menu"
           center="Your Progress"
           right={
-            <div className="flex items-center gap-2">
-              <button
-                onClick={loadData}
-                disabled={loading || progressLoading}
-                className="p-2"
-              >
-                <RefreshCw
-                  className={`w-5 h-5 text-text-primary ${
-                    loading || progressLoading ? 'animate-spin' : ''
-                  }`}
-                />
-              </button>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value as 'week' | 'month' | 'all')}
-                className="glass-input text-sm py-1 px-2"
-              >
-                <option value="week"><TranslatedText text="This Week" /></option>
-                <option value="month"><TranslatedText text="This Month" /></option>
-                <option value="all"><TranslatedText text="All Time" /></option>
-              </select>
-            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || achievementsLoading}
+              className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target"
+              aria-label="Refresh progress"
+            >
+              <RefreshCw className={`w-5 h-5 text-text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
           }
         />
       </div>
 
-      {/* Achievement Notification */}
       {showNotification && newlyUnlocked && (
         <AchievementNotification
           achievement={newlyUnlocked}
@@ -242,445 +289,316 @@ export default function Progress() {
         />
       )}
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
-        {/* Pre-Quit Countdown Card */}
-        {preQuitData?.isPreQuit && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <GlassCard className="p-6 mb-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
-              <div className="text-center mb-6">
-                <div className="text-5xl font-bold text-brand-primary mb-2">
-                  {preQuitData.daysUntilQuit}
-                </div>
-                <div className="text-lg font-semibold text-text-primary mb-1">
-                  <TranslatedText text="DAYS UNTIL QUIT DATE" />
-                </div>
-                <p className="text-sm text-text-primary/60">
-                  Your quit date: {preQuitData.quitDateStr}
-                </p>
-              </div>
+      <div className="flex-1 overflow-y-auto px-4 py-5 scrollbar-thin pb-24 space-y-5">
+        {/* Time range pills */}
+        <div className="flex gap-1 p-1 rounded-xl bg-black/[0.04] border border-black/[0.04]">
+          {TIME_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setTimeFilter(f.id)}
+              className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-colors ${
+                timeFilter === f.id
+                  ? 'bg-white text-brand-primary shadow-sm'
+                  : 'text-text-primary/55 hover:text-text-primary/80'
+              }`}
+            >
+              <TranslatedText text={f.label} />
+            </button>
+          ))}
+        </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <Target className="w-6 h-6 text-brand-primary mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    Day {preQuitData.programDay}
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Program" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <Shield className="w-6 h-6 text-success mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {preQuitData.totalResisted}
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Cravings resisted" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {preQuitData.moneySaved}
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Money saved" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {preQuitData.nicotineAvoided}mg
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Nicotine avoided" />
-                  </div>
-                </div>
-              </div>
+        {/* Hero stats */}
+        {preQuitData?.isPreQuit ? (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <GlassCard className="p-5 bg-gradient-to-br from-brand-primary/10 to-brand-accent/8">
+              <HeroHeader
+                value={preQuitData.daysUntilQuit}
+                label="DAYS UNTIL QUIT DATE"
+                sub={`Quit date: ${preQuitData.quitDateStr}`}
+              />
+              <StatGrid
+                items={[
+                  { icon: Target, label: 'Program', value: `Day ${preQuitData.programDay}` },
+                  { icon: Shield, label: 'Cravings resisted', value: String(preQuitData.totalResisted) },
+                  { icon: DollarSign, label: 'Money saved', value: preQuitData.moneySaved },
+                  { icon: TrendingUp, label: 'Nicotine avoided', value: `${preQuitData.nicotineAvoided}mg` },
+                ]}
+              />
+            </GlassCard>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <GlassCard className="p-5 bg-gradient-to-br from-brand-primary/10 to-brand-accent/8">
+              <HeroHeader
+                value={overallStats.daysSmokeFree}
+                label="DAYS SMOKE-FREE"
+                sub={overallStats.daysSmokeFree > 0 ? 'Keep the streak going' : 'Your journey starts here'}
+              />
+              <StatGrid
+                items={[
+                  { icon: DollarSign, label: 'Money saved', value: formatMoney(overallStats.moneySaved, userCountry) },
+                  { icon: Cigarette, label: 'Not smoked', value: String(overallStats.cigarettesNotSmoked) },
+                  { icon: TrendingUp, label: 'Nicotine avoided', value: `${overallStats.nicotineAvoided}mg` },
+                  { icon: Clock, label: 'Life regained', value: `${overallStats.lifeRegained}h` },
+                ]}
+              />
             </GlassCard>
           </motion.div>
         )}
 
-        {/* Overall Stats Card (post-quit) */}
-        {!preQuitData?.isPreQuit && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <GlassCard className="p-6 mb-6 bg-gradient-to-br from-brand-primary/10 to-brand-accent/10">
-              <div className="text-center mb-6">
-                <div className="text-5xl font-bold text-brand-primary mb-2">
-                  {overallStats.daysSmokeFree}
-                </div>
-                <div className="text-lg font-semibold text-text-primary mb-1">
-                  <TranslatedText text="DAYS SMOKE-FREE" />
-                </div>
-                <Trophy className="w-8 h-8 text-brand-primary mx-auto" />
-              </div>
+        {/* Insights */}
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wide">
+            <TranslatedText text="Insights" />
+          </h3>
+          <WeeklyInsights cravingTrend={cravingTrend} achievements={formattedAchievements} />
+        </GlassCard>
 
-              <div className="grid grid-cols-2 gap-4">
-              <div className="glass-subtle p-4 rounded-xl text-center">
-                <DollarSign className="w-6 h-6 text-brand-primary mx-auto mb-2" />
-                <div className="text-xl font-bold text-text-primary">
-                  {formatMoney(overallStats.moneySaved, userCountry)}
+        {/* Craving trend chart */}
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-bold text-text-primary mb-1 uppercase tracking-wide">
+            <TranslatedText text="Craving Patterns" />
+          </h3>
+          <p className="text-xs text-text-primary/50 mb-4">Daily craving logs over time</p>
+          {chartsLoading ? (
+            <ChartLoadingState />
+          ) : cravingTrend.length === 0 ? (
+            <ChartEmptyState message="Log cravings to see your patterns here" />
+          ) : (
+            <CravingTrendChart data={cravingTrend} variant={timeFilter} />
+          )}
+        </GlassCard>
+
+        {/* Trigger breakdown */}
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-bold text-text-primary mb-1 uppercase tracking-wide">
+            <TranslatedText text="Trigger Breakdown" />
+          </h3>
+          <p className="text-xs text-text-primary/50 mb-4">What sets off your cravings</p>
+          {chartsLoading ? (
+            <ChartLoadingState />
+          ) : triggerBreakdown.length === 0 ? (
+            <ChartEmptyState message="No trigger data yet — log a craving with a trigger" />
+          ) : (
+            <TriggerBreakdownChart data={triggerBreakdown} />
+          )}
+        </GlassCard>
+
+        {/* Belief change — was outside scroll area */}
+        {beliefDeltas.length > 0 && (
+          <GlassCard className="p-5">
+            <h3 className="text-sm font-bold text-text-primary mb-1 flex items-center gap-2 uppercase tracking-wide">
+              <TrendingUp className="w-4 h-4 text-brand-primary" />
+              Belief Change
+            </h3>
+            <p className="text-xs text-text-primary/50 mb-4">Day 0 vs latest — lower is better</p>
+            <div className="space-y-3">
+              {beliefDeltas.map((d) => (
+                <div key={d.key}>
+                  <p className="text-xs text-text-primary/80 mb-1.5 truncate">{d.label}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-text-primary/45 w-5 text-center">{d.day0}</span>
+                    <div className="flex-1 h-2 bg-black/[0.06] rounded-full overflow-hidden relative">
+                      <div className="absolute h-full bg-black/10 rounded-full" style={{ width: `${d.day0 * 10}%` }} />
+                      <div
+                        className={`absolute h-full rounded-full ${d.delta <= 0 ? 'bg-emerald-500' : 'bg-red-400/70'}`}
+                        style={{ width: `${d.latest * 10}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-text-primary w-5 text-center">{d.latest}</span>
+                    <span className={`text-[10px] font-bold w-6 ${d.delta <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {d.delta <= 0 ? '↓' : '↑'}{Math.abs(d.delta)}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Money saved" />
-                </div>
-              </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <Cigarette className="w-6 h-6 text-info mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {overallStats.cigarettesNotSmoked}
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Not smoked" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <Clock className="w-6 h-6 text-success mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    {overallStats.lifeRegained}h
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Life regained" />
-                  </div>
-                </div>
-                <div className="glass-subtle p-4 rounded-xl text-center">
-                  <TrendingUp className="w-6 h-6 text-info mx-auto mb-2" />
-                  <div className="text-xl font-bold text-text-primary">
-                    +{overallStats.healthImprovement}%
-                  </div>
-                  <div className="text-xs text-text-primary/70">
-                    <TranslatedText text="Lung capacity" />
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          </motion.div>
+              ))}
+            </div>
+          </GlassCard>
         )}
 
-        {/* H5: Dynamic Insights */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-        >
-          <GlassCard className="p-6 mb-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-3">
-              <TranslatedText text="Insights" />
-            </h3>
-            <WeeklyInsights cravingTrend={cravingTrend} achievements={formattedAchievements} />
-          </GlassCard>
-        </motion.div>
-
-        {/* Craving Patterns Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <GlassCard className="p-6 mb-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              <TranslatedText text="Craving Patterns" />
-            </h3>
-            {loading ? (
-              <div className="flex items-center justify-center h-[200px] text-brand-primary">
-                <Loader2 className="animate-spin w-8 h-8" />
-              </div>
-            ) : cravingTrend.length === 0 ? (
-              <div className="flex items-center justify-center h-[200px] text-text-primary/50">
-                <p><TranslatedText text="No craving data available" /></p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                {timeFilter === 'week' ? (
-                  <BarChart data={cravingTrend}>
-                    <XAxis dataKey="day" tick={{ fill: '#2B2B2B', fontSize: 12 }} />
-                    <YAxis tick={{ fill: '#2B2B2B', fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="cravings" fill="#F58634" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                ) : (
-                  <LineChart data={cravingTrend}>
-                    <XAxis dataKey="day" tick={{ fill: '#2B2B2B', fontSize: 10 }} />
-                    <YAxis tick={{ fill: '#2B2B2B', fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line type="monotone" dataKey="cravings" stroke="#F58634" strokeWidth={2} dot={{ fill: '#F58634' }} />
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            )}
-          </GlassCard>
-        </motion.div>
-
-        {/* Trigger Breakdown */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <GlassCard className="p-6 mb-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              <TranslatedText text="Trigger Breakdown" />
-            </h3>
-            {loading ? (
-              <div className="flex items-center justify-center h-[200px] text-brand-primary">
-                <Loader2 className="animate-spin w-8 h-8" />
-              </div>
-            ) : triggerBreakdown.length === 0 ? (
-              <div className="flex items-center justify-center h-[200px] text-text-primary/50">
-                <p><TranslatedText text="No trigger data available" /></p>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={triggerBreakdown}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {triggerBreakdown.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </GlassCard>
-        </motion.div>
-
-        {/* Achievements */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-lg font-semibold text-text-primary mb-4">
+        {/* Achievements — grid layout; BorderGlow in flex-row collapses to thin bars */}
+        <div>
+          <h3 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wide px-1">
             <TranslatedText text="Achievements" />
           </h3>
-          {loading ? (
-            <div className="flex items-center justify-center py-8 text-brand-primary">
-              <Loader2 className="animate-spin w-8 h-8" />
+          {achievementsLoading && achievements.length === 0 ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 rounded-xl bg-black/[0.04] animate-pulse" />
+              ))}
             </div>
-          ) : formattedAchievements.length === 0 ? (
-            <div className="text-center py-8 text-text-primary/50 mb-6">
-              <p><TranslatedText text="No achievements available" /></p>
-            </div>
+          ) : achievements.length === 0 ? (
+            <p className="text-center py-6 text-sm text-text-primary/50">
+              <TranslatedText text="No achievements available" />
+            </p>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide mb-6">
-              {formattedAchievements.map((achievement) => {
-                const getTierColor = (tier: string) => {
-                  switch (tier) {
-                    case 'bronze':
-                      return 'text-orange-600'
-                    case 'silver':
-                      return 'text-gray-400'
-                    case 'gold':
-                      return 'text-yellow-500'
-                    case 'platinum':
-                      return 'text-purple-500'
-                    default:
-                      return 'text-brand-primary'
-                  }
-                }
-                return (
-                  <GlassCard
-                    key={achievement.id}
-                    className={`p-4 min-w-[120px] text-center ${
-                      !achievement.unlocked ? 'opacity-50' : ''
-                    }`}
-                  >
-                    <Trophy className={`w-10 h-10 ${getTierColor(achievement.tier || 'bronze')} mx-auto mb-2`} />
-                    <div className="text-sm font-medium text-text-primary">
-                      {achievement.title}
-                    </div>
-                    {achievement.unlocked ? (
-                      <div className="text-xs text-success mt-1">
-                        <TranslatedText text="✓ Unlocked" />
-                      </div>
-                    ) : (
-                      <div className="text-xs text-text-primary/50 mt-1">
-                        {achievement.requirement_type === 'days_streak' && <TranslatedText text={`${achievement.requirement_value} days`} />}
-                        {achievement.requirement_type === 'cravings_resisted' && <TranslatedText text={`${achievement.requirement_value} cravings`} />}
-                        {achievement.requirement_type === 'sessions_completed' && <TranslatedText text={`${achievement.requirement_value} sessions`} />}
-                      </div>
-                    )}
-                  </GlassCard>
-                )
-              })}
+            <div className="grid grid-cols-2 gap-2.5">
+              {formattedAchievements.map((achievement) => (
+                <AchievementCard key={achievement.id || achievement.key} achievement={achievement} />
+              ))}
             </div>
           )}
-        </motion.div>
-
-        {/* M5: Health Improvements with dynamic percentages */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <GlassCard className="p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              <TranslatedText text="Health Recovery" />
-            </h3>
-            <div className="space-y-3">
-              {healthMilestones.map((milestone, index) => {
-                const daysSmokeFree = overallStats.daysSmokeFree
-                const progress = milestone.completed
-                  ? 100
-                  : milestone.days > 0 ? Math.min(99, Math.round((daysSmokeFree / milestone.days) * 100)) : 100
-                return (
-                  <div key={index} className="glass-subtle p-3 rounded-xl">
-                    <div className="flex items-center gap-3 mb-1">
-                      {milestone.completed ? (
-                        <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-success text-sm">✓</span>
-                        </div>
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-text-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-text-primary/40 text-xs">{progress}%</span>
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-text-primary">{milestone.title}</div>
-                        <div className="text-xs text-text-primary/60">{milestone.time}</div>
-                      </div>
-                    </div>
-                    {!milestone.completed && (
-                      <div className="ml-9 mt-1">
-                        <div className="h-1.5 bg-text-primary/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-brand-primary/60 rounded-full transition-all"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </GlassCard>
-        </motion.div>
-      </div>
-
-      {/* Belief Delta Section */}
-      {beliefDeltas.length > 0 && (
-        <div className="app-container px-3 sm:px-4 pb-8">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <GlassCard className="p-5">
-              <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-brand-primary" />
-                Belief Change
-              </h3>
-              <p className="text-xs text-text-primary/60 mb-4">Day 0 vs Latest — lower is better</p>
-              <div className="space-y-3">
-                {beliefDeltas.map((d) => (
-                  <div key={d.key} className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-text-primary/80 truncate">{d.label}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="w-8 text-center">
-                          <span className="text-xs font-mono text-text-primary/50">{d.day0}</span>
-                        </div>
-                        <div className="flex-1 h-2 bg-text-primary/10 rounded-full overflow-hidden relative">
-                          <div
-                            className="absolute h-full bg-text-primary/20 rounded-full"
-                            style={{ width: `${d.day0 * 10}%` }}
-                          />
-                          <div
-                            className={`absolute h-full rounded-full ${d.delta <= 0 ? 'bg-success' : 'bg-error/60'}`}
-                            style={{ width: `${d.latest * 10}%` }}
-                          />
-                        </div>
-                        <div className="w-8 text-center">
-                          <span className="text-xs font-mono font-bold text-text-primary">{d.latest}</span>
-                        </div>
-                        <span className={`text-xs font-bold w-8 ${d.delta <= 0 ? 'text-success' : 'text-error'}`}>
-                          {d.delta <= 0 ? '↓' : '↑'}{Math.abs(d.delta)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </GlassCard>
-          </motion.div>
         </div>
-      )}
+
+        {/* Health recovery */}
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-bold text-text-primary mb-4 uppercase tracking-wide">
+            <TranslatedText text="Health Recovery" />
+          </h3>
+          <div className="space-y-2">
+            {healthMilestones.map((milestone, index) => {
+              const progress = milestone.completed
+                ? 100
+                : milestone.days > 0
+                ? Math.min(99, Math.round((overallStats.daysSmokeFree / milestone.days) * 100))
+                : 100
+              return (
+                <div
+                  key={index}
+                  className={`flex items-center gap-3 p-3 rounded-xl ${
+                    milestone.completed ? 'bg-emerald-500/8' : 'bg-black/[0.03]'
+                  }`}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                      milestone.completed ? 'bg-emerald-500/15 text-emerald-600' : 'bg-black/[0.06] text-text-primary/45'
+                    }`}
+                  >
+                    {milestone.completed ? '✓' : `${progress}%`}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary">{milestone.title}</p>
+                    <p className="text-[11px] text-text-primary/50">{milestone.time}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </GlassCard>
+      </div>
 
       <BottomNavigation />
     </div>
   )
 }
 
-function WeeklyInsights({ cravingTrend, achievements }: { cravingTrend: any[]; achievements: any[] }) {
+function HeroHeader({ value, label, sub }: { value: number; label: string; sub: string }) {
+  return (
+    <div className="flex items-center gap-4 mb-5">
+      <Mascot size="md" className="flex-shrink-0" />
+      <div className="flex-1 text-center">
+        <div className="text-4xl font-black text-brand-primary tabular-nums leading-none mb-1">{value}</div>
+        <div className="text-xs font-bold text-text-primary uppercase tracking-wider">
+          <TranslatedText text={label} />
+        </div>
+        <p className="text-[11px] text-text-primary/55 mt-1">{sub}</p>
+      </div>
+      <SmonoLogo size="sm" className="flex-shrink-0 opacity-80" />
+    </div>
+  )
+}
+
+function StatGrid({
+  items,
+}: {
+  items: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }[]
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      {items.map(({ icon: Icon, label, value }) => (
+        <div key={label} className="p-3 rounded-xl bg-white/50 border border-black/[0.04] text-center">
+          <Icon className="w-5 h-5 text-brand-primary mx-auto mb-1.5" />
+          <div className="text-base font-bold text-text-primary tabular-nums truncate">{value}</div>
+          <div className="text-[10px] text-text-primary/55 uppercase tracking-wide">
+            <TranslatedText text={label} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AchievementCard({ achievement }: { achievement: { icon?: string; title: string; description?: string; tier?: string; unlocked: boolean; requirement_type?: string; requirement_value?: number } }) {
+  const tierRing =
+    achievement.tier === 'platinum'
+      ? 'ring-purple-400/40'
+      : achievement.tier === 'gold'
+      ? 'ring-amber-400/40'
+      : achievement.tier === 'silver'
+      ? 'ring-slate-400/30'
+      : 'ring-orange-400/25'
+
+  const progressLabel = () => {
+    if (achievement.unlocked) return 'Unlocked'
+    const v = achievement.requirement_value
+    if (!v) return 'Locked'
+    switch (achievement.requirement_type) {
+      case 'days_streak':
+        return `${v} day${v === 1 ? '' : 's'}`
+      case 'cravings_resisted':
+        return `${v} resisted`
+      case 'sessions_completed':
+        return `${v} sessions`
+      case 'journal_entries':
+        return `${v} entries`
+      default:
+        return `${v}`
+    }
+  }
+
+  return (
+    <GlassCard
+      borderGlow={false}
+      variant="subtle"
+      className={`p-3.5 text-center h-full ${achievement.unlocked ? `ring-2 ${tierRing}` : 'opacity-55'}`}
+    >
+      <span className="text-2xl leading-none block mb-2" aria-hidden>
+        {achievement.icon || '🏆'}
+      </span>
+      <p className="text-xs font-bold text-text-primary leading-snug line-clamp-2">{achievement.title}</p>
+      <p className={`text-[10px] mt-1.5 font-semibold ${achievement.unlocked ? 'text-emerald-600' : 'text-text-primary/45'}`}>
+        {progressLabel()}
+      </p>
+    </GlassCard>
+  )
+}
+
+function WeeklyInsights({ cravingTrend, achievements }: { cravingTrend: ChartPoint[]; achievements: any[] }) {
   const thisWeekTotal = cravingTrend.slice(-7).reduce((s, d) => s + (d.cravings || 0), 0)
   const lastWeekTotal = cravingTrend.slice(-14, -7).reduce((s, d) => s + (d.cravings || 0), 0)
   const diff = lastWeekTotal > 0 ? Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100) : 0
+  const nextAchievement = achievements.find((a) => !a.unlocked)
 
-  const nextAchievement = achievements.find(a => !a.unlocked)
+  if (cravingTrend.length === 0 && !nextAchievement) {
+    return <p className="text-sm text-text-primary/50 text-center py-2">Log cravings to see insights here</p>
+  }
 
   return (
-    <div className="space-y-3">
-      {cravingTrend.length >= 7 && (
-        <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
-          <span className="text-sm text-text-primary/80">7-day cravings</span>
-          <span className="text-sm font-bold text-text-primary">
-            {thisWeekTotal}{' '}
-            {diff !== 0 && (
-              <span className={diff < 0 ? 'text-success' : 'text-error'}>
+    <div className="space-y-2">
+      {cravingTrend.length >= 2 && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-black/[0.03]">
+          <span className="text-sm text-text-primary/75">Recent cravings</span>
+          <span className="text-sm font-bold text-text-primary tabular-nums">
+            {thisWeekTotal}
+            {diff !== 0 && lastWeekTotal > 0 && (
+              <span className={`ml-1 text-xs ${diff < 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 ({diff > 0 ? '+' : ''}{diff}%)
               </span>
             )}
           </span>
         </div>
       )}
-      {lastWeekTotal > 0 && (
-        <div className="flex items-center justify-between p-3 glass-subtle rounded-lg">
-          <span className="text-sm text-text-primary/80">vs. last week</span>
-          <span className={`text-sm font-bold ${diff <= 0 ? 'text-success' : 'text-error'}`}>
-            {diff <= 0 ? 'Improving' : 'Needs attention'}
-          </span>
-        </div>
-      )}
       {nextAchievement && (
-        <div className="p-3 glass-subtle rounded-lg">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-text-primary/80">Next: {nextAchievement.title}</span>
-            <Trophy className="w-4 h-4 text-brand-primary" />
+        <div className="p-3 rounded-xl bg-black/[0.03]">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm text-text-primary/75 truncate pr-2">Next: {nextAchievement.title}</span>
+            <Trophy className="w-4 h-4 text-brand-primary flex-shrink-0" />
           </div>
-          <div className="h-1.5 bg-text-primary/10 rounded-full overflow-hidden">
-            <div className="h-full bg-brand-primary rounded-full" style={{ width: '40%' }} />
+          <div className="h-1.5 bg-black/[0.06] rounded-full overflow-hidden">
+            <div className="h-full bg-brand-primary rounded-full w-2/5" />
           </div>
         </div>
-      )}
-      {cravingTrend.length === 0 && !nextAchievement && (
-        <p className="text-sm text-text-primary/50 text-center py-2">Log cravings to see insights here</p>
       )}
     </div>
   )

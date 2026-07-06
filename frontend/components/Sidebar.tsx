@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, LogOut, Globe, ChevronRight, Flame } from 'lucide-react'
+import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, LogOut, Globe, ChevronRight } from 'lucide-react'
+import SmonoLogo from './SmonoLogo'
 import { useApp } from '../context/AppContext'
 import pb, { authHelpers } from '../lib/pocketbase'
 import TranslatedText from './TranslatedText'
@@ -79,12 +80,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 safe-area-top pb-4 pt-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center">
-                      <Flame className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-base font-bold text-text-primary tracking-tight">smono</span>
-                  </div>
+                  <SmonoLogo size="sm" showMascot layout="inline" />
                   <button
                     type="button"
                     onClick={onClose}

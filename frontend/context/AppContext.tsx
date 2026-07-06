@@ -200,13 +200,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Reminder setup — separate from data load so profile fetch does not retrigger everything
   useEffect(() => {
     if (!user?.id || !userProfile?.enable_reminders || !userProfile.daily_reminder_time) return
+    import('../utils/pushNotifications').then(({ syncPushSubscriptionIfGranted }) => {
+      syncPushSubscriptionIfGranted()
+    })
     import('../utils/notifications').then(({ NotificationService }) => {
       NotificationService.requestPermission().then((granted) => {
         if (granted && userProfile.daily_reminder_time) {
+          NotificationService.checkDueReminder()
           NotificationService.scheduleDailyReminder(userProfile.daily_reminder_time)
         }
       })
     })
+    const onFocus = () => {
+      import('../utils/notifications').then(({ NotificationService }) => {
+        NotificationService.checkDueReminder()
+      })
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [user?.id, userProfile?.enable_reminders, userProfile?.daily_reminder_time])
 
   return (

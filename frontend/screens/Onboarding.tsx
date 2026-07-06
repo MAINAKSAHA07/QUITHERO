@@ -12,6 +12,7 @@ import {
   ArrowRight
 } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
+import Mascot from '../components/Mascot'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
@@ -126,7 +127,10 @@ export default function Onboarding() {
                 <GlassCard
                   className={`p-6 bg-gradient-to-br ${slides[currentSlide].gradient} shadow-glow border-white/10`}
                 >
-                  <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md" />
+                  {(currentSlide === 0 || currentSlide === slides.length - 1) && (
+                    <Mascot size="md" className="mx-auto mb-3" />
+                  )}
+                  <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
                 </GlassCard>
               </motion.div>
             </motion.div>

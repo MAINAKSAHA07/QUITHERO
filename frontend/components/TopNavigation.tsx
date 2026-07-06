@@ -44,7 +44,7 @@ export default function TopNavigation({
     }
     if (left === 'logo') {
       return (
-        <SmonoLogo size="md" />
+        <SmonoLogo size="md" showMascot layout="inline" />
       )
     }
     return left

@@ -12,7 +12,8 @@ import {
 import { QuitArchetype, CravingTrigger, EmotionalState } from '../types/enums'
 import { behaviorProfileService } from './behavior-profile.service'
 import { profileService } from './profile.service'
-import { buildFallbackTriggerCheck, buildFallbackComprehensionCheck } from '../utils/sessionPersonalization'
+import { buildFallbackTriggerCheck, buildFallbackComprehensionCheck, buildFallbackPersonalizedContent } from '../utils/sessionPersonalization'
+import { sanitizePersonalizedText } from '../utils/stepContentFormat'
 import { sessionPersonalizationService } from './session-personalization.service'
 
 // ─── Onboarding Context Builder ────────────────────────────────────────────────
@@ -439,6 +440,12 @@ class AIPersonalizationService {
 
       const content = this.parseSessionResponse(response)
 
+      const fallbacks = buildFallbackPersonalizedContent(userProfile, dayNumber)
+      if (!content.session_intro) content.session_intro = fallbacks.session_intro
+      if (!content.exercise_motivation) content.exercise_motivation = fallbacks.exercise_motivation
+      if (!content.journal_prompt) content.journal_prompt = fallbacks.journal_prompt
+      if (!content.closing_reflection) content.closing_reflection = fallbacks.closing_reflection
+
       // ponytail: client-side fallback when AI omits optional checks
       if (!content.trigger_check) {
         content.trigger_check = buildFallbackTriggerCheck(userProfile)
@@ -708,8 +715,8 @@ class AIPersonalizationService {
           .slice(0, 4)
         if (options.length >= 2) {
           trigger_check = {
-            question: String(parsed.trigger_check.question).slice(0, 200),
-            options,
+            question: sanitizePersonalizedText(String(parsed.trigger_check.question)).slice(0, 200),
+            options: options.map((o: string) => sanitizePersonalizedText(o)),
           }
         }
       }
@@ -725,20 +732,28 @@ class AIPersonalizationService {
           : ['Pause. Breathe.', 'Understanding grows when you give it a second pass.']
         if (options.length >= 2 && correct_index >= 0 && correct_index < options.length) {
           comprehension_check = {
-            question: String(cc.question).slice(0, 250),
-            options,
+            question: sanitizePersonalizedText(String(cc.question)).slice(0, 250),
+            options: options.map((o: string) => sanitizePersonalizedText(o)),
             correct_index,
-            thought_of_the_day: thought,
-            reread_hint: String(cc.reread_hint || 'Re-read the earlier sections before continuing.').slice(0, 150),
+            thought_of_the_day: [
+              sanitizePersonalizedText(thought[0]),
+              sanitizePersonalizedText(thought[1]),
+            ],
+            reread_hint: sanitizePersonalizedText(
+              String(cc.reread_hint || 'Re-read the earlier sections before continuing.')
+            ).slice(0, 150),
           }
         }
       }
 
+      const clean = (v: unknown) =>
+        typeof v === 'string' ? sanitizePersonalizedText(v) : undefined
+
       return {
-        session_intro: parsed.session_intro || undefined,
-        exercise_motivation: parsed.exercise_motivation || undefined,
-        closing_reflection: parsed.closing_reflection || undefined,
-        journal_prompt: parsed.journal_prompt || undefined,
+        session_intro: clean(parsed.session_intro),
+        exercise_motivation: clean(parsed.exercise_motivation),
+        closing_reflection: clean(parsed.closing_reflection),
+        journal_prompt: clean(parsed.journal_prompt),
         trigger_check,
         comprehension_check,
       }

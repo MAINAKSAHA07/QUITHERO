@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import GlassButton from './GlassButton'
+import Mascot from './Mascot'
+import SmonoLogo from './SmonoLogo'
 import { haptic, hapticPatterns } from '../utils/haptic'
 
 interface MilestoneModalProps {
@@ -66,9 +68,10 @@ export default function MilestoneModal({ isOpen, days, onClose }: MilestoneModal
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="text-7xl mb-4"
+              className="mb-4 flex flex-col items-center gap-2"
             >
-              🏆
+              <Mascot size="lg" />
+              <SmonoLogo size="sm" />
             </motion.div>
 
             <motion.h1

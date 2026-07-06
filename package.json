@@ -30,7 +30,10 @@
     "pb:seed-sample": "node PocketBase/seed-sample.js",
     "dev:backoffice": "cd backoffice && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backoffice\"",
-    "ai-proxy": "node scripts/ai-proxy-server.js"
+    "ai-proxy": "node scripts/api-server.js",
+    "api-server": "node scripts/api-server.js",
+    "generate-vapid": "node scripts/generate-vapid-keys.js",
+    "pb:setup-push": "node PocketBase/setup-push-collections.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -47,7 +50,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.15.4",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

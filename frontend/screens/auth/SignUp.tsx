@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Eye, EyeOff, Check } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
+import SmonoLogo from '../../components/SmonoLogo'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
@@ -141,7 +142,7 @@ export default function SignUp() {
 
   return (
     <div className="min-h-screen pb-20">
-      <TopNavigation left="back" center="Sign Up" right="" />
+      <TopNavigation left="logo" center="" right="" />
 
       <div className="app-container px-3 sm:px-4 pt-8">
         <motion.div
@@ -149,6 +150,11 @@ export default function SignUp() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+          <div className="text-center mb-6 flex flex-col items-center">
+            <SmonoLogo size="lg" showMascot className="mb-2" />
+            <p className="text-text-primary/70 mt-2">Create your account</p>
+          </div>
+
           <GlassCard className="p-6 mb-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <GlassInput

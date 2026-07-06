@@ -1,7 +1,8 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertTriangle } from 'lucide-react'
 import GlassCard from './GlassCard'
 import GlassButton from './GlassButton'
+import SmonoLogo from './SmonoLogo'
+import Mascot from './Mascot'
 import { analyticsService } from '../services/analytics.service'
 
 interface Props {
@@ -43,7 +44,8 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
           <GlassCard className="p-8 max-w-md text-center">
-            <AlertTriangle className="w-16 h-16 text-error mx-auto mb-4" />
+            <Mascot size="lg" className="mx-auto mb-4" />
+            <SmonoLogo size="md" className="justify-center mb-4" />
             <h2 className="text-2xl font-bold text-text-primary mb-2">Something went wrong</h2>
             <p className="text-text-primary/70 mb-6">
               We're sorry, but something unexpected happened. Please try again.

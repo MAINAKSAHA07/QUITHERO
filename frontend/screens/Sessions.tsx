@@ -5,6 +5,7 @@ import { CheckCircle, Lock, Play, RefreshCw } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import { Progress } from '../components/ui/progress'
 import TopNavigation from '../components/TopNavigation'
+import Mascot from '../components/Mascot'
 import BottomNavigation from '../components/BottomNavigation'
 import { useApp } from '../context/AppContext'
 import { programService } from '../services/program.service'
@@ -115,7 +116,7 @@ export default function Sessions() {
           <TopNavigation left="menu" center="Program" right="" />
         </div>
         <div className="flex flex-col items-center justify-center flex-1 gap-4">
-          <img src="/mascot.png" alt="Loading" className="w-24 h-24 sm:w-32 sm:h-32 object-contain animate-pulse" />
+          <Mascot size="lg" pulse className="w-24 h-24 sm:w-32 sm:h-32" />
           <p className="text-text-primary/70 text-sm">Loading sessions...</p>
         </div>
         <BottomNavigation />

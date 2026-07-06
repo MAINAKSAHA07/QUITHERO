@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
@@ -11,6 +11,16 @@ import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import SmonoLogo from '../../components/SmonoLogo'
 import { profileService } from '../../services/profile.service'
+import {
+  getLoginLockout,
+  recordLoginFailure,
+  recordLoginSuccess,
+  getLoginRetryDelayMs,
+  formatLockoutDuration,
+  LOGIN_MAX_ATTEMPTS,
+} from '../../utils/loginRateLimit'
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -18,8 +28,30 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lockoutRetryMs, setLockoutRetryMs] = useState(0)
   const navigate = useNavigate()
   const { isAuthenticated, user, setIsAuthenticated, setUser } = useApp()
+
+  const refreshLockout = useCallback(() => {
+    if (!email.trim()) {
+      setLockoutRetryMs(0)
+      return
+    }
+    const { locked, retryAfterMs } = getLoginLockout(email)
+    setLockoutRetryMs(locked ? retryAfterMs : 0)
+  }, [email])
+
+  useEffect(() => {
+    refreshLockout()
+  }, [refreshLockout])
+
+  useEffect(() => {
+    if (lockoutRetryMs <= 0) return
+    const timer = setInterval(refreshLockout, 1000)
+    return () => clearInterval(timer)
+  }, [lockoutRetryMs, refreshLockout])
+
+  const isLockedOut = lockoutRetryMs > 0
 
   // If user is already authenticated (e.g. after OAuth redirect), route them appropriately
   useEffect(() => {
@@ -33,18 +65,30 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
 
     if (!email || !password) {
       setError('Please fill in all fields')
-      setLoading(false)
       return
     }
 
+    const lockout = getLoginLockout(email)
+    if (lockout.locked) {
+      setLockoutRetryMs(lockout.retryAfterMs)
+      setError(`Too many failed attempts. Try again in ${formatLockoutDuration(lockout.retryAfterMs)}.`)
+      return
+    }
+
+    setLoading(true)
+
     try {
+      if (lockout.failures > 0) {
+        await sleep(getLoginRetryDelayMs(lockout.failures))
+      }
+
       const result = await authHelpers.login(email, password)
       
       if (result.success && result.data) {
+        recordLoginSuccess(email)
         setIsAuthenticated(true)
         setUser({
           id: result.data.record.id,
@@ -64,10 +108,26 @@ export default function Login() {
           navigate('/kyc')
         }
       } else {
-        setError(result.error || 'Login failed. Please check your credentials.')
+        const failure = recordLoginFailure(email)
+        refreshLockout()
+        if (failure.locked) {
+          setError(`Too many failed attempts. Try again in ${formatLockoutDuration(failure.retryAfterMs)}.`)
+        } else if (failure.attemptsRemaining <= 2) {
+          setError(
+            `${result.error || 'Login failed. Please check your credentials.'} (${failure.attemptsRemaining} attempt${failure.attemptsRemaining === 1 ? '' : 's'} left)`
+          )
+        } else {
+          setError(result.error || 'Login failed. Please check your credentials.')
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred during login')
+      const failure = recordLoginFailure(email)
+      refreshLockout()
+      if (failure.locked) {
+        setError(`Too many failed attempts. Try again in ${formatLockoutDuration(failure.retryAfterMs)}.`)
+      } else {
+        setError(err.message || 'An error occurred during login')
+      }
     } finally {
       setLoading(false)
     }
@@ -121,7 +181,7 @@ export default function Login() {
         >
           {/* Logo section */}
           <div className="text-center mb-8 flex flex-col items-center">
-            <SmonoLogo size="lg" className="mb-2" />
+            <SmonoLogo size="lg" showMascot className="mb-2" />
             <p className="text-text-primary/70 mt-2">Welcome Back</p>
           </div>
 
@@ -167,6 +227,12 @@ export default function Login() {
                 </Link>
               </div>
 
+              {isLockedOut && (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Login paused for {formatLockoutDuration(lockoutRetryMs)} after {LOGIN_MAX_ATTEMPTS} failed attempts.
+                </p>
+              )}
+
               {error && (
                 <motion.p
                   initial={{ opacity: 0 }}
@@ -181,9 +247,13 @@ export default function Login() {
                 type="submit" 
                 fullWidth 
                 className="py-4 text-lg mt-6"
-                disabled={loading}
+                disabled={loading || isLockedOut}
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {isLockedOut
+                  ? `Try again in ${formatLockoutDuration(lockoutRetryMs)}`
+                  : loading
+                    ? 'Logging in...'
+                    : 'Login'}
               </GlassButton>
             </form>
           </GlassCard>

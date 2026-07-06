@@ -45,3 +45,39 @@ self.addEventListener('fetch', (e) => {
       )
   )
 })
+
+self.addEventListener('push', (event) => {
+  let data = { title: 'smono', message: 'You have a new update.', url: '/' }
+  try {
+    if (event.data) data = { ...data, ...event.data.json() }
+  } catch {
+    /* ponytail: malformed push payload — show default */
+  }
+  const body = data.message || data.body || ''
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'smono', {
+      body,
+      icon: '/mascot.png',
+      badge: '/mascot.png',
+      tag: data.tag || 'smono-push',
+      renotify: true,
+      data: { url: data.url || '/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const targetUrl = event.notification.data?.url || '/'
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ('focus' in client) {
+          client.navigate(targetUrl)
+          return client.focus()
+        }
+      }
+      return clients.openWindow(targetUrl)
+    })
+  )
+})

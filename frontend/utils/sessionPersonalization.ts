@@ -1,5 +1,5 @@
 import { StepType } from '../types/enums'
-import { Step, UserProfile, ProgressStats, ExerciseStepContent, TriggerCheckContent, ComprehensionCheckContent } from '../types/models'
+import { Step, UserProfile, ProgressStats, ExerciseStepContent, TriggerCheckContent, ComprehensionCheckContent, PersonalizedContent } from '../types/models'
 import {
   calculateYearlySpend,
   calculateCigarettesAvoidedYear,
@@ -139,6 +139,29 @@ export function getSessionStatCard(
       }
     default:
       return null
+  }
+}
+
+const DAY_EXERCISE_MOTIVATION: Record<number, string> = {
+  4: 'Your stress numbers are the evidence — track them honestly today and you\'ll see the cigarette only pauses withdrawal, not the real pressure.',
+}
+
+export function buildFallbackPersonalizedContent(
+  profile: UserProfile,
+  dayNumber: number,
+  dayTitle?: string
+): Pick<PersonalizedContent, 'session_intro' | 'exercise_motivation' | 'journal_prompt' | 'closing_reflection'> {
+  const name = profile.onboarding_name?.trim() || 'you'
+  const trigger = (profile.primary_trigger || 'stress').toLowerCase()
+  const label = dayTitle || `Day ${dayNumber}`
+
+  return {
+    session_intro: `${name}, today's session builds on what you've shared about ${trigger}.`,
+    exercise_motivation:
+      DAY_EXERCISE_MOTIVATION[dayNumber] ||
+      `As you work through today's exercise, notice when ${trigger} shows up — that's the pattern we're mapping.`,
+    journal_prompt: `What stood out most from ${label}? Be specific about what you felt in your body.`,
+    closing_reflection: `Before you close ${label}, name one insight you'll carry into tomorrow.`,
   }
 }
 

@@ -1,14 +1,18 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, Home, ArrowRight } from 'lucide-react'
+import { Home, ArrowRight } from 'lucide-react'
 import GlassButton from './GlassButton'
+import Mascot from './Mascot'
+import SmonoLogo from './SmonoLogo'
 import { haptic, hapticPatterns } from '../utils/haptic'
+
+import { formatSessionDuration } from '../utils/sessionDuration'
 
 interface CompletionModalProps {
   isOpen: boolean
   onClose: () => void
   dayNumber: number
-  timeSpentMinutes: number
+  timeSpentSeconds: number
   stepsCompleted: number
   hasNextDay: boolean
   onNextDay?: () => void
@@ -28,7 +32,7 @@ export default function CompletionModal({
   isOpen,
   onClose,
   dayNumber,
-  timeSpentMinutes,
+  timeSpentSeconds,
   stepsCompleted,
   hasNextDay,
   onNextDay,
@@ -75,9 +79,10 @@ export default function CompletionModal({
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.1 }}
-              className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-success to-success/50 flex items-center justify-center shadow-lg"
+              className="mb-6 flex flex-col items-center gap-2"
             >
-              <CheckCircle className="w-16 h-16 text-white" />
+              <Mascot size="lg" />
+              <SmonoLogo size="sm" />
             </motion.div>
 
             <motion.h2
@@ -118,10 +123,10 @@ export default function CompletionModal({
               className="grid grid-cols-2 gap-4 mb-8"
             >
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <div className="text-3xl font-bold text-brand-primary mb-1">
-                  {timeSpentMinutes}
+                <div className="text-2xl sm:text-3xl font-bold text-brand-primary mb-1 leading-tight">
+                  {formatSessionDuration(timeSpentSeconds)}
                 </div>
-                <div className="text-sm text-gray-700 font-medium">Minutes</div>
+                <div className="text-sm text-gray-700 font-medium">Time spent</div>
               </div>
               <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
                 <div className="text-3xl font-bold text-brand-primary mb-1">

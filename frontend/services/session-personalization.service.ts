@@ -107,6 +107,14 @@ class SessionPersonalizationService {
   }
 
   async buildSessionHistoryContext(userId: string, currentDay: number): Promise<string> {
+    const [memoryLines, stepLines] = await Promise.all([
+      this.buildAiMemoryContext(userId, currentDay),
+      this.buildStepResponseContext(userId, currentDay),
+    ])
+    return [memoryLines, stepLines].filter(Boolean).join('\n\n')
+  }
+
+  private async buildAiMemoryContext(userId: string, currentDay: number): Promise<string> {
     try {
       const rows = await pb.collection('session_ai_memory').getList(1, 30, {
         filter: `user = "${userId}" && record_type != "personalization"`,
@@ -139,6 +147,50 @@ class SessionPersonalizationService {
       return lines.join('\n')
     } catch {
       return 'SESSION MEMORY:\n- Unavailable.'
+    }
+  }
+
+  /** Summarize saved reflections and exercise worksheets for AI context (not shown in UI). */
+  async buildStepResponseContext(userId: string, currentDay: number): Promise<string> {
+    try {
+      const rows = await pb.collection('step_responses').getList(1, 40, {
+        filter: `user = "${userId}"`,
+        expand: 'step,step.program_day',
+        sort: '-updated',
+      })
+
+      const lines: string[] = ['USER INPUT HISTORY (reflections & exercises — use for tone, never quote verbatim):']
+      let count = 0
+
+      for (const raw of rows.items as any[]) {
+        const step = raw.expand?.step
+        const dayNum = step?.expand?.program_day?.day_number ?? null
+        if (dayNum != null && dayNum >= currentDay) continue
+
+        const payload = raw.response_json || {}
+        const slug = step?.slug || raw.step
+
+        if (payload.answer) {
+          const snippet = String(payload.answer).slice(0, 120)
+          lines.push(`- Day ${dayNum ?? '?'} reflection (${slug}): "${snippet}${payload.answer.length > 120 ? '…' : ''}"`)
+          count++
+        } else if (payload.worksheet) {
+          lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): worksheet completed`)
+          count++
+        } else if (payload.selected_option != null) {
+          lines.push(`- Day ${dayNum ?? '?'} quiz (${slug}): option ${payload.selected_option}`)
+          count++
+        } else if (payload.completed) {
+          lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): marked complete`)
+          count++
+        }
+        if (count >= 12) break
+      }
+
+      if (count === 0) lines.push('- No saved reflections or exercise data yet.')
+      return lines.join('\n')
+    } catch {
+      return 'USER INPUT HISTORY:\n- Unavailable.'
     }
   }
 

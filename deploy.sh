@@ -414,6 +414,14 @@ run_pb_setup() {
   fi
 }
 
+run_push_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-push-collections.js" ]] || return
+
+  log "Ensuring push_subscriptions collection exists"
+  cd "$APP_DIR"
+  node PocketBase/setup-push-collections.js || warn "setup-push-collections.js failed — push may not persist"
+}
+
 run_oauth_setup() {
   local google_id="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-}}"
   local google_secret="${GOOGLE_CLIENT_SECRET:-}"
@@ -452,20 +460,21 @@ setup_ai_proxy() {
     warn "ANTHROPIC_API_KEY not set — AI proxy will return 503 until .env is updated"
   fi
 
-  log "Configuring AI proxy (systemd + port ${AI_PROXY_PORT})"
+  log "Configuring API server — AI + push (systemd, port ${AI_PROXY_PORT})"
 
   service_file="/etc/systemd/system/quithero-ai-proxy.service"
   sudo tee "$service_file" >/dev/null <<EOF
 [Unit]
-Description=Quit Hero AI personalization proxy
+Description=Quit Hero API server (AI personalization + Web Push)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=${APP_DIR}
 Environment=AI_PROXY_PORT=${AI_PROXY_PORT}
+Environment=POCKETBASE_INTERNAL_URL=http://127.0.0.1:${PB_PORT}
 EnvironmentFile=-${APP_DIR}/.env
-ExecStart=${node_bin} ${APP_DIR}/scripts/ai-proxy-server.js
+ExecStart=${node_bin} ${APP_DIR}/scripts/api-server.js
 Restart=on-failure
 RestartSec=5
 
@@ -549,6 +558,19 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # Web Push API (subscribe / VAPID key)
+    location /api/push/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/push/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
         proxy_connect_timeout 5s;
     }
 
@@ -664,6 +686,7 @@ deploy_all() {
   sync_project_on_server
   deploy_pocketbase
   run_pb_setup
+  run_push_setup
   run_oauth_setup
   build_frontend
   build_backoffice

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { achievementService } from '../services/achievement.service'
 import { Achievement, UserAchievement } from '../types/models'
 import { useApp } from '../context/AppContext'
@@ -10,7 +10,7 @@ export function useAchievements() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchAchievements = async () => {
+  const fetchAchievements = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -25,9 +25,9 @@ export function useAchievements() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchUserAchievements = async () => {
+  const fetchUserAchievements = useCallback(async () => {
     if (!user?.id) return
 
     setLoading(true)
@@ -44,16 +44,15 @@ export function useAchievements() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
 
-  const checkAndUnlock = async () => {
+  const checkAndUnlock = useCallback(async () => {
     if (!user?.id) return { success: false, error: 'User not found' }
 
     setLoading(true)
     try {
       const result = await achievementService.checkAndUnlock(user.id)
       if (result.success && result.data) {
-        // Refresh user achievements
         await fetchUserAchievements()
         return { success: true, data: result.data, newlyUnlocked: result.data }
       } else {
@@ -64,7 +63,7 @@ export function useAchievements() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, fetchUserAchievements])
 
   useEffect(() => {
     fetchAchievements()
@@ -73,11 +72,15 @@ export function useAchievements() {
     }
   }, [user?.id])
 
-  const isUnlocked = (achievementKey: string): boolean => {
-    return userAchievements.some(
-      (ua) => ua.achievement === achievementKey || (ua as any).expand?.achievement?.key === achievementKey
-    )
-  }
+  const isUnlocked = useCallback((achievementKey: string): boolean => {
+    const def = achievements.find((a) => a.key === achievementKey)
+    return userAchievements.some((ua) => {
+      const expanded = (ua as any).expand?.achievement
+      if (expanded?.key === achievementKey) return true
+      if (def?.id && ua.achievement === def.id) return true
+      return ua.achievement === achievementKey
+    })
+  }, [userAchievements, achievements])
 
   const getUnlockedAchievements = (): Achievement[] => {
     return achievements.filter((a) => isUnlocked(a.key))

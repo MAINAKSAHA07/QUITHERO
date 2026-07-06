@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import TopNavigation from '../components/TopNavigation'
+import SmonoLogo from '../components/SmonoLogo'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { useApp } from '../context/AppContext'
@@ -93,12 +94,15 @@ export default function LanguageSelection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-3xl font-bold text-text-primary mb-2">
+          <div className="flex flex-col items-center text-center mb-8">
+            <SmonoLogo size="lg" showMascot className="mb-4" />
+            <h1 className="text-3xl font-bold text-text-primary mb-2">
             <TranslatedText text="Choose Your Language" />
           </h1>
           <p className="text-text-primary/70 mb-8">
             <TranslatedText text="You can change this later in settings" />
           </p>
+          </div>
 
           <div className="space-y-3 mb-8">
             {languages.map((lang) => (

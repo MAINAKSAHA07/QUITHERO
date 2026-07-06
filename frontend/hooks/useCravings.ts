@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { cravingService } from '../services/craving.service'
 import { Craving } from '../types/models'
 import { useApp } from '../context/AppContext'
@@ -53,25 +53,23 @@ export function useCravings() {
     }
   }
 
-  const getTrend = async (days: number = 30) => {
+  const getTrend = useCallback(async (days: number = 30) => {
     if (!user?.id) return { success: false, error: 'User not found' }
-
     try {
       return await cravingService.getTrend(user.id, days)
     } catch (err: any) {
       return { success: false, error: err.message }
     }
-  }
+  }, [user?.id])
 
-  const getTriggerBreakdown = async () => {
+  const getTriggerBreakdown = useCallback(async () => {
     if (!user?.id) return { success: false, error: 'User not found' }
-
     try {
       return await cravingService.getTriggerBreakdown(user.id)
     } catch (err: any) {
       return { success: false, error: err.message }
     }
-  }
+  }, [user?.id])
 
   useEffect(() => {
     if (user?.id) {
