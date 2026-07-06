@@ -3,6 +3,7 @@ import { sessionService, programService } from '../services'
 import { UserSession, ProgramDay, SessionProgress } from '../types/models'
 import { useApp } from '../context/AppContext'
 import pb from '../lib/pocketbase'
+import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
 
 // ponytail: module-level in-flight guard — prevents concurrent duplicate fetches
 let _fetchInFlight = false
@@ -45,10 +46,10 @@ export function useSessions() {
             fields: 'id,program_day,status',
           }).catch(() => [] as any[])
 
-          const completedCount = allProgress.filter((p: any) => p.status === 'completed').length
-          const expectedCurrentDay = completedCount + 1
+          const progressByDay = indexProgressByDayId(allProgress as any[])
+          const expectedCurrentDay = expectedCurrentDayNumber(daysResult.data, progressByDay)
 
-          if ((session.current_day || 1) < expectedCurrentDay) {
+          if ((session.current_day || 1) !== expectedCurrentDay) {
             // ponytail: fire-and-forget — UI doesn't need to wait for this write
             pb.collection('user_sessions').update(session.id!, {
               current_day: expectedCurrentDay,

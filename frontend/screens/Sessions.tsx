@@ -13,6 +13,11 @@ import { programService } from '../services/program.service'
 import { SessionStatus } from '../types/enums'
 import { ProgramDay, SessionProgress } from '../types/models'
 import pb from '../lib/pocketbase'
+import {
+  indexProgressByDayId,
+  isDayUnlocked,
+  dayStatus,
+} from '../utils/programProgress'
 
 interface DayWithProgress {
   day: ProgramDay
@@ -74,18 +79,12 @@ export default function Sessions() {
         fields: 'id,program_day,status,last_step_index,completed_at,time_spent_minutes',
       }).catch(() => [] as any[])
 
-      const progressByDay = new Map<string, SessionProgress>(
-        allProgress.map((p: any) => [p.program_day, p])
-      )
+      const progressByDay = indexProgressByDayId(allProgress)
 
-      // 4. Merge locally
       setDaysWithProgress(days.map((day, i) => {
         const progress = day.id ? (progressByDay.get(day.id) ?? null) : null
-        const status = (progress?.status as SessionStatus) || SessionStatus.NOT_STARTED
-        const prevStatus = i === 0
-          ? SessionStatus.COMPLETED // day 1 is never locked
-          : (days[i - 1].id ? (progressByDay.get(days[i - 1].id!)?.status as SessionStatus) : undefined) ?? SessionStatus.NOT_STARTED
-        const isLocked = i === 0 ? false : prevStatus !== SessionStatus.COMPLETED
+        const status = dayStatus(day, progressByDay)
+        const isLocked = !isDayUnlocked(i, days, progressByDay)
         return { day, progress, isLocked, status }
       }))
       hasLoadedOnce.current = true
@@ -160,6 +159,7 @@ export default function Sessions() {
             const isInProgress = d.status === SessionStatus.IN_PROGRESS
             const isFreemiumLocked = !isPremium && i > 0
             const effectiveLocked = d.isLocked || isFreemiumLocked
+            const showAsLocked = effectiveLocked && !isInProgress && !isCompleted
             return (
               <motion.div
                 key={d.day.id}
@@ -168,19 +168,19 @@ export default function Sessions() {
                 transition={{ delay: i * 0.03 }}
               >
                 <GlassCard
-                  className={`cursor-pointer hover:bg-white/10 ${effectiveLocked ? 'opacity-50 cursor-not-allowed' : ''} ${isInProgress && !isFreemiumLocked ? 'border-brand-primary/50' : ''}`}
+                  className={`cursor-pointer hover:bg-white/10 ${showAsLocked ? 'opacity-50 cursor-not-allowed' : ''} ${isInProgress && !isFreemiumLocked ? 'border-brand-primary/50' : ''}`}
                   onClick={() => handleDayClick(d, i)}
                 >
                   <div className="p-3.5 flex items-center gap-3">
                     <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                       isCompleted && !isFreemiumLocked ? 'bg-emerald-500/10 border border-emerald-500/20'
                       : isInProgress && !isFreemiumLocked ? 'bg-brand-primary/10 border border-brand-primary/20 animate-pulse'
-                      : effectiveLocked ? 'bg-white/5 border border-white/5'
+                      : showAsLocked ? 'bg-white/5 border border-white/5'
                       : 'bg-brand-primary/10 border border-brand-primary/10'
                     }`}>
                       {isCompleted && !isFreemiumLocked
                         ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-                        : effectiveLocked
+                        : showAsLocked
                         ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-primary/40" />
                         : <span className="text-brand-primary font-black text-xs sm:text-sm">{d.day.day_number}</span>
                       }
@@ -188,10 +188,10 @@ export default function Sessions() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-text-primary text-xs sm:text-sm truncate">{d.day.title}</p>
                       <p className="text-[10px] font-semibold text-text-primary/45 uppercase tracking-wide">
-                        {isFreemiumLocked ? 'Premium' : isCompleted ? 'Completed' : isInProgress ? 'In progress' : d.isLocked ? 'Locked' : 'Ready'}
+                        {isFreemiumLocked ? 'Premium' : isCompleted ? 'Completed' : isInProgress ? 'In progress' : showAsLocked ? 'Locked' : 'Ready'}
                       </p>
                     </div>
-                    {!effectiveLocked && !isCompleted && <Play className="w-4 h-4 text-brand-primary flex-shrink-0" />}
+                    {!showAsLocked && !isCompleted && <Play className="w-4 h-4 text-brand-primary flex-shrink-0" />}
                     {isCompleted && !isFreemiumLocked && <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
                     {isFreemiumLocked && <Lock className="w-4 h-4 text-amber-400 flex-shrink-0" />}
                   </div>

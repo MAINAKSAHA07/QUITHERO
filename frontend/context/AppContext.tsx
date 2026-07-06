@@ -3,8 +3,11 @@ import { authHelpers } from '../lib/pocketbase'
 import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
 import { sessionService } from '../services/session.service'
+import { programService } from '../services/program.service'
 import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
+import { pb } from '../lib/pocketbase'
+import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
 
 interface AppContextType {
@@ -138,7 +141,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (result.success && result.data) {
-        setCurrentSession(result.data)
+        let session = result.data
+        const programId = typeof session.program === 'string'
+          ? session.program
+          : (session.program as { id?: string })?.id
+        if (programId) {
+          const daysResult = await programService.getProgramDays(programId)
+          if (daysResult.success && daysResult.data?.length) {
+            const allProgress = await pb.collection('session_progress').getFullList({
+              filter: `user = "${user.id}"`,
+              fields: 'id,program_day,status',
+            }).catch(() => [])
+            const expectedDay = expectedCurrentDayNumber(
+              daysResult.data,
+              indexProgressByDayId(allProgress as any[])
+            )
+            if ((session.current_day || 1) !== expectedDay && session.id) {
+              pb.collection('user_sessions').update(session.id, {
+                current_day: expectedDay,
+                status: expectedDay > 30 ? 'completed' : 'in_progress',
+              }).catch(() => {})
+              session = { ...session, current_day: expectedDay }
+            }
+          }
+        }
+        setCurrentSession(session)
       } else {
         console.error('[AppContext] Failed to load program session:', result.error)
         setCurrentSession(null)
