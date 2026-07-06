@@ -10,6 +10,8 @@ import { BeliefAssessment } from '../../components/BeliefAssessment'
 import { PersonalizationLoader } from '../../components/PersonalizationLoader'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
+import { sessionService } from '../../services/session.service'
+import { analyticsService } from '../../services/analytics.service'
 import { assignDetailedQuitArchetype, getArchetypeInfo } from '../../utils/archetypeAssignment'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
 
@@ -246,7 +248,11 @@ export default function KYCFlow() {
   }
 
   // Clean up localStorage upon completion to prevent stale data
-  const handleFinalRedirect = () => {
+  const handleFinalRedirect = async () => {
+    if (user?.id) {
+      await sessionService.getOrCreateCurrentSession(user.id, 'en')
+      await analyticsService.trackOnboardingCompleted(user.id)
+    }
     try {
       localStorage.removeItem('kyc_answers')
     } catch {}

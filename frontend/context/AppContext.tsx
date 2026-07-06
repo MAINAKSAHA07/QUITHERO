@@ -139,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user?.id) return
     setSessionLoading(true)
     try {
-      const result = await sessionService.getCurrentSession(user.id)
+      const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (result.success && result.data) {
         setCurrentSession(result.data)
       }

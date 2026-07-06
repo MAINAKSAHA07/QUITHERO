@@ -21,7 +21,7 @@ export function useSessions() {
     setLoading(true)
     setError(null)
     try {
-      const result = await sessionService.getCurrentSession(user.id)
+      const result = await sessionService.getOrCreateCurrentSession(user.id)
       if (!result.success || !result.data) {
         setError(result.error || null)
         return

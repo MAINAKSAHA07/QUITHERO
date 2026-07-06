@@ -3,6 +3,7 @@ import { UserSession, SessionProgress, StepResponse } from '../types/models'
 import { ApiResponse } from '../types/api'
 import { SessionStatus } from '../types/enums'
 import { pb } from '../lib/pocketbase'
+import { programService } from './program.service'
 
 export class SessionService extends BaseService {
   constructor() {
@@ -36,6 +37,26 @@ export class SessionService extends BaseService {
     } catch (error: any) {
       return { success: false, error: error.message || 'Failed to fetch session' }
     }
+  }
+
+  /**
+   * Get user's current session, creating one for the active program if missing.
+   * ponytail: single guard — KYC used to create sessions in ReminderSettings; new flow skipped that.
+   */
+  async getOrCreateCurrentSession(userId: string, language: string = 'en'): Promise<ApiResponse<UserSession>> {
+    const existing = await this.getCurrentSession(userId)
+    if (!existing.success) return existing
+    if (existing.data) return existing
+
+    let programResult = await programService.getActiveProgram(language)
+    if ((!programResult.success || !programResult.data?.id) && language !== 'en') {
+      programResult = await programService.getActiveProgram('en')
+    }
+    if (!programResult.success || !programResult.data?.id) {
+      return { success: false, error: programResult.error || 'No active program found' }
+    }
+
+    return this.createOrGetSession(userId, programResult.data.id)
   }
 
   /**
