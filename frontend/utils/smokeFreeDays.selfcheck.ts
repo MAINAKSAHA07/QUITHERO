@@ -1,4 +1,4 @@
-import { daysSinceQuitDate, localDateISO } from './smokeFreeDays'
+import { daysSinceQuitDate, daysUntilQuitDate, localDateISO } from './smokeFreeDays'
 
 function assert(cond: boolean, msg: string) {
   if (!cond) throw new Error(msg)
@@ -12,5 +12,10 @@ assert(daysSinceQuitDate('2026-07-05 18:24:35.348Z', fixed) === 4, 'timestamp us
 assert(daysSinceQuitDate('2026-07-15', fixed) === 0, 'future quit → 0')
 assert(daysSinceQuitDate(null) === 0, 'null → 0')
 assert(localDateISO(fixed) === '2026-07-09', 'localDateISO')
+
+assert(daysUntilQuitDate('2026-07-09', fixed) === 0, 'quit today → not pre-quit')
+assert(daysUntilQuitDate('2026-07-09 00:00:00.000Z', fixed) === 0, 'UTC midnight string still today')
+assert(daysUntilQuitDate('2026-07-10', fixed) === 1, 'tomorrow → 1')
+assert(daysUntilQuitDate('2026-07-05', fixed) === 0, 'past → 0')
 
 console.log('smokeFreeDays self-check OK')

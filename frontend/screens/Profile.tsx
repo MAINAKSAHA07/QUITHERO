@@ -17,13 +17,17 @@ import {
   CheckCircle,
   Save,
   X,
+  Flame,
+  Trophy,
+  Bell,
+  ChevronRight,
+  Phone,
 } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
 import BottomNavigation from '../components/BottomNavigation'
-import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import GlassInput from '../components/GlassInput'
 import TranslatedText from '../components/TranslatedText'
+import AppHeader from '../components/AppHeader'
 import { useApp } from '../context/AppContext'
 import pb, { authHelpers } from '../lib/pocketbase'
 import { analyticsService } from '../services/analytics.service'
@@ -31,6 +35,8 @@ import SupportTicketModal from '../components/SupportTicketModal'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
 import { getUserTimezone } from '../utils/reminderTime'
+import { daysSinceQuitDate } from '../utils/smokeFreeDays'
+import { useProgress } from '../hooks/useProgress'
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -44,13 +50,17 @@ const languages = [
 export default function Profile() {
   const navigate = useNavigate()
   const { user, userProfile, progressStats, currentSession, setIsAuthenticated, setUser, updateUserProfile, fetchUserProfile, language } = useApp()
-  // const { updateProfile } = useProfile()
+  const { calculation, refresh: refreshProgress } = useProgress()
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    phone: userProfile?.phone || '',
   })
   const [showSupportModal, setShowSupportModal] = useState(false)
+  const [editingPhone, setEditingPhone] = useState(false)
+  const [phoneDraft, setPhoneDraft] = useState(userProfile?.phone || '')
+  const [savingPhone, setSavingPhone] = useState(false)
   const [notifications, setNotifications] = useState({
     daily: userProfile?.enable_reminders ?? true,
     craving: true,
@@ -72,9 +82,10 @@ export default function Profile() {
   useEffect(() => {
     if (user?.id) {
       fetchUserProfile()
+      refreshProgress()
       analyticsService.trackPageView('profile', user.id)
     }
-  }, [user?.id])
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (userProfile) {
@@ -88,12 +99,43 @@ export default function Profile() {
       setEditForm({
         name: user?.name || '',
         email: user?.email || '',
+        phone: userProfile.phone || '',
       })
+      if (!editingPhone) {
+        setPhoneDraft(userProfile.phone || '')
+      }
     }
-  }, [userProfile, user])
+  }, [userProfile, user, editingPhone])
 
-  const handleSaveSettings = async () => {
+  const handleSavePhone = async () => {
     if (!user?.id) return
+    setSavingPhone(true)
+    setError('')
+    try {
+      const phone = phoneDraft.trim()
+      const { profileService } = await import('../services/profile.service')
+      const result = await profileService.upsert(user.id, { phone })
+      if (!result.success) throw new Error(result.error || 'Failed to save phone number')
+      await fetchUserProfile()
+      setEditingPhone(false)
+      setSuccess(phone ? 'Phone number saved' : 'Phone number removed')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save phone number')
+      setTimeout(() => setError(''), 5000)
+    } finally {
+      setSavingPhone(false)
+    }
+  }
+
+  const handleSaveSettings = async (overrides?: {
+    daily?: boolean
+    reminderTime?: string
+  }) => {
+    if (!user?.id) return
+
+    const daily = overrides?.daily ?? notifications.daily
+    const time = overrides?.reminderTime ?? reminderTime
 
     setSaving(true)
     setError('')
@@ -101,8 +143,8 @@ export default function Profile() {
 
     try {
       await updateUserProfile({
-        enable_reminders: notifications.daily,
-        daily_reminder_time: notifications.daily ? reminderTime : undefined,
+        enable_reminders: daily,
+        daily_reminder_time: daily ? time : undefined,
         timezone: getUserTimezone(),
       })
       setSuccess('Settings saved successfully!')
@@ -131,16 +173,15 @@ export default function Profile() {
         email: editForm.email,
       })
 
-      // Update user profile if needed
-      if (userProfile) {
-        await updateUserProfile({})
-      }
+      const { profileService } = await import('../services/profile.service')
+      const result = await profileService.upsert(user.id, { phone: editForm.phone.trim() })
+      if (!result.success) throw new Error(result.error || 'Failed to update profile')
 
       setSuccess('Profile updated successfully!')
       setIsEditing(false)
       await analyticsService.trackEvent('profile_updated', {}, user.id)
-      // Refresh user data
-      window.location.reload() // Simple refresh to get updated user data
+      await fetchUserProfile()
+      if (pb.authStore.model) setUser(pb.authStore.model)
     } catch (err: any) {
       setError(err.message || 'Failed to update profile')
       setTimeout(() => setError(''), 5000)
@@ -360,331 +401,362 @@ export default function Profile() {
   }
 
   // Calculate member since date
-  const memberSince = user?.id
-    ? new Date().toISOString().split('T')[0] // TODO: Get from user creation date
-    : new Date().toISOString().split('T')[0]
+  const memberSince = user?.created
+    ? new Date(user.created)
+    : user?.id
+      ? new Date()
+      : new Date()
+
+  const daysSmokeFree =
+    calculation?.days_smoke_free ??
+    progressStats?.days_smoke_free ??
+    daysSinceQuitDate(userProfile?.quit_date) ??
+    0
+  const currentDay = currentSession?.current_day || 0
+  const displayName = userProfile?.onboarding_name?.trim() || user?.name || 'Guest'
+  const langLabel = languages.find((l) => l.code === language)?.name || 'English'
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      {/* Pinned Top Navigation */}
-      <div className="flex-shrink-0">
-        <TopNavigation left="menu" center="Profile" right="" />
-      </div>
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        style={{
+          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+        }}
+        aria-hidden
+      />
 
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
-        {/* Profile Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+        <AppHeader title="Profile" />
+
+        {/* Profile hero card */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-3xl bg-white p-6 mb-5 text-center shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
         >
-          <GlassCard className="p-6 mb-6 text-center">
-            <label className="relative w-24 h-24 mx-auto mb-4 rounded-full glass-strong border-4 border-brand-primary/20 flex items-center justify-center cursor-pointer group">
-              {user?.avatar ? (
-                <img src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <Mascot size="md" />
-              )}
-              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Edit className="w-5 h-5 text-white" />
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0]
-                  if (!file || !user?.id) return
-                  try {
-                    const formData = new FormData()
-                    formData.append('avatar', file)
-                    await pb.collection('users').update(user.id, formData)
-                    fetchUserProfile()
-                  } catch { /* silent */ }
-                }}
+          <label className="relative w-24 h-24 mx-auto mb-3 rounded-full bg-[#E8F4FC] border-4 border-[#3F8DD2]/20 flex items-center justify-center cursor-pointer group overflow-hidden">
+            {user?.avatar ? (
+              <img
+                src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`}
+                alt=""
+                className="w-full h-full rounded-full object-cover"
               />
-            </label>
-            {isEditing ? (
-              <div className="space-y-4">
-                <GlassInput
-                  label="Name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  icon={<User className="w-4 h-4" />}
-                />
-                <GlassInput
-                  label="Email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  icon={<Mail className="w-4 h-4" />}
-                />
-                <div className="flex gap-2">
-                  <GlassButton
-                    onClick={handleSaveProfile}
-                    className="flex-1 py-2"
-                    disabled={saving}
-                  >
-                    <Save className="w-4 h-4 inline mr-2" />
-                    <TranslatedText text={saving ? 'Saving...' : 'Save'} />
-                  </GlassButton>
-                  <GlassButton
-                    onClick={() => {
-                      setIsEditing(false)
-                      setEditForm({
-                        name: user?.name || '',
-                        email: user?.email || '',
-                      })
-                    }}
-                    variant="secondary"
-                    className="flex-1 py-2"
-                    disabled={saving}
-                  >
-                    <X className="w-4 h-4 inline mr-2" />
-                    <TranslatedText text="Cancel" />
-                  </GlassButton>
-                </div>
-                {error && <p className="text-sm text-error text-center">{error}</p>}
-                {success && <p className="text-sm text-success text-center">{success}</p>}
-              </div>
             ) : (
-              <>
-                <h2 className="text-2xl font-bold text-text-primary mb-1">{user?.name || 'Guest'}</h2>
-                <p className="text-text-primary/70 mb-3">{user?.email || ''}</p>
-                <SmonoLogo size="sm" className="justify-center mb-4" />
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="glass-button-secondary px-4 py-2 text-sm"
-                >
-                  <Edit className="w-4 h-4 inline mr-2" />
-                  <TranslatedText text="Edit Profile" />
-                </button>
-              </>
+              <Mascot size="md" />
             )}
+            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Edit className="w-5 h-5 text-white" />
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file || !user?.id) return
+                try {
+                  const formData = new FormData()
+                  formData.append('avatar', file)
+                  await pb.collection('users').update(user.id, formData)
+                  fetchUserProfile()
+                } catch { /* silent */ }
+              }}
+            />
+          </label>
 
-            <div className="grid grid-cols-3 gap-4 text-center mt-6 pt-6 border-t border-white/20">
-              <div>
-                <div className="text-lg font-bold text-text-primary">
-                  {new Date(memberSince).toLocaleDateString(undefined, { month: 'short', year: '2-digit' })}
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Joined" />
-                </div>
+          {isEditing ? (
+            <div className="space-y-3 text-left">
+              <GlassInput
+                label="Name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                icon={<User className="w-4 h-4" />}
+              />
+              <GlassInput
+                label="Email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                icon={<Mail className="w-4 h-4" />}
+              />
+              <GlassInput
+                label="Phone"
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                icon={<Phone className="w-4 h-4" />}
+              />
+              <div className="flex gap-2">
+                <GlassButton onClick={handleSaveProfile} className="flex-1 py-2.5" disabled={saving}>
+                  <Save className="w-4 h-4 inline mr-2" />
+                  <TranslatedText text={saving ? 'Saving...' : 'Save'} />
+                </GlassButton>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setEditForm({
+                      name: user?.name || '',
+                      email: user?.email || '',
+                      phone: userProfile?.phone || '',
+                    })
+                  }}
+                  disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl border border-[#0E2538]/15 text-sm font-semibold text-[#0E2538]/70"
+                >
+                  <TranslatedText text="Cancel" />
+                </button>
               </div>
-              <div>
-                <div className="text-lg font-bold text-text-primary">
-                  {progressStats?.days_smoke_free || 0}
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Days smoke-free" />
-                </div>
+              {error && <p className="text-sm text-error text-center">{error}</p>}
+              {success && <p className="text-sm text-success text-center">{success}</p>}
+            </div>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-[#0E2538] mb-0.5">{displayName}</h2>
+              <p className="text-sm text-[#0E2538]/50 mb-3">{user?.email || ''}</p>
+              <SmonoLogo size="sm" className="flex justify-center mb-4" />
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-[#3F8DD2] border border-[#3F8DD2]/35 bg-[#E8F4FC]/60 hover:bg-[#E8F4FC] transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                <TranslatedText text="Edit Profile" />
+              </button>
+            </>
+          )}
+
+          <div className="grid grid-cols-3 gap-2 text-center mt-6 pt-5 border-t border-[#0E2538]/08">
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-8 h-8 rounded-full bg-[#E8F4FC] flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-[#3F8DD2]" />
               </div>
-              <div>
-                <div className="text-lg font-bold text-text-primary">
-                  {currentSession ? (currentSession.current_day || 0) : 0}
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text="Current day" />
-                </div>
+              <div className="text-base font-bold text-[#0E2538]">
+                {memberSince.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+              <div className="text-[10px] font-medium text-[#0E2538]/45">
+                <TranslatedText text="Joined" />
               </div>
             </div>
-          </GlassCard>
-        </motion.div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-8 h-8 rounded-full bg-[#FFF1E6] flex items-center justify-center">
+                <Flame className="w-4 h-4 text-[#E8894A]" />
+              </div>
+              <div className="text-base font-bold text-[#0E2538]">{daysSmokeFree}</div>
+              <div className="text-[10px] font-medium text-[#0E2538]/45">
+                <TranslatedText text="Days smoke-free" />
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-8 h-8 rounded-full bg-[#EAF6F1] flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-[#6EA48F]" />
+              </div>
+              <div className="text-base font-bold text-[#0E2538]">{currentDay}</div>
+              <div className="text-[10px] font-medium text-[#0E2538]/45">
+                <TranslatedText text="Current day" />
+              </div>
+            </div>
+          </div>
+        </motion.section>
 
-        {/* Account Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        {/* Account */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="mb-5"
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
             <TranslatedText text="Account" />
           </h3>
-          <GlassCard className="p-4 mb-6 space-y-3">
-            <button className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Email" />
-                </span>
+          <div className="rounded-3xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white overflow-hidden divide-y divide-[#0E2538]/06">
+            <AccountRow
+              icon={Mail}
+              label="Email"
+              value={user?.email || '—'}
+            />
+            {editingPhone ? (
+              <div className="px-4 py-3.5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <IconBubble icon={Phone} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#0E2538] mb-1.5">
+                      <TranslatedText text="Phone" />
+                    </p>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={phoneDraft}
+                      onChange={(e) => setPhoneDraft(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2 text-sm text-[#0E2538]"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pl-12">
+                  <button
+                    type="button"
+                    onClick={handleSavePhone}
+                    disabled={savingPhone}
+                    className="flex-1 py-2 rounded-xl bg-[#3F8DD2] text-white text-sm font-semibold disabled:opacity-50"
+                  >
+                    <TranslatedText text={savingPhone ? 'Saving...' : 'Save'} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPhone(false)
+                      setPhoneDraft(userProfile?.phone || '')
+                    }}
+                    disabled={savingPhone}
+                    className="flex-1 py-2 rounded-xl border border-[#0E2538]/15 text-sm font-semibold text-[#0E2538]/70"
+                  >
+                    <TranslatedText text="Cancel" />
+                  </button>
+                </div>
               </div>
-              <span className="text-text-primary/70 text-sm">{user?.email || ''}</span>
-            </button>
-            <button
-              onClick={handleChangePassword}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl"
-            >
-              <div className="flex items-center gap-3">
-                <Lock className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Change Password" />
-                </span>
-              </div>
-            </button>
-            <button
+            ) : (
+              <AccountRow
+                icon={Phone}
+                label="Phone"
+                value={userProfile?.phone?.trim() || 'Add phone number'}
+                muted={!userProfile?.phone?.trim()}
+                onClick={() => {
+                  setPhoneDraft(userProfile?.phone || '')
+                  setEditingPhone(true)
+                }}
+              />
+            )}
+            <AccountRow
+              icon={Globe}
+              label="Language"
+              value={langLabel}
               onClick={() => navigate('/language?from=/profile')}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl"
-            >
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Language" />
-                </span>
-              </div>
-              <span className="text-text-primary/70 text-sm">
-                {languages.find(l => l.code === language)?.name || 'English'}
-              </span>
-            </button>
-          </GlassCard>
-        </motion.div>
+            />
+            <AccountRow
+              icon={Bell}
+              label="Notifications"
+              value={notifications.daily ? 'On' : 'Off'}
+              onClick={() => {
+                document.getElementById('profile-notifications')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+            />
+            <AccountRow
+              icon={Lock}
+              label="Change Password"
+              onClick={handleChangePassword}
+            />
+          </div>
+        </motion.section>
 
         {/* Notifications */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          id="profile-notifications"
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ duration: 0.35, delay: 0.1 }}
+          className="mb-5"
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
             <TranslatedText text="Notifications" />
           </h3>
-          <GlassCard className="p-4 mb-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-text-primary">
-                  <TranslatedText text="Daily reminders" />
-                </div>
-                <div className="text-xs text-text-primary/70">
-                  <TranslatedText text={`Get notified at ${reminderTime} every day`} />
-                </div>
-              </div>
-              <button
-                onClick={async () => {
-                  const enabling = !notifications.daily
-                  if (enabling) {
-                    const { enablePushNotifications } = await import('../utils/pushNotifications')
-                    const result = await enablePushNotifications()
-                    if (!result.ok) {
-                      setError(result.error || 'Enable notifications in your browser settings to use daily reminders.')
-                      return
-                    }
+          <div className="rounded-3xl bg-white p-4 shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white space-y-4">
+            <ToggleRow
+              title="Daily reminders"
+              subtitle={`Get notified at ${reminderTime} every day`}
+              on={notifications.daily}
+              onToggle={async () => {
+                const enabling = !notifications.daily
+                if (enabling) {
+                  const { enablePushNotifications } = await import('../utils/pushNotifications')
+                  const result = await enablePushNotifications()
+                  if (!result.ok) {
+                    setError(result.error || 'Enable notifications in your browser settings to use daily reminders.')
+                    return
                   }
-                  setNotifications({ ...notifications, daily: enabling })
-                  handleSaveSettings()
-                }}
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  notifications.daily ? 'bg-brand-primary' : 'bg-text-primary/30'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.daily ? 'translate-x-6' : ''
-                  }`}
-                />
-              </button>
-            </div>
+                }
+                setNotifications({ ...notifications, daily: enabling })
+                handleSaveSettings({ daily: enabling })
+              }}
+            />
             {notifications.daily && (
               <input
                 type="time"
                 value={reminderTime}
                 onChange={(e) => {
-                  setReminderTime(e.target.value)
-                  handleSaveSettings()
+                  const next = e.target.value
+                  setReminderTime(next)
+                  handleSaveSettings({ reminderTime: next })
                 }}
-                className="glass-input w-full"
+                className="w-full rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2.5 text-sm text-[#0E2538]"
               />
             )}
-            {error && <p className="text-sm text-error text-center mt-2">{error}</p>}
-            {success && <p className="text-sm text-success text-center mt-2">{success}</p>}
-            <div className="flex items-center justify-between">
-              <div className="font-medium text-text-primary">
-                <TranslatedText text="Craving alerts" />
-              </div>
-              <button
-                onClick={() =>
-                  setNotifications({ ...notifications, craving: !notifications.craving })
-                }
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  notifications.craving ? 'bg-brand-primary' : 'bg-text-primary/30'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.craving ? 'translate-x-6' : ''
-                  }`}
-                />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="font-medium text-text-primary">
-                <TranslatedText text="Achievement notifications" />
-              </div>
-              <button
-                onClick={() =>
-                  setNotifications({
-                    ...notifications,
-                    achievements: !notifications.achievements,
-                  })
-                }
-                className={`relative w-14 h-8 rounded-full transition-colors ${
-                  notifications.achievements ? 'bg-brand-primary' : 'bg-text-primary/30'
-                }`}
-              >
-                <div
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                    notifications.achievements ? 'translate-x-6' : ''
-                  }`}
-                />
-              </button>
-            </div>
-          </GlassCard>
-        </motion.div>
+            {error && <p className="text-sm text-error text-center">{error}</p>}
+            {success && <p className="text-sm text-success text-center">{success}</p>}
+            <ToggleRow
+              title="Craving alerts"
+              on={notifications.craving}
+              onToggle={() => setNotifications({ ...notifications, craving: !notifications.craving })}
+            />
+            <ToggleRow
+              title="Achievement notifications"
+              on={notifications.achievements}
+              onToggle={() =>
+                setNotifications({ ...notifications, achievements: !notifications.achievements })
+              }
+            />
+          </div>
+        </motion.section>
 
         {/* Program */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ duration: 0.35, delay: 0.15 }}
+          className="mb-5"
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
             <TranslatedText text="Program" />
           </h3>
-          <GlassCard className="p-4 mb-6 space-y-3">
+          <div className="rounded-3xl bg-white p-4 shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
+                <IconBubble icon={Calendar} />
+                <span className="text-sm font-medium text-[#0E2538]">
                   <TranslatedText text="Current program" />
                 </span>
               </div>
-              <span className="text-text-primary/70 text-sm">
-                <TranslatedText text="10-Day Transformation" />
-              </span>
+              <span className="text-sm text-[#0E2538]/50">30-Day Program</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
+                <IconBubble icon={CheckCircle} />
+                <span className="text-sm font-medium text-[#0E2538]">
                   <TranslatedText text="Quit date" />
                 </span>
               </div>
               <input
                 type="date"
-                value={userProfile?.quit_date ? new Date(userProfile.quit_date).toISOString().split('T')[0] : ''}
+                value={userProfile?.quit_date ? String(userProfile.quit_date).slice(0, 10) : ''}
                 onChange={async (e) => {
                   if (!user?.id || !e.target.value) return
                   try {
                     const { profileService } = await import('../services/profile.service')
                     await profileService.upsert(user.id, { quit_date: e.target.value })
                     fetchUserProfile()
+                    refreshProgress()
                   } catch { /* silent */ }
                 }}
-                className="text-sm text-text-primary/70 bg-transparent border-none outline-none cursor-pointer"
+                className="text-sm text-[#0E2538]/60 bg-transparent border-none outline-none cursor-pointer"
               />
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
+                <IconBubble icon={Globe} />
+                <span className="text-sm font-medium text-[#0E2538]">
                   <TranslatedText text="Country" />
                 </span>
               </div>
@@ -698,7 +770,7 @@ export default function Profile() {
                     fetchUserProfile()
                   } catch { /* silent */ }
                 }}
-                className="text-sm text-text-primary/70 bg-transparent border-none outline-none cursor-pointer"
+                className="text-sm text-[#0E2538]/60 bg-transparent border-none outline-none cursor-pointer"
               >
                 <option value="">Select</option>
                 <option value="IN">India</option>
@@ -712,155 +784,85 @@ export default function Profile() {
                 <option value="BR">Brazil</option>
                 <option value="AE">UAE</option>
                 <option value="SG">Singapore</option>
-                <option value="PH">Philippines</option>
-                <option value="PK">Pakistan</option>
-                <option value="BD">Bangladesh</option>
-                <option value="MX">Mexico</option>
-                <option value="KR">South Korea</option>
-                <option value="NZ">New Zealand</option>
-                <option value="ZA">South Africa</option>
-                <option value="NG">Nigeria</option>
               </select>
             </div>
             <button
+              type="button"
               onClick={handleDownloadCertificate}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between w-full py-2.5 rounded-xl hover:bg-[#F4FBFF] transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Download className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
+                <IconBubble icon={Download} />
+                <span className="text-sm font-medium text-[#0E2538]">
                   <TranslatedText text="Download Certificate" />
                 </span>
               </div>
+              <ChevronRight className="w-4 h-4 text-[#0E2538]/30" />
             </button>
-          </GlassCard>
-        </motion.div>
+          </div>
+        </motion.section>
 
         {/* Support */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ duration: 0.35, delay: 0.2 }}
+          className="mb-5"
         >
-          <h3 className="text-lg font-semibold text-text-primary mb-3">
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
             <TranslatedText text="Support" />
           </h3>
-          <GlassCard className="p-4 mb-6 space-y-3">
-            <button
-              onClick={handleFAQs}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <HelpCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="FAQs" />
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={handleContactSupport}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <MessageCircle className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Contact Support" />
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={handleRateApp}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Star className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Rate App" />
-                </span>
-              </div>
-            </button>
-            <button
-              onClick={handleShareApp}
-              className="flex items-center justify-between w-full glass-subtle p-3 rounded-xl hover:bg-white/10 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Share2 className="w-5 h-5 text-brand-primary" />
-                <span className="text-text-primary">
-                  <TranslatedText text="Share App" />
-                </span>
-              </div>
-            </button>
-          </GlassCard>
-        </motion.div>
+          <div className="rounded-3xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white overflow-hidden divide-y divide-[#0E2538]/06">
+            <AccountRow icon={HelpCircle} label="FAQs" onClick={handleFAQs} />
+            <AccountRow icon={MessageCircle} label="Contact Support" onClick={handleContactSupport} />
+            <AccountRow icon={Star} label="Rate App" onClick={handleRateApp} />
+            <AccountRow icon={Share2} label="Share App" onClick={handleShareApp} />
+          </div>
+        </motion.section>
 
-        {/* About */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+        <div className="text-center text-[#0E2538]/40 text-xs mb-4">
+          <p className="mb-2">smono v1.0.0</p>
+          <div className="flex justify-center gap-4">
+            <button type="button" onClick={handleTerms} className="hover:text-[#3F8DD2] transition-colors">
+              <TranslatedText text="Terms" />
+            </button>
+            <button type="button" onClick={handlePrivacy} className="hover:text-[#3F8DD2] transition-colors">
+              <TranslatedText text="Privacy" />
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full py-3.5 rounded-2xl border border-red-200 bg-white text-red-500 font-semibold text-sm mb-2 active:scale-[0.98] transition-transform"
         >
-          <GlassCard className="p-4 mb-6">
-            <div className="text-center text-text-primary/70 text-sm">
-              <p className="mb-2">smono v1.0.0</p>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={handleTerms}
-                  className="hover:text-brand-primary transition-colors"
-                >
-                  <TranslatedText text="Terms" />
-                </button>
-                <button
-                  onClick={handlePrivacy}
-                  className="hover:text-brand-primary transition-colors"
-                >
-                  <TranslatedText text="Privacy" />
-                </button>
-              </div>
-            </div>
-          </GlassCard>
-        </motion.div>
-
-        {/* Logout + Delete Account */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="space-y-3"
+          <LogOut className="w-4 h-4 inline mr-2" />
+          <TranslatedText text="Logout" />
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            if (!user?.id) return
+            const confirmed = window.confirm(
+              'Are you sure you want to delete your account? This action is permanent and cannot be undone.'
+            )
+            if (!confirmed) return
+            try {
+              await pb.collection('users').delete(user.id)
+              handleLogout()
+            } catch {
+              alert('Failed to delete account. Please contact support.')
+            }
+          }}
+          className="w-full py-3 text-sm text-[#0E2538]/40 hover:text-red-500 transition-colors mb-2"
         >
-          <GlassButton
-            onClick={handleLogout}
-            variant="secondary"
-            fullWidth
-            className="py-4 text-error border-error/50"
-          >
-            <LogOut className="w-5 h-5 inline mr-2" />
-            <TranslatedText text="Logout" />
-          </GlassButton>
-
-          <button
-            onClick={async () => {
-              if (!user?.id) return
-              const confirmed = window.confirm(
-                'Are you sure you want to delete your account? This action is permanent and cannot be undone.'
-              )
-              if (!confirmed) return
-              try {
-                await pb.collection('users').delete(user.id)
-                handleLogout()
-              } catch {
-                alert('Failed to delete account. Please contact support.')
-              }
-            }}
-            className="w-full py-3 text-sm text-text-primary/50 hover:text-error transition-colors"
-          >
-            Delete Account
-          </button>
-        </motion.div>
+          Delete Account
+        </button>
       </div>
 
       <BottomNavigation />
 
-      {/* Support Ticket Modal */}
       {user?.id && (
         <SupportTicketModal
           isOpen={showSupportModal}
@@ -869,7 +871,6 @@ export default function Profile() {
         />
       )}
 
-      {/* Password Change Modal */}
       {showPasswordModal && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -879,11 +880,7 @@ export default function Profile() {
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowPasswordModal(false)
-              setPasswordForm({
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: '',
-              })
+              setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
               setError('')
             }
           }}
@@ -902,13 +899,10 @@ export default function Profile() {
                   <TranslatedText text="Change Password" />
                 </h3>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowPasswordModal(false)
-                    setPasswordForm({
-                      currentPassword: '',
-                      newPassword: '',
-                      confirmPassword: '',
-                    })
+                    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
                     setError('')
                   }}
                   className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
@@ -918,63 +912,39 @@ export default function Profile() {
               </div>
 
               <div className="space-y-4">
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <TranslatedText text="Current Password" />
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
-                      <Lock className="w-4 h-4" />
+                {(['currentPassword', 'newPassword', 'confirmPassword'] as const).map((field) => (
+                  <div key={field} className="w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <TranslatedText
+                        text={
+                          field === 'currentPassword'
+                            ? 'Current Password'
+                            : field === 'newPassword'
+                              ? 'New Password'
+                              : 'Confirm New Password'
+                        }
+                      />
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="password"
+                        value={passwordForm[field]}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, [field]: e.target.value })}
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                        placeholder={
+                          field === 'currentPassword'
+                            ? 'Enter current password'
+                            : field === 'newPassword'
+                              ? 'Enter new password'
+                              : 'Confirm new password'
+                        }
+                      />
                     </div>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
-                      }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      placeholder="Enter current password"
-                    />
                   </div>
-                </div>
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <TranslatedText text="New Password" />
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, newPassword: e.target.value })
-                      }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      placeholder="Enter new password"
-                    />
-                  </div>
-                </div>
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <TranslatedText text="Confirm New Password" />
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10 pointer-events-none flex items-center">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
-                      }
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pl-[3.5rem] focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      placeholder="Confirm new password"
-                    />
-                  </div>
-                </div>
+                ))}
 
                 {error && <p className="text-sm text-error text-center">{error}</p>}
                 {success && <p className="text-sm text-success text-center">{success}</p>}
@@ -988,17 +958,14 @@ export default function Profile() {
                     <TranslatedText text={changingPassword ? 'Changing...' : 'Change Password'} />
                   </GlassButton>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowPasswordModal(false)
-                      setPasswordForm({
-                        currentPassword: '',
-                        newPassword: '',
-                        confirmPassword: '',
-                      })
+                      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
                       setError('')
                     }}
                     disabled={changingPassword}
-                    className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
                     <TranslatedText text="Cancel" />
                   </button>
@@ -1012,3 +979,81 @@ export default function Profile() {
   )
 }
 
+function IconBubble({ icon: Icon }: { icon: typeof Mail }) {
+  return (
+    <div className="w-9 h-9 rounded-full bg-[#E8F4FC] flex items-center justify-center flex-shrink-0">
+      <Icon className="w-4 h-4 text-[#3F8DD2]" strokeWidth={2.25} />
+    </div>
+  )
+}
+
+function AccountRow({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+  muted,
+}: {
+  icon: typeof Mail
+  label: string
+  value?: string
+  onClick?: () => void
+  muted?: boolean
+}) {
+  const Comp = onClick ? 'button' : 'div'
+  return (
+    <Comp
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`flex items-center gap-3 w-full px-4 py-3.5 text-left ${onClick ? 'hover:bg-[#F4FBFF] active:bg-[#E8F4FC]/50 transition-colors' : ''}`}
+    >
+      <IconBubble icon={Icon} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[#0E2538]">
+          <TranslatedText text={label} />
+        </p>
+        {value != null && (
+          <p className={`text-xs truncate ${muted ? 'text-[#0E2538]/35' : 'text-[#0E2538]/50'}`}>{value}</p>
+        )}
+      </div>
+      {onClick && <ChevronRight className="w-4 h-4 text-[#0E2538]/25 flex-shrink-0" />}
+    </Comp>
+  )
+}
+
+function ToggleRow({
+  title,
+  subtitle,
+  on,
+  onToggle,
+}: {
+  title: string
+  subtitle?: string
+  on: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-[#0E2538]">
+          <TranslatedText text={title} />
+        </div>
+        {subtitle && <div className="text-xs text-[#0E2538]/45 mt-0.5">{subtitle}</div>}
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
+          on ? 'bg-[#3F8DD2]' : 'bg-[#0E2538]/20'
+        }`}
+        aria-pressed={on}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+            on ? 'translate-x-5' : ''
+          }`}
+        />
+      </button>
+    </div>
+  )
+}

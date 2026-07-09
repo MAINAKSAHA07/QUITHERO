@@ -143,6 +143,7 @@ export default function KYCFlow() {
 
     return {
       onboarding_name: rawAnswers.onboarding_name || '',
+      phone: String(rawAnswers.phone || '').trim(),
       country: rawAnswers.country || 'IN',
       age: Number(rawAnswers.age) || 30,
       gender: mappedGender,
@@ -192,8 +193,8 @@ export default function KYCFlow() {
 
   // Group boundary checker helper
   const isPreInsightIndex = (index: number) => {
-    // Group A, B, C questions end at index 15
-    return index <= 15
+    // Group A, B, C questions end at index 16 (includes optional phone)
+    return index <= 16
   }
 
   // Check showIf condition

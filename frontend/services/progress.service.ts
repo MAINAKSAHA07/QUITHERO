@@ -6,6 +6,7 @@ import { profileService } from './profile.service'
 import { cravingService } from './craving.service'
 import { getCountryConfig } from '../utils/currency'
 import { daysSinceQuitDate } from '../utils/smokeFreeDays'
+import { syncQuitDateWithSessions } from './quitDateSync.service'
 
 export class ProgressService extends BaseService {
   constructor() {
@@ -17,6 +18,9 @@ export class ProgressService extends BaseService {
    */
   async calculateProgress(userId: string): Promise<ApiResponse<ProgressCalculation>> {
     try {
+      // Keep quit_date aligned with session pace before counting smoke-free days
+      await syncQuitDateWithSessions(userId).catch(() => null)
+
       // Fetch user profile, slips, and resisted cravings in parallel to cut latency
       const [profile, slipsResult, resistedResult] = await Promise.all([
         profileService.getByUserId(userId),

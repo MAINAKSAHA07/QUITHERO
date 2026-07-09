@@ -56,6 +56,14 @@ export default function KYCQuestionScreen({
       return
     }
 
+    if (question.id === 'phone' && value) {
+      const digits = String(value).replace(/\D/g, '')
+      if (digits.length < 7 || digits.length > 15) {
+        setError('Enter a valid phone number, or leave blank to skip')
+        return
+      }
+    }
+
     onNext()
   }
 
@@ -152,9 +160,14 @@ export default function KYCQuestionScreen({
           <div className="my-4">
             {question.type === 'text' && (
               <GlassInput
-                type="text"
+                type={question.id === 'phone' ? 'tel' : 'text'}
+                inputMode={question.id === 'phone' ? 'tel' : undefined}
                 value={value || ''}
-                placeholder="Type your answer here..."
+                placeholder={
+                  question.id === 'phone'
+                    ? 'e.g. +91 98765 43210 (optional)'
+                    : 'Type your answer here...'
+                }
                 onChange={(e) => onChange(e.target.value)}
                 className="py-3 px-4 text-base"
                 autoFocus

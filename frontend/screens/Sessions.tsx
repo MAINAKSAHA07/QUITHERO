@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Check, RefreshCw, Menu } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
-import SmonoLogo from '../components/SmonoLogo'
+import { Check, RefreshCw } from 'lucide-react'
+import AppHeader, { appHeaderBtn } from '../components/AppHeader'
 import Mascot from '../components/Mascot'
 import BottomNavigation from '../components/BottomNavigation'
-import Sidebar from '../components/Sidebar'
 import { useApp } from '../context/AppContext'
 import { programService } from '../services/program.service'
 import { SessionStatus } from '../types/enums'
@@ -56,7 +54,7 @@ export default function Sessions() {
   const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
@@ -107,12 +105,14 @@ export default function Sessions() {
       hasLoadedOnce.current = true
     } finally {
       if (!waitingForSession) setIsLoading(false)
+      setIsRefreshing(false)
     }
   }
 
   const handleRefresh = () => {
     _cache.programId = undefined
     hasLoadedOnce.current = false
+    setIsRefreshing(true)
     loadSessions(true)
   }
 
@@ -123,18 +123,44 @@ export default function Sessions() {
     gateSessionAccess(() => navigate(`/sessions/${d.day.id}`))
   }
 
-  const headerChromeBtn =
-    'w-9 h-9 rounded-lg bg-white/60 border border-sky-200/40 flex items-center justify-center hover:bg-white/80 transition-colors touch-target'
+  const shell = 'h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]'
+  const wash = (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 h-48"
+      style={{
+        background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+      }}
+      aria-hidden
+    />
+  )
+
+  const header = (
+    <AppHeader
+      title="Sessions"
+      right={
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing || isLoading}
+          className={appHeaderBtn}
+          aria-label="Refresh sessions"
+        >
+          <RefreshCw className={`w-4 h-4 text-[#3F8DD2] ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+      }
+    />
+  )
 
   if (isLoading) {
     return (
-      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-        <div className="flex-shrink-0">
-          <TopNavigation left="menu" center={<SmonoLogo size="sm" showMascot layout="inline" />} right="" />
-        </div>
-        <div className="flex flex-col items-center justify-center flex-1 gap-4">
-          <Mascot size="lg" pulse className="w-24 h-24 sm:w-32 sm:h-32" />
-          <p className="text-text-primary/70 text-sm">Loading sessions...</p>
+      <div className={shell}>
+        {wash}
+        <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+          {header}
+          <div className="flex flex-col items-center justify-center pt-24 gap-4">
+            <Mascot size="lg" pulse className="w-24 h-24 sm:w-32 sm:h-32" />
+            <p className="text-[#0E2538]/55 text-sm">Loading sessions...</p>
+          </div>
         </div>
         <BottomNavigation />
       </div>
@@ -142,26 +168,12 @@ export default function Sessions() {
   }
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      <div className="flex-shrink-0">
-        <TopNavigation
-          left={
-            <button type="button" onClick={() => setSidebarOpen(true)} className={headerChromeBtn} aria-label="Open menu">
-              <Menu className="w-4 h-4 text-text-primary/70" />
-            </button>
-          }
-          center={<SmonoLogo size="sm" showMascot layout="inline" />}
-          right={
-            <button type="button" onClick={handleRefresh} className={headerChromeBtn} aria-label="Refresh sessions">
-              <RefreshCw className="w-4 h-4 text-text-primary/70" />
-            </button>
-          }
-        />
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </div>
+    <div className={shell}>
+      {wash}
+      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+        {header}
 
-      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-24 scrollbar-thin">
-        <h1 className="text-center text-base font-bold text-text-primary mb-4">30-Day Program</h1>
+        <p className="text-center text-sm text-[#0E2538]/50 mb-4 -mt-1">30-Day Program</p>
 
         <div className="space-y-2">
           {daysWithProgress.map((d, i) => {
@@ -183,10 +195,10 @@ export default function Sessions() {
                 disabled={showAsLocked}
                 className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition-colors ${
                   isInProgress && !isFreemiumLocked
-                    ? 'border-brand-primary/45 bg-brand-primary/8 hover:bg-brand-primary/12'
+                    ? 'border-[#3F8DD2]/45 bg-[#3F8DD2]/8 hover:bg-[#3F8DD2]/12'
                     : showAsLocked
-                    ? 'border-white/20 bg-white/50 opacity-60 cursor-not-allowed'
-                    : 'border-sky-200/35 bg-white/75 hover:bg-white/90'
+                    ? 'border-white/40 bg-white/50 opacity-60 cursor-not-allowed'
+                    : 'border-[#3F8DD2]/15 bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] hover:bg-white'
                 }`}
               >
                 <div
@@ -194,8 +206,8 @@ export default function Sessions() {
                     isCompleted && !isFreemiumLocked
                       ? 'bg-emerald-500 text-white'
                       : isInProgress && !isFreemiumLocked
-                      ? 'bg-brand-primary text-white'
-                      : 'bg-sky-100 text-brand-primary/70'
+                      ? 'bg-[#3F8DD2] text-white'
+                      : 'bg-[#E8F4FC] text-[#3F8DD2]/70'
                   }`}
                 >
                   {isCompleted && !isFreemiumLocked ? (
@@ -206,10 +218,10 @@ export default function Sessions() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-text-primary/55' : 'text-text-primary'}`}>
+                  <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-[#0E2538]/55' : 'text-[#0E2538]'}`}>
                     {d.day.title}
                   </p>
-                  <p className="text-xs text-text-primary/45 mt-0.5">{subtitle}</p>
+                  <p className="text-xs text-[#0E2538]/45 mt-0.5">{subtitle}</p>
                 </div>
 
                 {isCompleted && !isFreemiumLocked && (
@@ -218,7 +230,7 @@ export default function Sessions() {
                   </span>
                 )}
                 {isInProgress && !isFreemiumLocked && (
-                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary/15 text-brand-primary">
+                  <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3F8DD2]/15 text-[#3F8DD2]">
                     Now
                   </span>
                 )}

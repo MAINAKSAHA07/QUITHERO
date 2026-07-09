@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Edit, Trash2, X, Calendar, Loader2 } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
+import AppHeader, { appHeaderBtn } from '../components/AppHeader'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
@@ -217,30 +217,37 @@ export default function Journal() {
   }
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      {/* Pinned Top Navigation */}
-      <div className="flex-shrink-0">
-        <TopNavigation
-          left="menu"
-          center="Your Journal"
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        style={{
+          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+        }}
+        aria-hidden
+      />
+      <div className="flex-shrink-0 px-4 safe-area-top relative z-10">
+        <AppHeader
+          title="Journal"
           right={
             <button
+              type="button"
               onClick={() => {
                 setEditingEntry(null)
                 setFormData({ mood: Mood.HAPPY, title: '', content: '' })
                 setError('')
                 setShowAddModal(true)
               }}
-              className="w-10 h-10 rounded-full glass-button-primary flex items-center justify-center"
+              className={appHeaderBtn}
+              aria-label="Add journal entry"
             >
-              <Plus className="w-5 h-5 text-white" />
+              <Plus className="w-5 h-5 text-[#3F8DD2]" />
             </button>
           }
         />
       </div>
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin pb-24">
+      <div className="flex-1 overflow-y-auto px-4 pt-1 scrollbar-thin pb-24 relative z-10">
         {/* Date Filter */}
         <div className="mb-6">
           <div className="flex gap-2">

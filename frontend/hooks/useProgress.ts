@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { progressService } from '../services/progress.service'
 import { ProgressStats, ProgressCalculation } from '../types/models'
 import { useApp } from '../context/AppContext'
@@ -9,6 +9,11 @@ export function useProgress() {
   const [calculation, setCalculation] = useState<ProgressCalculation | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasDataRef = useRef(false)
+
+  useEffect(() => {
+    hasDataRef.current = stats !== null || calculation !== null
+  }, [stats, calculation])
 
   const fetchStats = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user?.id) return
@@ -57,10 +62,10 @@ export function useProgress() {
     }
   }, [user?.id, fetchStats])
 
+  // Stable — must not depend on stats/calculation or Home effects loop forever
   const refresh = useCallback(async () => {
-    const hasData = stats !== null || calculation !== null
-    return await calculateProgress({ silent: hasData })
-  }, [calculateProgress, stats, calculation])
+    return await calculateProgress({ silent: hasDataRef.current })
+  }, [calculateProgress])
 
   useEffect(() => {
     if (user?.id) fetchStats({ silent: true })

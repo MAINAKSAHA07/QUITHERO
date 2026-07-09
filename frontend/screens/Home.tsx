@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import BottomNavigation from '../components/BottomNavigation'
 import Sidebar from '../components/Sidebar'
+import { appHeaderBtn } from '../components/AppHeader'
 import MilestoneModal from '../components/MilestoneModal'
 import TranslatedText from '../components/TranslatedText'
 import Mascot from '../components/Mascot'
@@ -120,13 +121,10 @@ export default function Home() {
   }, [user?.id, refreshProgressData])
 
   useEffect(() => {
-    if (user?.id) loadData()
-  }, [user?.id, loadData])
-
-  // Recalculate smoke-free days on home open (stored progress_stats can be stale)
-  useEffect(() => {
-    if (user?.id) refreshProgressData()
-  }, [user?.id, refreshProgressData])
+    if (!user?.id) return
+    loadData()
+    refreshProgressData() // once per user — recalculate smoke-free days
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const days = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
@@ -218,11 +216,12 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="w-10 h-10 rounded-xl bg-white/80 border border-[#3F8DD2]/15 flex items-center justify-center flex-shrink-0 touch-target shadow-sm"
+            className={`${appHeaderBtn} flex-shrink-0`}
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5 text-[#0E2538]/70" />
           </button>
+
           <div className="min-w-0 flex-1">
             <h1 className="text-[22px] font-bold text-[#0E2538] tracking-tight text-balance">
               {greeting}, {firstName}
@@ -236,7 +235,7 @@ export default function Home() {
               type="button"
               onClick={() => loadData(true)}
               disabled={isRefreshing || progressLoading}
-              className="w-9 h-9 rounded-full bg-white/80 border border-[#3F8DD2]/15 flex items-center justify-center touch-target"
+              className={appHeaderBtn}
               aria-label="Refresh"
             >
               <RefreshCw className={`w-4 h-4 text-[#3F8DD2] ${isRefreshing || progressLoading ? 'animate-spin' : ''}`} />
@@ -244,7 +243,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => navigate('/profile')}
-              className="w-10 h-10 rounded-full bg-white border border-[#3F8DD2]/20 overflow-hidden flex items-center justify-center shadow-sm touch-target"
+              className={`${appHeaderBtn} overflow-hidden p-0`}
               aria-label="Profile"
             >
               <Mascot size="xs" className="w-8 h-8" />

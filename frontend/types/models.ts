@@ -48,6 +48,7 @@ export interface UserProfile {
   
   // Custom onboarding upgrade fields
   onboarding_name?: string
+  phone?: string
   pack_cost?: number
   minutes_per_cigarette?: number
   started_age_range?: string

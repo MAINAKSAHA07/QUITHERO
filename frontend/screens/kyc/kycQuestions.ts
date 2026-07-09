@@ -32,6 +32,16 @@ export const kycQuestions: KYCQuestion[] = [
     whyWeAsk: 'Your name is only used to personalize your daily modules and reminders.'
   },
   {
+    id: 'phone',
+    group: 'A',
+    question: 'What is your phone number?',
+    support: 'Optional — so we can reach you if you need support.',
+    type: 'text',
+    required: false,
+    profileField: 'phone',
+    whyWeAsk: 'Used only for account recovery and support. You can skip this and add it later in Profile.'
+  },
+  {
     id: 'country',
     group: 'A',
     question: 'What country do you live in?',

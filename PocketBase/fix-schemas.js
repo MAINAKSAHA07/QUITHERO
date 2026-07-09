@@ -58,6 +58,7 @@ const desired = {
     { name: 'quit_reason', type: 'text' },
     { name: 'quit_archetype', type: 'select', values: ['escapist', 'stress_reactor', 'social_mirror', 'auto_pilot'] },
     { name: 'onboarding_name', type: 'text' },
+    { name: 'phone', type: 'text' },
     { name: 'country', type: 'text' },
     { name: 'pack_cost', type: 'number' },
     { name: 'minutes_per_cigarette', type: 'number' },

@@ -38,17 +38,13 @@ export class ProfileService extends BaseService {
         }
         return await this.update(existing.data.id!, updateData)
       } else {
-        // Create new - ensure all required fields are present
-        // Note: quit_date is required but will be set automatically 10 days from first lesson start
-        // We'll set a temporary date (today) if not provided, it will be updated when Day 1 starts
+        // Create new — quit_date required; syncQuitDateWithSessions keeps it aligned with session pace
         const today = new Date().toISOString().split('T')[0]
         const createData: any = {
           ...data,
           user: userId,
           // Set default language if not provided (required field)
           language: data.language || 'en',
-          // Set temporary quit_date if not provided (required field)
-          // This will be automatically updated to (today + 10 days) when user starts Day 1 lesson
           quit_date: data.quit_date || today,
         }
         return await this.create(createData)

@@ -4,9 +4,8 @@ import { motion } from 'framer-motion'
 import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
-import TopNavigation from '../components/TopNavigation'
+import AppHeader, { appHeaderBtn } from '../components/AppHeader'
 import BottomNavigation from '../components/BottomNavigation'
-import GlassCard from '../components/GlassCard'
 import AchievementNotification from '../components/AchievementNotification'
 import TranslatedText from '../components/TranslatedText'
 import {
@@ -28,6 +27,7 @@ import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
 import { formatMoney, getCountryConfig } from '../utils/currency'
 import { cravingService } from '../services/craving.service'
+import { daysUntilQuitDate } from '../utils/smokeFreeDays'
 
 const HEALTH_MILESTONES = [
   { time: '20 minutes', days: 0, title: 'Heart rate normalizes', completed: (days: number) => days >= 0 },
@@ -101,16 +101,18 @@ export default function Progress() {
         try {
           const profileResult = await profileService.getByUserId(user.id)
           if (!cancelled && profileResult.success && profileResult.data) {
-            const quitDate = profileResult.data.quit_date ? new Date(profileResult.data.quit_date) : null
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            if (quitDate && quitDate.getTime() > today.getTime()) {
-              const daysUntil = Math.ceil((quitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            const quitRaw = profileResult.data.quit_date
+            const daysUntil = daysUntilQuitDate(quitRaw)
+            if (quitRaw && daysUntil > 0) {
               const day = currentSession?.current_day || 1
+              const m = String(quitRaw).match(/^(\d{4})-(\d{2})-(\d{2})/)
+              const quitLocal = m
+                ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+                : new Date()
               setPreQuitData({
                 isPreQuit: true,
                 daysUntilQuit: daysUntil,
-                quitDateStr: quitDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                quitDateStr: quitLocal.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                 totalResisted: freshCalc?.cigarettes_not_smoked ?? 0,
                 programDay: day,
                 programPercent: Math.round((day / 30) * 100),
@@ -269,19 +271,26 @@ export default function Progress() {
   const displayTimeFilter = hasCravingData ? timeFilter : 'week'
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5">
-      <div className="flex-shrink-0">
-        <TopNavigation
-          left="menu"
-          center="Your Progress"
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        style={{
+          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+        }}
+        aria-hidden
+      />
+      <div className="flex-shrink-0 px-4 safe-area-top relative z-10">
+        <AppHeader
+          title="Progress"
           right={
             <button
+              type="button"
               onClick={handleRefresh}
               disabled={isRefreshing || achievementsLoading}
-              className="p-2 rounded-full hover:bg-white/5 transition-colors touch-target"
+              className={appHeaderBtn}
               aria-label="Refresh progress"
             >
-              <RefreshCw className={`w-5 h-5 text-text-primary ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 text-[#3F8DD2] ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           }
         />
@@ -297,18 +306,18 @@ export default function Progress() {
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 scrollbar-thin pb-24 space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 pt-1 scrollbar-thin pb-28 space-y-5 relative z-10">
         {/* Time range pills */}
-        <div className="flex gap-1 p-1 rounded-xl bg-black/[0.04] border border-black/[0.04]">
+        <div className="flex gap-1 p-1 rounded-2xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white">
           {TIME_FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setTimeFilter(f.id)}
-              className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-colors ${
+              className={`flex-1 py-2 px-2 rounded-xl text-xs font-semibold transition-colors ${
                 timeFilter === f.id
-                  ? 'bg-white text-brand-primary shadow-sm'
-                  : 'text-text-primary/55 hover:text-text-primary/80'
+                  ? 'bg-[#E8F4FC] text-[#3F8DD2]'
+                  : 'text-[#0E2538]/45 hover:text-[#0E2538]/70'
               }`}
             >
               <TranslatedText text={f.label} />
@@ -318,62 +327,61 @@ export default function Progress() {
 
         {/* Hero stats */}
         {preQuitData?.isPreQuit ? (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <GlassCard className="p-5 bg-gradient-to-br from-brand-primary/10 to-brand-accent/8">
-              <HeroHeader
-                value={preQuitData.daysUntilQuit}
-                label="DAYS UNTIL QUIT DATE"
-                sub={`Quit date: ${preQuitData.quitDateStr}`}
-              />
-              <StatGrid
-                items={[
-                  { icon: Target, label: 'Program', value: `Day ${preQuitData.programDay}` },
-                  { icon: Shield, label: 'Cravings resisted', value: String(preQuitData.totalResisted) },
-                  { icon: DollarSign, label: 'Money saved', value: preQuitData.moneySaved },
-                  { icon: TrendingUp, label: 'Nicotine avoided', value: `${preQuitData.nicotineAvoided}mg` },
-                ]}
-              />
-            </GlassCard>
-          </motion.div>
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
+            <HeroHeader
+              value={preQuitData.daysUntilQuit}
+              label="Days until quit date"
+              sub={`Quit date: ${preQuitData.quitDateStr}`}
+            />
+            <StatGrid
+              items={[
+                { icon: Target, label: 'Program', value: `Day ${preQuitData.programDay}`, tone: 'blue' },
+                { icon: Shield, label: 'Cravings resisted', value: String(preQuitData.totalResisted), tone: 'green' },
+                { icon: DollarSign, label: 'Money saved', value: preQuitData.moneySaved, tone: 'orange' },
+                { icon: TrendingUp, label: 'Nicotine avoided', value: `${preQuitData.nicotineAvoided}mg`, tone: 'blue' },
+              ]}
+            />
+          </motion.section>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <GlassCard className="p-5 bg-gradient-to-br from-brand-primary/10 to-brand-accent/8">
-              <HeroHeader
-                value={overallStats.daysSmokeFree}
-                label="DAYS SMOKE-FREE"
-                sub={overallStats.daysSmokeFree > 0 ? 'Keep the streak going' : 'Your journey starts here'}
-              />
-              <StatGrid
-                items={[
-                  { icon: DollarSign, label: 'Money saved', value: formatMoney(overallStats.moneySaved, userCountry) },
-                  { icon: Cigarette, label: 'Not smoked', value: String(overallStats.cigarettesNotSmoked) },
-                  { icon: TrendingUp, label: 'Nicotine avoided', value: `${overallStats.nicotineAvoided}mg` },
-                  { icon: Clock, label: 'Life regained', value: `${overallStats.lifeRegained}h` },
-                ]}
-              />
-            </GlassCard>
-          </motion.div>
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
+            <HeroHeader
+              value={overallStats.daysSmokeFree}
+              label="Days smoke-free"
+              sub={overallStats.daysSmokeFree > 0 ? 'Keep the streak going' : 'Your journey starts here'}
+            />
+            <StatGrid
+              items={[
+                { icon: DollarSign, label: 'Money saved', value: formatMoney(overallStats.moneySaved, userCountry), tone: 'orange' },
+                { icon: Cigarette, label: 'Not smoked', value: String(overallStats.cigarettesNotSmoked), tone: 'blue' },
+                { icon: TrendingUp, label: 'Nicotine avoided', value: `${overallStats.nicotineAvoided}mg`, tone: 'green' },
+                { icon: Clock, label: 'Life regained', value: `${overallStats.lifeRegained}h`, tone: 'blue' },
+              ]}
+            />
+          </motion.section>
         )}
 
         {/* Insights */}
-        <GlassCard className="p-5">
-          <h3 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wide">
-            <TranslatedText text="Insights" />
-          </h3>
+        <SoftCard title="Insights">
           <WeeklyInsights
             cravingTrend={hasCravingData ? cravingTrend : PREVIEW_CRAVING_TREND_WEEK}
             achievements={formattedAchievements}
             isPreview={!hasCravingData}
             onLogCraving={() => navigate('/craving')}
           />
-        </GlassCard>
+        </SoftCard>
 
         {/* Craving trend chart */}
-        <GlassCard className="p-5">
-          <h3 className="text-sm font-bold text-text-primary mb-1 uppercase tracking-wide">
-            <TranslatedText text="Craving Patterns" />
-          </h3>
-          <p className="text-xs text-text-primary/50 mb-4">Daily craving logs over time</p>
+        <SoftCard title="Craving patterns" subtitle="Daily craving logs over time">
           {chartsLoading ? (
             <ChartLoadingState />
           ) : (
@@ -385,14 +393,10 @@ export default function Progress() {
               <CravingTrendChart data={displayCravingTrend} variant={displayTimeFilter} />
             </ChartPreviewShell>
           )}
-        </GlassCard>
+        </SoftCard>
 
         {/* Trigger breakdown */}
-        <GlassCard className="p-5">
-          <h3 className="text-sm font-bold text-text-primary mb-1 uppercase tracking-wide">
-            <TranslatedText text="Trigger Breakdown" />
-          </h3>
-          <p className="text-xs text-text-primary/50 mb-4">What sets off your cravings</p>
+        <SoftCard title="Trigger breakdown" subtitle="What sets off your cravings">
           {chartsLoading ? (
             <ChartLoadingState />
           ) : (
@@ -404,53 +408,52 @@ export default function Progress() {
               <TriggerBreakdownChart data={displayTriggerBreakdown} />
             </ChartPreviewShell>
           )}
-        </GlassCard>
+        </SoftCard>
 
-        {/* Belief change — was outside scroll area */}
         {beliefDeltas.length > 0 && (
-          <GlassCard className="p-5">
-            <h3 className="text-sm font-bold text-text-primary mb-1 flex items-center gap-2 uppercase tracking-wide">
-              <TrendingUp className="w-4 h-4 text-brand-primary" />
-              Belief Change
-            </h3>
-            <p className="text-xs text-text-primary/50 mb-4">Day 0 vs latest — lower is better</p>
+          <SoftCard
+            title="Belief change"
+            subtitle="Day 0 vs latest — lower is better"
+            titleIcon={<TrendingUp className="w-4 h-4 text-[#3F8DD2]" />}
+          >
             <div className="space-y-3">
               {beliefDeltas.map((d) => (
                 <div key={d.key}>
-                  <p className="text-xs text-text-primary/80 mb-1.5 truncate">{d.label}</p>
+                  <p className="text-xs text-[#0E2538]/70 mb-1.5 truncate">{d.label}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-text-primary/45 w-5 text-center">{d.day0}</span>
-                    <div className="flex-1 h-2 bg-black/[0.06] rounded-full overflow-hidden relative">
-                      <div className="absolute h-full bg-black/10 rounded-full" style={{ width: `${d.day0 * 10}%` }} />
+                    <span className="text-[10px] font-mono text-[#0E2538]/40 w-5 text-center">{d.day0}</span>
+                    <div className="flex-1 h-2 bg-[#F4FBFF] rounded-full overflow-hidden relative border border-[#0E2538]/06">
+                      <div className="absolute h-full bg-[#0E2538]/10 rounded-full" style={{ width: `${d.day0 * 10}%` }} />
                       <div
-                        className={`absolute h-full rounded-full ${d.delta <= 0 ? 'bg-emerald-500' : 'bg-red-400/70'}`}
+                        className={`absolute h-full rounded-full ${d.delta <= 0 ? 'bg-[#6EA48F]' : 'bg-[#D96B6B]/70'}`}
                         style={{ width: `${d.latest * 10}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-text-primary w-5 text-center">{d.latest}</span>
-                    <span className={`text-[10px] font-bold w-6 ${d.delta <= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {d.delta <= 0 ? '↓' : '↑'}{Math.abs(d.delta)}
+                    <span className="text-[10px] font-mono font-bold text-[#0E2538] w-5 text-center">{d.latest}</span>
+                    <span className={`text-[10px] font-bold w-6 ${d.delta <= 0 ? 'text-[#6EA48F]' : 'text-[#D96B6B]'}`}>
+                      {d.delta <= 0 ? '↓' : '↑'}
+                      {Math.abs(d.delta)}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </SoftCard>
         )}
 
-        {/* Achievements — grid layout; BorderGlow in flex-row collapses to thin bars */}
+        {/* Achievements */}
         <div>
-          <h3 className="text-sm font-bold text-text-primary mb-3 uppercase tracking-wide px-1">
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
             <TranslatedText text="Achievements" />
           </h3>
           {achievementsLoading && achievements.length === 0 ? (
             <div className="grid grid-cols-2 gap-2.5">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-24 rounded-xl bg-black/[0.04] animate-pulse" />
+                <div key={i} className="h-24 rounded-2xl bg-white/70 animate-pulse" />
               ))}
             </div>
           ) : achievements.length === 0 ? (
-            <p className="text-center py-6 text-sm text-text-primary/50">
+            <p className="text-center py-6 text-sm text-[#0E2538]/45">
               <TranslatedText text="No achievements available" />
             </p>
           ) : (
@@ -463,40 +466,39 @@ export default function Progress() {
         </div>
 
         {/* Health recovery */}
-        <GlassCard className="p-5">
-          <h3 className="text-sm font-bold text-text-primary mb-4 uppercase tracking-wide">
-            <TranslatedText text="Health Recovery" />
-          </h3>
+        <SoftCard title="Health recovery">
           <div className="space-y-2">
             {healthMilestones.map((milestone, index) => {
               const progress = milestone.completed
                 ? 100
                 : milestone.days > 0
-                ? Math.min(99, Math.round((overallStats.daysSmokeFree / milestone.days) * 100))
-                : 100
+                  ? Math.min(99, Math.round((overallStats.daysSmokeFree / milestone.days) * 100))
+                  : 100
               return (
                 <div
                   key={index}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${
-                    milestone.completed ? 'bg-emerald-500/8' : 'bg-black/[0.03]'
+                  className={`flex items-center gap-3 p-3 rounded-2xl ${
+                    milestone.completed ? 'bg-[#EAF6F1]' : 'bg-[#F4FBFF]'
                   }`}
                 >
                   <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                      milestone.completed ? 'bg-emerald-500/15 text-emerald-600' : 'bg-black/[0.06] text-text-primary/45'
+                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                      milestone.completed
+                        ? 'bg-[#6EA48F]/20 text-[#6EA48F]'
+                        : 'bg-white text-[#0E2538]/40 border border-[#0E2538]/08'
                     }`}
                   >
                     {milestone.completed ? '✓' : `${progress}%`}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary">{milestone.title}</p>
-                    <p className="text-[11px] text-text-primary/50">{milestone.time}</p>
+                    <p className="text-sm font-medium text-[#0E2538]">{milestone.title}</p>
+                    <p className="text-[11px] text-[#0E2538]/45">{milestone.time}</p>
                   </div>
                 </div>
               )
             })}
           </div>
-        </GlassCard>
+        </SoftCard>
       </div>
 
       <BottomNavigation />
@@ -504,16 +506,42 @@ export default function Progress() {
   )
 }
 
+function SoftCard({
+  title,
+  subtitle,
+  titleIcon,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  titleIcon?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white">
+      <h3 className="text-sm font-bold text-[#0E2538] mb-1 flex items-center gap-2">
+        {titleIcon}
+        <TranslatedText text={title} />
+      </h3>
+      {subtitle && <p className="text-xs text-[#0E2538]/45 mb-4">{subtitle}</p>}
+      {!subtitle && <div className="mb-3" />}
+      {children}
+    </section>
+  )
+}
+
 function HeroHeader({ value, label, sub }: { value: number; label: string; sub: string }) {
   return (
     <div className="flex items-center gap-4 mb-5">
-      <Mascot size="md" className="flex-shrink-0" />
-      <div className="flex-1 text-center">
-        <div className="text-4xl font-black text-brand-primary tabular-nums leading-none mb-1">{value}</div>
-        <div className="text-xs font-bold text-text-primary uppercase tracking-wider">
+      <div className="w-14 h-14 rounded-full bg-[#E8F4FC] border-2 border-[#3F8DD2]/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <Mascot size="sm" />
+      </div>
+      <div className="flex-1 text-center min-w-0">
+        <div className="text-4xl font-black text-[#3F8DD2] tabular-nums leading-none mb-1">{value}</div>
+        <div className="text-xs font-bold text-[#0E2538]">
           <TranslatedText text={label} />
         </div>
-        <p className="text-[11px] text-text-primary/55 mt-1">{sub}</p>
+        <p className="text-[11px] text-[#0E2538]/45 mt-1">{sub}</p>
       </div>
       <SmonoLogo size="sm" className="flex-shrink-0 opacity-80" />
     </div>
@@ -523,15 +551,27 @@ function HeroHeader({ value, label, sub }: { value: number; label: string; sub: 
 function StatGrid({
   items,
 }: {
-  items: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }[]
+  items: {
+    icon: React.ComponentType<{ className?: string }>
+    label: string
+    value: string
+    tone?: 'blue' | 'orange' | 'green'
+  }[]
 }) {
+  const tones = {
+    blue: 'bg-[#E8F4FC] text-[#3F8DD2]',
+    orange: 'bg-[#FFF1E6] text-[#E8894A]',
+    green: 'bg-[#EAF6F1] text-[#6EA48F]',
+  }
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      {items.map(({ icon: Icon, label, value }) => (
-        <div key={label} className="p-3 rounded-xl bg-white/50 border border-black/[0.04] text-center">
-          <Icon className="w-5 h-5 text-brand-primary mx-auto mb-1.5" />
-          <div className="text-base font-bold text-text-primary tabular-nums truncate">{value}</div>
-          <div className="text-[10px] text-text-primary/55 uppercase tracking-wide">
+      {items.map(({ icon: Icon, label, value, tone = 'blue' }) => (
+        <div key={label} className="p-3 rounded-2xl bg-[#F4FBFF] border border-[#0E2538]/06 text-center">
+          <div className={`w-8 h-8 rounded-full mx-auto mb-1.5 flex items-center justify-center ${tones[tone]}`}>
+            <Icon className="w-4 h-4" />
+          </div>
+          <div className="text-base font-bold text-[#0E2538] tabular-nums truncate">{value}</div>
+          <div className="text-[10px] text-[#0E2538]/45 font-medium">
             <TranslatedText text={label} />
           </div>
         </div>
@@ -540,16 +580,19 @@ function StatGrid({
   )
 }
 
-function AchievementCard({ achievement }: { achievement: { icon?: string; title: string; description?: string; tier?: string; unlocked: boolean; requirement_type?: string; requirement_value?: number } }) {
-  const tierRing =
-    achievement.tier === 'platinum'
-      ? 'ring-purple-400/40'
-      : achievement.tier === 'gold'
-      ? 'ring-amber-400/40'
-      : achievement.tier === 'silver'
-      ? 'ring-slate-400/30'
-      : 'ring-orange-400/25'
-
+function AchievementCard({
+  achievement,
+}: {
+  achievement: {
+    icon?: string
+    title: string
+    description?: string
+    tier?: string
+    unlocked: boolean
+    requirement_type?: string
+    requirement_value?: number
+  }
+}) {
   const progressLabel = () => {
     if (achievement.unlocked) return 'Unlocked'
     const v = achievement.requirement_value
@@ -569,19 +612,25 @@ function AchievementCard({ achievement }: { achievement: { icon?: string; title:
   }
 
   return (
-    <GlassCard
-      borderGlow={false}
-      variant="subtle"
-      className={`p-3.5 text-center h-full ${achievement.unlocked ? `ring-2 ${tierRing}` : 'opacity-55'}`}
+    <div
+      className={`p-3.5 text-center h-full rounded-2xl bg-white border shadow-[0_4px_16px_rgba(63,141,210,0.06)] ${
+        achievement.unlocked
+          ? 'border-[#3F8DD2]/25'
+          : 'border-white opacity-55'
+      }`}
     >
       <span className="text-2xl leading-none block mb-2" aria-hidden>
         {achievement.icon || '🏆'}
       </span>
-      <p className="text-xs font-bold text-text-primary leading-snug line-clamp-2">{achievement.title}</p>
-      <p className={`text-[10px] mt-1.5 font-semibold ${achievement.unlocked ? 'text-emerald-600' : 'text-text-primary/45'}`}>
+      <p className="text-xs font-bold text-[#0E2538] leading-snug line-clamp-2">{achievement.title}</p>
+      <p
+        className={`text-[10px] mt-1.5 font-semibold ${
+          achievement.unlocked ? 'text-[#6EA48F]' : 'text-[#0E2538]/40'
+        }`}
+      >
         {progressLabel()}
       </p>
-    </GlassCard>
+    </div>
   )
 }
 
@@ -602,22 +651,24 @@ function WeeklyInsights({
   const nextAchievement = achievements.find((a) => !a.unlocked)
 
   if (cravingTrend.length === 0 && !nextAchievement) {
-    return <p className="text-sm text-text-primary/50 text-center py-2">Log cravings to see insights here</p>
+    return (
+      <p className="text-sm text-[#0E2538]/45 text-center py-2">Log cravings to see insights here</p>
+    )
   }
 
   return (
     <div className="space-y-2">
       {cravingTrend.length >= 2 && (
         <div
-          className={`flex items-center justify-between p-3 rounded-xl bg-black/[0.03] ${isPreview ? 'opacity-50' : ''}`}
+          className={`flex items-center justify-between p-3 rounded-2xl bg-[#F4FBFF] ${isPreview ? 'opacity-50' : ''}`}
         >
-          <span className="text-sm text-text-primary/75">
+          <span className="text-sm text-[#0E2538]/65">
             {isPreview ? 'Recent cravings (sample)' : 'Recent cravings'}
           </span>
-          <span className="text-sm font-bold text-text-primary tabular-nums">
+          <span className="text-sm font-bold text-[#0E2538] tabular-nums">
             {thisWeekTotal}
             {(diff !== 0 && lastWeekTotal > 0) || isPreview ? (
-              <span className={`ml-1 text-xs ${diff < 0 || isPreview ? 'text-emerald-600' : 'text-red-500'}`}>
+              <span className={`ml-1 text-xs ${diff < 0 || isPreview ? 'text-[#6EA48F]' : 'text-[#D96B6B]'}`}>
                 ({isPreview ? '-43%' : `${diff > 0 ? '+' : ''}${diff}%`})
               </span>
             ) : null}
@@ -628,19 +679,19 @@ function WeeklyInsights({
         <button
           type="button"
           onClick={onLogCraving}
-          className="w-full p-3 rounded-xl border border-dashed border-brand-primary/30 text-sm font-semibold text-brand-primary active:scale-[0.99] transition-transform"
+          className="w-full p-3 rounded-2xl border border-dashed border-[#3F8DD2]/35 text-sm font-semibold text-[#3F8DD2] active:scale-[0.99] transition-transform"
         >
           Log a craving to unlock your insights
         </button>
       )}
       {nextAchievement && (
-        <div className="p-3 rounded-xl bg-black/[0.03]">
+        <div className="p-3 rounded-2xl bg-[#F4FBFF]">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-sm text-text-primary/75 truncate pr-2">Next: {nextAchievement.title}</span>
-            <Trophy className="w-4 h-4 text-brand-primary flex-shrink-0" />
+            <span className="text-sm text-[#0E2538]/65 truncate pr-2">Next: {nextAchievement.title}</span>
+            <Trophy className="w-4 h-4 text-[#3F8DD2] flex-shrink-0" />
           </div>
-          <div className="h-1.5 bg-black/[0.06] rounded-full overflow-hidden">
-            <div className="h-full bg-brand-primary rounded-full w-2/5" />
+          <div className="h-1.5 bg-white rounded-full overflow-hidden border border-[#0E2538]/06">
+            <div className="h-full bg-[#3F8DD2] rounded-full w-2/5" />
           </div>
         </div>
       )}

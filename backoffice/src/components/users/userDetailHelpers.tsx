@@ -38,6 +38,7 @@ export function TimeAgo({ date }: { date?: string }) {
 
 export const KYC_FIELDS: { key: string; label: string }[] = [
   { key: 'onboarding_name', label: 'Preferred name' },
+  { key: 'phone', label: 'Phone' },
   { key: 'primary_trigger', label: 'Primary trigger' },
   { key: 'craving_peak_time', label: 'Craving peak time' },
   { key: 'daily_stress_level', label: 'Daily stress level' },

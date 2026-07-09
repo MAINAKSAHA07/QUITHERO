@@ -1,13 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { X, Wind, MessageCircle, Phone, Clipboard, Smile, Frown, History, Cigarette } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
-import GlassCard from '../components/GlassCard'
-import GlassButton from '../components/GlassButton'
+import {
+  Wind,
+  MessageCircle,
+  Phone,
+  Clipboard,
+  Smile,
+  Frown,
+  History,
+  Cigarette,
+  ChevronRight,
+  ArrowLeft,
+  BookOpen,
+} from 'lucide-react'
+import AppHeader, { appHeaderBtn } from '../components/AppHeader'
+import BottomNavigation from '../components/BottomNavigation'
 import MotivationalQuoteModal from '../components/MotivationalQuoteModal'
 import CravingHistoryModal from '../components/CravingHistoryModal'
 import SlipRecovery from '../components/SlipRecovery'
+import TranslatedText from '../components/TranslatedText'
+import Mascot from '../components/Mascot'
 import { useApp } from '../context/AppContext'
 import { useCravings } from '../hooks/useCravings'
 import { analyticsService } from '../services/analytics.service'
@@ -16,23 +29,22 @@ import { behaviorProfileService } from '../services/behavior-profile.service'
 import { contentService } from '../services/content.service'
 import { CravingType, CravingTrigger, ResolutionMethod } from '../types/enums'
 
-// Fallback motivational quotes
 const fallbackQuotes = [
   {
     text: "You didn't come this far to only come this far.",
-    details: "Every moment you resist is a victory. Keep going!",
+    details: 'Every moment you resist is a victory. Keep going!',
   },
   {
-    text: "This feeling will pass.",
-    details: "Cravings are temporary. You are stronger than this moment.",
+    text: 'This feeling will pass.',
+    details: 'Cravings are temporary. You are stronger than this moment.',
   },
   {
-    text: "Progress, not perfection.",
+    text: 'Progress, not perfection.',
     details: "Every craving you resist is progress. You're doing great!",
   },
   {
     text: "You've got this!",
-    details: "Remember why you started. Your future self will thank you.",
+    details: 'Remember why you started. Your future self will thank you.',
   },
 ]
 
@@ -44,14 +56,51 @@ const TRIGGER_THOUGHT_PROMPTS: Partial<Record<CravingTrigger, string>> = {
   [CravingTrigger.OTHER]: 'What thought came just before the craving?',
 }
 
-const RESOLUTION_OPTIONS: { value: ResolutionMethod; label: string }[] = [
-  { value: ResolutionMethod.BREATHING, label: '🌬️ Did breathing exercise' },
-  { value: ResolutionMethod.DISTRACTION, label: '🎯 Distracted myself' },
-  { value: ResolutionMethod.PASSED_ON_OWN, label: '⏳ It passed on its own' },
-  { value: ResolutionMethod.MOTIVATIONAL, label: '💪 Read a motivational message' },
-  { value: ResolutionMethod.JOURNALED, label: '📝 Journaled about it' },
-  { value: ResolutionMethod.SMOKED, label: '🚬 I smoked' },
+const RESOLUTION_OPTIONS: { value: ResolutionMethod; label: string; icon: typeof Wind }[] = [
+  { value: ResolutionMethod.BREATHING, label: 'Did breathing exercise', icon: Wind },
+  { value: ResolutionMethod.DISTRACTION, label: 'Distracted myself', icon: BookOpen },
+  { value: ResolutionMethod.PASSED_ON_OWN, label: 'It passed on its own', icon: Smile },
+  { value: ResolutionMethod.MOTIVATIONAL, label: 'Read a motivational message', icon: MessageCircle },
+  { value: ResolutionMethod.JOURNALED, label: 'Journaled about it', icon: Clipboard },
+  { value: ResolutionMethod.SMOKED, label: 'I smoked', icon: Cigarette },
 ]
+
+const shell =
+  'h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]'
+
+function SkyWash() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 h-48"
+      style={{
+        background:
+          'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+      }}
+      aria-hidden
+    />
+  )
+}
+
+function IconBubble({
+  icon: Icon,
+  tone = 'blue',
+}: {
+  icon: typeof Wind
+  tone?: 'blue' | 'orange' | 'green' | 'red' | 'soft'
+}) {
+  const tones = {
+    blue: 'bg-[#E8F4FC] text-[#3F8DD2]',
+    orange: 'bg-[#FFF1E6] text-[#E8894A]',
+    green: 'bg-[#EAF6F1] text-[#6EA48F]',
+    red: 'bg-[#FDECEC] text-[#D96B6B]',
+    soft: 'bg-[#F4FBFF] text-[#0E2538]/55',
+  }
+  return (
+    <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${tones[tone]}`}>
+      <Icon className="w-5 h-5" strokeWidth={2.25} />
+    </div>
+  )
+}
 
 export default function CravingSupport() {
   const navigate = useNavigate()
@@ -84,18 +133,13 @@ export default function CravingSupport() {
   ]
 
   useEffect(() => {
-    if (user?.id) {
-      fetchCravings({ limit: 50 })
-    }
-  }, [user?.id])
+    if (user?.id) fetchCravings({ limit: 50 })
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Check if user came from home page to log a slip directly
   useEffect(() => {
-    const isSlip = searchParams.get('slip') === 'true'
-    if (isSlip) {
+    if (searchParams.get('slip') === 'true') {
       setSlipped(true)
       setShowLogForm(true)
-      // Clear the query parameter
       navigate('/craving', { replace: true })
     }
   }, [searchParams, navigate])
@@ -109,12 +153,10 @@ export default function CravingSupport() {
           details: result.data.content || '',
         }
       }
-    } catch (error) {
-      console.error('Failed to fetch quote:', error)
+    } catch {
+      /* fallback */
     }
-    // Fallback to default quotes
-    const randomIndex = Math.floor(Math.random() * fallbackQuotes.length)
-    return fallbackQuotes[randomIndex]
+    return fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)]
   }
 
   const showMotivationalMessage = async () => {
@@ -124,28 +166,22 @@ export default function CravingSupport() {
     analyticsService.trackEvent('motivational_message_viewed', {}, user?.id)
   }
 
-
   const handleCallSupportBuddy = () => {
-    // TODO: Implement support buddy feature
     alert('Support buddy feature coming soon!')
     analyticsService.trackEvent('support_buddy_clicked', {}, user?.id)
   }
 
-  const handleLogCraving = () => {
-    setShowLogForm(true)
-  }
+  const handleLogCraving = () => setShowLogForm(true)
 
   const handleSave = async () => {
     if (!user?.id) {
       setError('User not found. Please login again.')
       return
     }
-
     if (!trigger) {
       setError('Please select a trigger')
       return
     }
-
     if (trigger === CravingTrigger.OTHER && !customTrigger.trim()) {
       setError('Please specify the custom trigger')
       return
@@ -166,24 +202,11 @@ export default function CravingSupport() {
 
       if (result.success) {
         if (result.data?.id) setLastCravingId(result.data.id)
-
-        // Track analytics
-        await analyticsService.trackCravingLogged(
-          user.id,
-          slipped ? 'slip' : 'craving',
-          trigger
-        )
-
-        // Recalculate progress
+        await analyticsService.trackCravingLogged(user.id, slipped ? 'slip' : 'craving', trigger)
         await refreshProgress()
-
-        // Check for achievements
         await achievementService.checkAndUnlock(user.id)
-
-        // Recompute behavioral profile — non-blocking
         behaviorProfileService.computeAndSave(user.id).catch(() => {})
 
-        // Show encouragement message
         const cravingsThisWeek = cravings.filter((c) => {
           const cravingDate = new Date(c.created || '')
           const weekAgo = new Date()
@@ -191,19 +214,12 @@ export default function CravingSupport() {
           return cravingDate >= weekAgo && c.type === CravingType.CRAVING
         }).length
 
-        if (slipped) {
-          setEncouragementMessage(
-            `It's okay. Tomorrow is a new day. You've come this far - keep going! 💪`
-          )
-        } else {
-          setEncouragementMessage(
-            `Great job! You've resisted ${cravingsThisWeek + 1} craving${cravingsThisWeek > 0 ? 's' : ''} this week! 🎉`
-          )
-        }
-
+        setEncouragementMessage(
+          slipped
+            ? "It's okay. Tomorrow is a new day. You've come this far — keep going!"
+            : `Great job! You've resisted ${cravingsThisWeek + 1} craving${cravingsThisWeek > 0 ? 's' : ''} this week.`
+        )
         setShowEncouragement(true)
-
-        // Reset form
         setIntensity(3)
         setTrigger('')
         setCustomTrigger('')
@@ -212,7 +228,6 @@ export default function CravingSupport() {
         setSlipped(false)
         setShowLogForm(false)
 
-        // Show resolution picker after short encouragement
         setTimeout(() => {
           setShowEncouragement(false)
           setShowResolutionPicker(true)
@@ -230,8 +245,9 @@ export default function CravingSupport() {
   const quickActions = [
     {
       icon: Wind,
-      title: 'Start 5-Minute Breathing',
-      gradient: 'from-info to-info/80',
+      title: '5-minute breathing',
+      subtitle: 'Calm the urge with guided breath',
+      tone: 'blue' as const,
       onClick: () => {
         analyticsService.trackEvent('quick_action_clicked', { action: 'breathing' }, user?.id)
         navigate('/breathing')
@@ -239,26 +255,30 @@ export default function CravingSupport() {
     },
     {
       icon: MessageCircle,
-      title: 'Read Motivational Message',
-      gradient: 'from-brand-primary to-brand-accent',
+      title: 'Motivational message',
+      subtitle: 'A short reminder of why you started',
+      tone: 'orange' as const,
       onClick: showMotivationalMessage,
     },
     {
       icon: Phone,
-      title: 'Call Support Buddy',
-      gradient: 'from-success to-success/80',
+      title: 'Call support buddy',
+      subtitle: 'Reach someone who has your back',
+      tone: 'green' as const,
       onClick: handleCallSupportBuddy,
     },
     {
       icon: Clipboard,
-      title: 'Log This Craving',
-      gradient: 'from-info/80 to-brand-primary',
+      title: 'Log this craving',
+      subtitle: 'Track intensity and what triggered it',
+      tone: 'blue' as const,
       onClick: handleLogCraving,
     },
     {
       icon: Cigarette,
-      title: 'I Smoked (Log a Slip)',
-      gradient: 'from-error to-error/80',
+      title: 'I smoked — log a slip',
+      subtitle: 'No judgment. Learn and keep going',
+      tone: 'red' as const,
       onClick: () => {
         setSlipped(true)
         handleLogCraving()
@@ -269,71 +289,90 @@ export default function CravingSupport() {
 
   if (showLogForm) {
     return (
-      <div className="min-h-screen pb-20">
-        <TopNavigation 
-          left="back" 
-          center={slipped ? "Log a Slip" : "Log Craving"} 
-          right=""
-        />
+      <div className={shell}>
+        <SkyWash />
+        <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+          <header className="flex items-center justify-between pt-4 pb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowLogForm(false)
+                setSlipped(false)
+                setError('')
+              }}
+              className={appHeaderBtn}
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5 text-[#0E2538]/70" />
+            </button>
+            <h1 className="text-lg font-bold text-[#0E2538]">
+              <TranslatedText text={slipped ? 'Log a Slip' : 'Log Craving'} />
+            </h1>
+            <span className="w-10" aria-hidden />
+          </header>
 
-        <div className="app-container px-3 sm:px-4 pt-6 pb-8">
-          <GlassCard className="p-6 mb-6">
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
             {slipped && (
-              <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-xl">
-                <p className="text-error font-medium text-center">
-                  It's okay. Tomorrow is a new day. 💪
+              <div className="mb-5 p-4 rounded-2xl bg-[#FDECEC] border border-[#D96B6B]/20 text-center">
+                <p className="text-sm font-semibold text-[#C45A5A]">
+                  It&apos;s okay. Tomorrow is a new day.
                 </p>
-                <p className="text-text-primary/70 text-sm text-center mt-2">
-                  Logging this slip helps track your progress and learn from it.
+                <p className="text-xs text-[#0E2538]/50 mt-1">
+                  Logging this slip helps you learn and keep going.
                 </p>
               </div>
             )}
-            <h2 className="text-xl font-bold text-text-primary mb-6">
+
+            <h2 className="text-lg font-bold text-[#0E2538] mb-4">
               {slipped ? 'Tell us what happened' : 'How intense is this craving?'}
             </h2>
 
             <div className="mb-6">
-              <div className="flex justify-between mb-2">
+              <div className="flex justify-between gap-2 mb-2">
                 {[1, 2, 3, 4, 5].map((level) => (
                   <button
                     key={level}
+                    type="button"
                     onClick={() => setIntensity(level)}
-                    className={`w-12 h-12 rounded-full glass flex items-center justify-center transition-all ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border ${
                       intensity === level
-                        ? 'ring-2 ring-brand-primary shadow-glow scale-110'
-                        : ''
+                        ? 'bg-[#E8F4FC] border-[#3F8DD2] scale-110 shadow-sm'
+                        : 'bg-[#F4FBFF] border-[#0E2538]/08'
                     }`}
                   >
                     {level <= 2 ? (
-                      <Smile className="w-6 h-6" />
+                      <Smile className="w-5 h-5 text-[#6EA48F]" />
                     ) : level === 3 ? (
-                      <span className="text-lg">😐</span>
+                      <span className="text-base text-[#0E2538]/50">·</span>
                     ) : (
-                      <Frown className="w-6 h-6" />
+                      <Frown className="w-5 h-5 text-[#E8894A]" />
                     )}
                   </button>
                 ))}
               </div>
-              <div className="text-center text-sm text-text-primary/70">
-                {intensity <= 2 && 'Mild'}
-                {intensity === 3 && 'Moderate'}
-                {intensity >= 4 && 'Strong'}
-              </div>
+              <p className="text-center text-xs font-medium text-[#0E2538]/45">
+                {intensity <= 2 ? 'Mild' : intensity === 3 ? 'Moderate' : 'Strong'}
+              </p>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-primary mb-3">
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-[#0E2538] mb-2">
                 What triggered it?
               </label>
               <div className="flex flex-wrap gap-2">
                 {triggers.map((t) => (
                   <button
                     key={t.value}
+                    type="button"
                     onClick={() => setTrigger(t.value)}
-                    className={`px-4 py-2 rounded-full glass text-sm transition-all ${
+                    className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all border ${
                       trigger === t.value
-                        ? 'ring-2 ring-brand-primary shadow-glow bg-brand-primary/20'
-                        : ''
+                        ? 'bg-[#E8F4FC] border-[#3F8DD2] text-[#3F8DD2]'
+                        : 'bg-[#F4FBFF] border-[#0E2538]/08 text-[#0E2538]/70'
                     }`}
                   >
                     {t.label}
@@ -346,249 +385,237 @@ export default function CravingSupport() {
                   value={customTrigger}
                   onChange={(e) => setCustomTrigger(e.target.value)}
                   placeholder="Specify the trigger"
-                  className="glass-input w-full mt-3"
+                  className="mt-3 w-full rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2.5 text-sm text-[#0E2538]"
                 />
               )}
             </div>
 
             {trigger && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-text-primary mb-2">
-                  {TRIGGER_THOUGHT_PROMPTS[trigger as CravingTrigger] || 'What thought came just before?'}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-[#0E2538] mb-2">
+                  {TRIGGER_THOUGHT_PROMPTS[trigger as CravingTrigger] ||
+                    'What thought came just before?'}
                 </label>
                 <textarea
                   value={automaticThought}
                   onChange={(e) => setAutomaticThought(e.target.value)}
                   placeholder="e.g. 'I deserve a break' or 'Just one won't hurt'"
-                  className="glass-input w-full min-h-[80px] resize-none"
+                  className="w-full min-h-[80px] resize-none rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2.5 text-sm text-[#0E2538]"
                 />
               </div>
             )}
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-primary mb-2">
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-[#0E2538] mb-2">
                 Any notes? (Optional)
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="How are you feeling?"
-                className="glass-input w-full min-h-[100px] resize-none"
+                className="w-full min-h-[100px] resize-none rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2.5 text-sm text-[#0E2538]"
               />
             </div>
 
             {!slipped && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-text-primary">
-                    Did you slip?
-                  </label>
-                  <button
-                    onClick={() => setSlipped(!slipped)}
-                    className={`relative w-14 h-8 rounded-full transition-colors ${
-                      slipped ? 'bg-error' : 'bg-text-primary/30'
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-[#0E2538]">Did you slip?</span>
+                <button
+                  type="button"
+                  onClick={() => setSlipped(!slipped)}
+                  className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${
+                    slipped ? 'bg-[#D96B6B]' : 'bg-[#0E2538]/20'
+                  }`}
+                  aria-pressed={slipped}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                      slipped ? 'translate-x-5' : ''
                     }`}
-                  >
-                    <div
-                      className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                        slipped ? 'translate-x-6' : ''
-                      }`}
-                    />
-                  </button>
-                </div>
-                {slipped && (
-                  <p className="mt-2 text-sm text-text-primary/70">
-                    It's okay. Tomorrow is a new day. 💪
-                  </p>
-                )}
+                  />
+                </button>
               </div>
             )}
 
-            {error && (
-              <p className="text-sm text-error mb-4 text-center">{error}</p>
-            )}
+            {error && <p className="text-sm text-[#D96B6B] mb-3 text-center">{error}</p>}
 
-            <GlassButton
+            <button
+              type="button"
               onClick={handleSave}
-              fullWidth
-              className="py-4"
-              disabled={loading || !trigger || (trigger === CravingTrigger.OTHER && !customTrigger.trim())}
+              disabled={
+                loading || !trigger || (trigger === CravingTrigger.OTHER && !customTrigger.trim())
+              }
+              className="w-full py-3.5 rounded-2xl bg-[#3F8DD2] text-white font-semibold text-sm disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
               {loading ? 'Saving...' : 'Save'}
-            </GlassButton>
-          </GlassCard>
+            </button>
+          </motion.section>
         </div>
+        <BottomNavigation />
       </div>
     )
   }
 
-  // Resolution picker — shown after encouragement
   if (showResolutionPicker) {
     const handleResolution = async (method: ResolutionMethod | null) => {
       if (method && lastCravingId && user?.id) {
         try {
           const { pb } = await import('../lib/pocketbase')
           await pb.collection('cravings').update(lastCravingId, { resolution_method: method })
-        } catch { /* non-critical */ }
+        } catch {
+          /* non-critical */
+        }
       }
       setShowResolutionPicker(false)
       navigate('/home')
     }
 
     return (
-      <div className="min-h-screen pb-20 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="app-container px-3 sm:px-4"
-        >
-          <GlassCard className="p-6">
-            <h2 className="text-lg font-bold text-text-primary mb-2 text-center">
+      <div className={shell}>
+        <SkyWash />
+        <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10 flex flex-col justify-center">
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
+            <h2 className="text-lg font-bold text-[#0E2538] mb-1 text-center">
               How did you get through it?
             </h2>
-            <p className="text-sm text-text-primary/60 text-center mb-5">
+            <p className="text-sm text-[#0E2538]/50 text-center mb-5">
               This helps us personalize your support
             </p>
-            <div className="flex flex-col gap-2">
+            <div className="space-y-2">
               {RESOLUTION_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
+                  type="button"
                   onClick={() => handleResolution(opt.value)}
-                  className="w-full text-left px-4 py-3 rounded-xl border border-white/20 glass hover:bg-white/10 transition-colors text-sm"
+                  className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border border-[#0E2538]/08 bg-[#F4FBFF] hover:bg-[#E8F4FC]/60 text-left transition-colors"
                 >
-                  {opt.label}
+                  <IconBubble icon={opt.icon} tone={opt.value === ResolutionMethod.SMOKED ? 'red' : 'blue'} />
+                  <span className="text-sm font-medium text-[#0E2538]">{opt.label}</span>
                 </button>
               ))}
               <button
+                type="button"
                 onClick={() => handleResolution(null)}
-                className="w-full text-center px-4 py-2 text-sm text-text-primary/50 mt-2"
+                className="w-full text-center py-2.5 text-sm text-[#0E2538]/40"
               >
                 Skip
               </button>
             </div>
-          </GlassCard>
-        </motion.div>
+          </motion.section>
+        </div>
+        <BottomNavigation />
       </div>
     )
   }
 
-  // Slip recovery — compassionate full-screen experience
   if (showEncouragement && slipped) {
     return <SlipRecovery daysFree={0} onDismiss={() => navigate('/home')} />
   }
 
-  // Craving resisted — celebratory overlay
   if (showEncouragement) {
     return (
-      <div className="min-h-screen pb-20 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="app-container px-3 sm:px-4"
-        >
-          <GlassCard className="p-8 text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="text-6xl mb-4"
+      <div className={shell}>
+        <SkyWash />
+        <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10 flex flex-col justify-center">
+          <motion.section
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-3xl bg-white p-8 text-center shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#EAF6F1] flex items-center justify-center">
+              <Smile className="w-8 h-8 text-[#6EA48F]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#0E2538] mb-2">Great job!</h2>
+            <p className="text-[#0E2538]/65 text-base mb-6 leading-relaxed">{encouragementMessage}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/home')}
+              className="w-full py-3.5 rounded-2xl bg-[#3F8DD2] text-white font-semibold text-sm"
             >
-              🎉
-            </motion.div>
-            <h2 className="text-2xl font-bold text-text-primary mb-4">
-              Great Job!
-            </h2>
-            <p className="text-text-primary/80 text-lg mb-6">
-              {encouragementMessage}
-            </p>
-            <GlassButton onClick={() => navigate('/home')} fullWidth className="py-4">
               Back to Home
-            </GlassButton>
-          </GlassCard>
-        </motion.div>
+            </button>
+          </motion.section>
+        </div>
+        <BottomNavigation />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      <TopNavigation
-        left="back"
-        center="We're Here to Help"
-        right={
-          <button onClick={() => navigate('/home')}>
-            <X className="w-6 h-6 text-text-primary" />
-          </button>
-        }
-      />
+    <div className={shell}>
+      <SkyWash />
+      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+        <AppHeader title="Support" />
 
-      <div className="app-container px-3 sm:px-4 pt-6 pb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-3xl bg-white p-6 mb-5 text-center shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
         >
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full glass-strong flex items-center justify-center">
-            <span className="text-4xl">🌊</span>
+          <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-[#E8F4FC] border-4 border-[#3F8DD2]/15 flex items-center justify-center overflow-hidden">
+            <Mascot size="md" />
           </div>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">
-            We're Here to Help
-          </h1>
-          <p className="text-text-primary/70">
-            This feeling will pass. Let's get through it together.
+          <h2 className="text-xl font-bold text-[#0E2538] mb-1">
+            <TranslatedText text="We're here to help" />
+          </h2>
+          <p className="text-sm text-[#0E2538]/55 leading-relaxed">
+            This feeling will pass. Pick what you need right now.
           </p>
-        </motion.div>
+        </motion.section>
 
-        <div className="space-y-4">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <GlassButton
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="mb-5"
+        >
+          <h3 className="text-sm font-bold text-[#0E2538] mb-3 px-0.5">
+            <TranslatedText text="Quick actions" />
+          </h3>
+          <div className="rounded-3xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white overflow-hidden divide-y divide-[#0E2538]/06">
+            {quickActions.map((action) => {
+              const Icon = action.icon
+              return (
+                <button
+                  key={action.title}
+                  type="button"
                   onClick={action.onClick}
-                  fullWidth
-                  className={`py-6 bg-gradient-to-r ${action.gradient} text-left`}
+                  className="flex items-center gap-3 w-full px-4 py-3.5 text-left hover:bg-[#F4FBFF] active:bg-[#E8F4FC]/50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <span className="font-semibold text-white">{action.title}</span>
+                  <IconBubble icon={Icon} tone={action.tone} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#0E2538]">{action.title}</p>
+                    <p className="text-xs text-[#0E2538]/45 mt-0.5 truncate">{action.subtitle}</p>
                   </div>
-                </GlassButton>
-              </motion.div>
-            )
-          })}
-        </div>
+                  <ChevronRight className="w-4 h-4 text-[#0E2538]/25 flex-shrink-0" />
+                </button>
+              )
+            })}
+          </div>
+        </motion.section>
 
-        {/* View History Button */}
         {cravings.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mt-6"
+            transition={{ delay: 0.1 }}
+            onClick={() => setShowHistoryModal(true)}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-[#3F8DD2]/25 bg-white text-[#3F8DD2] text-sm font-semibold shadow-sm"
           >
-            <GlassButton
-              onClick={() => setShowHistoryModal(true)}
-              variant="secondary"
-              fullWidth
-              className="py-4"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <History className="w-5 h-5" /> View Craving History
-              </span>
-            </GlassButton>
-          </motion.div>
+            <History className="w-4 h-4" />
+            <TranslatedText text="View craving history" />
+          </motion.button>
         )}
       </div>
 
-      {/* Motivational Quote Modal */}
+      <BottomNavigation />
+
       {currentQuote && (
         <MotivationalQuoteModal
           isOpen={showQuoteModal}
@@ -600,7 +627,6 @@ export default function CravingSupport() {
         />
       )}
 
-      {/* Craving History Modal */}
       <CravingHistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
@@ -609,4 +635,3 @@ export default function CravingSupport() {
     </div>
   )
 }
-

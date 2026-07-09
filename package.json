@@ -30,6 +30,7 @@
     "pb:reset-backoffice-admin": "node PocketBase/reset-backoffice-admin.js",
     "pb:add-last-active": "node PocketBase/add-last-active.js",
     "pb:add-timezone": "node PocketBase/add-timezone-field.js",
+    "pb:add-phone": "node PocketBase/add-phone-field.js",
     "pb:seed-sample": "node PocketBase/seed-sample.js",
     "dev:backoffice": "cd backoffice && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backoffice\"",

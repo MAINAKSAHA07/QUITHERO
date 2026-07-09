@@ -7,6 +7,7 @@ import { programService } from '../services/program.service'
 import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
 import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
+import { syncQuitDateWithSessions } from '../services/quitDateSync.service'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
 
 interface AppContextType {
@@ -152,10 +153,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               filter: `user = "${user.id}"`,
               fields: 'id,program_day,status',
             }).catch(() => [])
-            const expectedDay = expectedCurrentDayNumber(
-              daysResult.data,
-              indexProgressByDayId(allProgress as any[])
-            )
+            const progressByDay = indexProgressByDayId(allProgress as any[])
+            const expectedDay = expectedCurrentDayNumber(daysResult.data, progressByDay)
             if ((session.current_day || 1) !== expectedDay && session.id) {
               pb.collection('user_sessions').update(session.id, {
                 current_day: expectedDay,
@@ -166,6 +165,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         }
         setCurrentSession(session)
+        // Align quit_date with session pace when user fell behind
+        syncQuitDateWithSessions(user.id).then((nextQuit) => {
+          if (nextQuit) fetchUserProfile()
+        }).catch(() => {})
       } else {
         console.error('[AppContext] Failed to load program session:', result.error)
         setCurrentSession(null)
@@ -176,7 +179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       if (!silent) setSessionLoading(false)
     }
-  }, [user?.id, currentSession])
+  }, [user?.id, currentSession, fetchUserProfile])
 
   const refreshProgress = useCallback(async () => {
     if (!user?.id) return
@@ -189,13 +192,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (statsResult.success && statsResult.data) {
           setProgressStats(statsResult.data)
         }
+        // quit_date may have been pushed during calculateProgress
+        await fetchUserProfile()
       }
     } catch (error) {
       console.error('Failed to refresh progress:', error)
     } finally {
       if (!silent) setProgressLoading(false)
     }
-  }, [user?.id, progressStats])
+  // ponytail: omit progressStats from deps — including it recreates this fn every upsert and re-fires the login load effect
+  }, [user?.id, fetchUserProfile])
 
   const clearUserData = useCallback(() => {
     setUserProfile(null)

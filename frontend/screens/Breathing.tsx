@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CheckCircle } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
-import GlassCard from '../components/GlassCard'
-import GlassButton from '../components/GlassButton'
+import { ArrowLeft, CheckCircle, Wind, Pause, Play } from 'lucide-react'
+import { appHeaderBtn } from '../components/AppHeader'
+import TranslatedText from '../components/TranslatedText'
 import { useApp } from '../context/AppContext'
 import { useJournal } from '../hooks/useJournal'
 import { analyticsService } from '../services/analytics.service'
@@ -27,7 +26,9 @@ async function autoTagCravingResolution(userId: string) {
         resolution_method: ResolutionMethod.AUTO_BREATHING,
       })
     }
-  } catch { /* non-critical */ }
+  } catch {
+    /* non-critical */
+  }
 }
 
 type BreathingPhase = 'inhale' | 'hold' | 'exhale' | 'rest'
@@ -39,18 +40,41 @@ const EXHALE_DURATION = 5000
 const REST_DURATION = 2000
 
 const moodOptions = [
-  { value: Mood.VERY_HAPPY, emoji: '😊', label: 'Very Happy' },
-  { value: Mood.HAPPY, emoji: '🙂', label: 'Happy' },
-  { value: Mood.NEUTRAL, emoji: '😐', label: 'Neutral' },
-  { value: Mood.SAD, emoji: '😔', label: 'Sad' },
-  { value: Mood.VERY_SAD, emoji: '😢', label: 'Very Sad' },
+  { value: Mood.VERY_HAPPY, label: 'Very Happy', color: 'bg-[#EAF6F1] text-[#6EA48F] border-[#6EA48F]/30' },
+  { value: Mood.HAPPY, label: 'Happy', color: 'bg-[#E8F4FC] text-[#3F8DD2] border-[#3F8DD2]/30' },
+  { value: Mood.NEUTRAL, label: 'Neutral', color: 'bg-[#F4FBFF] text-[#0E2538]/60 border-[#0E2538]/15' },
+  { value: Mood.SAD, label: 'Sad', color: 'bg-[#FFF1E6] text-[#E8894A] border-[#E8894A]/30' },
+  { value: Mood.VERY_SAD, label: 'Very Sad', color: 'bg-[#FDECEC] text-[#D96B6B] border-[#D96B6B]/30' },
 ]
 
-const phaseConfig: Record<BreathingPhase, { gradient: string; glow: string; sub: string }> = {
-  inhale:  { gradient: 'from-brand-primary to-sky-300',    glow: 'rgba(168,212,234,0.4)',  sub: 'Slowly...' },
-  hold:    { gradient: 'from-violet-400 to-brand-primary', glow: 'rgba(167,139,250,0.4)',  sub: 'Keep holding...' },
-  exhale:  { gradient: 'from-brand-accent to-rose-300',    glow: 'rgba(253,180,123,0.4)',  sub: 'Release slowly...' },
-  rest:    { gradient: 'from-emerald-300 to-teal-300',     glow: 'rgba(110,231,183,0.35)', sub: 'Take a moment...' },
+const phaseConfig: Record<
+  BreathingPhase,
+  { fill: string; glow: string; ring: string; sub: string }
+> = {
+  inhale: {
+    fill: 'bg-[#3F8DD2]',
+    glow: 'rgba(63,141,210,0.35)',
+    ring: 'bg-[#8BCDE8]/40',
+    sub: 'Slowly...',
+  },
+  hold: {
+    fill: 'bg-[#5BA3D9]',
+    glow: 'rgba(91,163,217,0.35)',
+    ring: 'bg-[#A8D4EA]/45',
+    sub: 'Keep holding...',
+  },
+  exhale: {
+    fill: 'bg-[#E8894A]',
+    glow: 'rgba(232,137,74,0.35)',
+    ring: 'bg-[#F6B884]/40',
+    sub: 'Release slowly...',
+  },
+  rest: {
+    fill: 'bg-[#6EA48F]',
+    glow: 'rgba(110,164,143,0.35)',
+    ring: 'bg-[#A8D4C4]/40',
+    sub: 'Take a moment...',
+  },
 }
 
 const phaseLabel: Record<BreathingPhase, string> = {
@@ -58,6 +82,22 @@ const phaseLabel: Record<BreathingPhase, string> = {
   hold: 'Hold',
   exhale: 'Breathe Out',
   rest: 'Rest',
+}
+
+const shell =
+  'h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]'
+
+function SkyWash() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 h-48"
+      style={{
+        background:
+          'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+      }}
+      aria-hidden
+    />
+  )
 }
 
 export default function Breathing() {
@@ -85,19 +125,32 @@ export default function Breathing() {
     if (user?.id) analyticsService.trackPageView('breathing', user.id)
   }, [user?.id])
 
-  useEffect(() => { phaseRef.current = phase }, [phase])
-  useEffect(() => { roundRef.current = round }, [round])
-  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
-  useEffect(() => { isPausedRef.current = isPaused }, [isPaused])
-  useEffect(() => { isCompleteRef.current = isComplete }, [isComplete])
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
+  useEffect(() => {
+    roundRef.current = round
+  }, [round])
+  useEffect(() => {
+    isPlayingRef.current = isPlaying
+  }, [isPlaying])
+  useEffect(() => {
+    isPausedRef.current = isPaused
+  }, [isPaused])
+  useEffect(() => {
+    isCompleteRef.current = isComplete
+  }, [isComplete])
 
   useEffect(() => {
     if (isPlaying && !isPaused && !isComplete) {
       startBreathingCycle()
-    } else {
-      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    } else if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
     }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, isPaused, isComplete])
 
@@ -109,8 +162,14 @@ export default function Breathing() {
     let nextPhase: BreathingPhase = 'inhale'
 
     switch (currentPhase) {
-      case 'inhale': duration = INHALE_DURATION; nextPhase = 'hold'; break
-      case 'hold':   duration = HOLD_DURATION;   nextPhase = 'exhale'; break
+      case 'inhale':
+        duration = INHALE_DURATION
+        nextPhase = 'hold'
+        break
+      case 'hold':
+        duration = HOLD_DURATION
+        nextPhase = 'exhale'
+        break
       case 'exhale':
         duration = EXHALE_DURATION
         if (currentRound >= TOTAL_ROUNDS) {
@@ -118,7 +177,11 @@ export default function Breathing() {
           setIsPlaying(false)
           setShowMoodSelector(true)
           if (user?.id) {
-            analyticsService.trackEvent('breathing_exercise_completed', { rounds: TOTAL_ROUNDS }, user.id)
+            analyticsService.trackEvent(
+              'breathing_exercise_completed',
+              { rounds: TOTAL_ROUNDS },
+              user.id
+            )
             autoTagCravingResolution(user.id).catch(() => {})
           }
           return
@@ -152,7 +215,10 @@ export default function Breathing() {
 
   const handlePause = () => {
     setIsPaused(true)
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
   }
 
   const handleResume = () => setIsPaused(false)
@@ -163,13 +229,16 @@ export default function Breathing() {
     setPhase('inhale')
     setRound(1)
     setIsComplete(false)
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
   }
 
   const handleSaveToJournal = async () => {
     if (!user?.id || !saveToJournal) {
       setShowMoodSelector(false)
-      navigate('/home')
+      navigate('/craving')
       return
     }
     setSaving(true)
@@ -178,14 +247,14 @@ export default function Breathing() {
         date: new Date().toISOString().split('T')[0],
         mood: selectedMood,
         title: 'Breathing Exercise',
-        content: `Completed ${TOTAL_ROUNDS} rounds of 5-5-5 breathing exercise. Feeling ${moodOptions.find(m => m.value === selectedMood)?.label.toLowerCase()}.`,
+        content: `Completed ${TOTAL_ROUNDS} rounds of 5-5-5 breathing exercise. Feeling ${moodOptions.find((m) => m.value === selectedMood)?.label.toLowerCase()}.`,
       })
       setShowMoodSelector(false)
-      navigate('/home')
+      navigate('/craving')
     } catch (error) {
       console.error('Failed to save to journal:', error)
       setShowMoodSelector(false)
-      navigate('/home')
+      navigate('/craving')
     } finally {
       setSaving(false)
     }
@@ -193,262 +262,289 @@ export default function Breathing() {
 
   const getCircleScale = () => {
     switch (phase) {
-      case 'inhale': return 1.5
-      case 'hold':   return 1.5
-      case 'exhale': return 0.8
-      case 'rest':   return 1
-      default:       return 1
+      case 'inhale':
+        return 1.5
+      case 'hold':
+        return 1.5
+      case 'exhale':
+        return 0.8
+      case 'rest':
+        return 1
+      default:
+        return 1
     }
   }
 
   const getPhaseDuration = () => {
     switch (phase) {
-      case 'inhale': return INHALE_DURATION
-      case 'hold':   return HOLD_DURATION
-      case 'exhale': return EXHALE_DURATION
-      case 'rest':   return REST_DURATION
-      default:       return 0
+      case 'inhale':
+        return INHALE_DURATION
+      case 'hold':
+        return HOLD_DURATION
+      case 'exhale':
+        return EXHALE_DURATION
+      case 'rest':
+        return REST_DURATION
+      default:
+        return 0
     }
   }
 
   const cfg = phaseConfig[phase]
   const ease = phase === 'inhale' ? 'easeIn' : phase === 'exhale' ? 'easeOut' : 'linear'
+  const totalMins = Math.ceil(
+    (TOTAL_ROUNDS * (INHALE_DURATION + HOLD_DURATION + EXHALE_DURATION + REST_DURATION)) / 60000
+  )
 
-  // ── Mood Selector (post-completion) ──────────────────────────────────────
+  const goBack = () => {
+    if (isPlaying) handleStop()
+    navigate('/craving')
+  }
+
   if (showMoodSelector) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm"
-        >
-          <GlassCard className="p-8 text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="mb-6"
-            >
-              <CheckCircle className="w-16 h-16 text-success mx-auto" />
-            </motion.div>
-            <h2 className="text-2xl font-bold text-text-primary mb-2">Exercise Complete!</h2>
-            <p className="text-text-primary/70 mb-6">How do you feel now?</p>
-            <div className="flex gap-3 justify-center mb-6">
+      <div className={shell}>
+        <SkyWash />
+        <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-8 relative z-10 flex flex-col justify-center">
+          <motion.section
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-3xl bg-white p-6 text-center shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+          >
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#EAF6F1] flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-[#6EA48F]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#0E2538] mb-1">
+              <TranslatedText text="Exercise complete" />
+            </h2>
+            <p className="text-sm text-[#0E2538]/55 mb-6">How do you feel now?</p>
+
+            <div className="flex flex-wrap gap-2 justify-center mb-6">
               {moodOptions.map((mood) => (
                 <button
                   key={mood.value}
+                  type="button"
                   onClick={() => setSelectedMood(mood.value)}
-                  className={`text-4xl transition-all ${selectedMood === mood.value ? 'scale-125 drop-shadow-lg' : 'opacity-50'}`}
-                  title={mood.label}
+                  className={`px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
+                    selectedMood === mood.value
+                      ? `${mood.color} scale-105 shadow-sm`
+                      : 'bg-[#F4FBFF] border-[#0E2538]/08 text-[#0E2538]/45'
+                  }`}
                 >
-                  {mood.emoji}
+                  {mood.label}
                 </button>
               ))}
             </div>
-            <div className="mb-6">
-              <label className="flex items-center justify-center gap-2 text-text-primary">
-                <input
-                  type="checkbox"
-                  checked={saveToJournal}
-                  onChange={(e) => setSaveToJournal(e.target.checked)}
-                  className="w-4 h-4 accent-brand-primary"
-                />
-                <span>Save to Journal</span>
-              </label>
-            </div>
-            <GlassButton onClick={handleSaveToJournal} fullWidth className="py-4" disabled={saving}>
+
+            <label className="flex items-center justify-center gap-2 text-sm text-[#0E2538]/70 mb-5">
+              <input
+                type="checkbox"
+                checked={saveToJournal}
+                onChange={(e) => setSaveToJournal(e.target.checked)}
+                className="w-4 h-4 accent-[#3F8DD2] rounded"
+              />
+              <span>Save to Journal</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={handleSaveToJournal}
+              disabled={saving}
+              className="w-full py-3.5 rounded-2xl bg-[#3F8DD2] text-white font-semibold text-sm disabled:opacity-50 active:scale-[0.98] transition-transform"
+            >
               {saving ? 'Saving...' : 'Done'}
-            </GlassButton>
-          </GlassCard>
-        </motion.div>
+            </button>
+          </motion.section>
+        </div>
       </div>
     )
   }
 
-  // ── Main Screen ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col">
-      <TopNavigation
-        left="back"
-        center="5-5-5 Breathing"
-        right={
-          <button onClick={() => navigate('/home')}>
-            <X className="w-6 h-6 text-text-primary" />
+    <div className={shell}>
+      <SkyWash />
+      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-8 relative z-10 flex flex-col">
+        <header className="flex items-center justify-between pt-4 pb-4 flex-shrink-0">
+          <button type="button" onClick={goBack} className={appHeaderBtn} aria-label="Back">
+            <ArrowLeft className="w-5 h-5 text-[#0E2538]/70" />
           </button>
-        }
-      />
+          <h1 className="text-lg font-bold text-[#0E2538]">
+            <TranslatedText text="Breathing" />
+          </h1>
+          <span className="w-10" aria-hidden />
+        </header>
 
-      {!isPlaying ? (
-        /* ── Start Screen ── */
-        <div className="flex-1 flex flex-col px-5 pt-2 pb-8">
-          {/* Hero */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-            {/* Animated orb */}
-            <div className="relative flex items-center justify-center mb-2">
+        {!isPlaying ? (
+          <div className="flex-1 flex flex-col">
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-3xl bg-white p-6 mb-5 text-center shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white"
+            >
+              <div className="relative flex items-center justify-center mb-4">
+                <motion.div
+                  className="absolute rounded-full bg-[#8BCDE8]/25"
+                  animate={{ scale: [1, 1.12, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ width: 140, height: 140, filter: 'blur(14px)' }}
+                />
+                <motion.div
+                  className="relative w-24 h-24 rounded-full bg-[#E8F4FC] border-4 border-[#3F8DD2]/20 flex items-center justify-center"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <Wind className="w-10 h-10 text-[#3F8DD2]" strokeWidth={2} />
+                </motion.div>
+              </div>
+
+              <h2 className="text-xl font-bold text-[#0E2538] mb-1">5-5-5 Breathing</h2>
+              <p className="text-sm text-[#0E2538]/55 leading-relaxed max-w-[280px] mx-auto">
+                Follow the circle and breathe in sync to relax and ease cravings.
+              </p>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 }}
+              className="mb-5"
+            >
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { step: 'Breathe In', secs: '5s', tone: 'bg-[#E8F4FC] text-[#3F8DD2]' },
+                  { step: 'Hold', secs: '5s', tone: 'bg-[#F0F7FC] text-[#5BA3D9]' },
+                  { step: 'Breathe Out', secs: '5s', tone: 'bg-[#FFF1E6] text-[#E8894A]' },
+                ].map((s) => (
+                  <div
+                    key={s.step}
+                    className={`flex flex-col items-center gap-1 p-3.5 rounded-2xl border border-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] ${s.tone.split(' ')[0]}`}
+                  >
+                    <span className={`text-lg font-extrabold ${s.tone.split(' ')[1]}`}>{s.secs}</span>
+                    <span className="text-[10px] font-semibold text-[#0E2538]/55 text-center leading-tight">
+                      {s.step}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-xs text-[#0E2538]/40 font-medium mt-3">
+                {TOTAL_ROUNDS} rounds · ~{totalMins} min
+              </p>
+            </motion.section>
+
+            <div className="mt-auto">
+              <button
+                type="button"
+                onClick={handleStart}
+                className="w-full py-3.5 rounded-2xl bg-[#3F8DD2] text-white font-semibold text-sm active:scale-[0.98] transition-transform shadow-[0_8px_24px_rgba(63,141,210,0.25)]"
+              >
+                Start Exercise
+              </button>
+            </div>
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-between py-4"
+          >
+            <div className="flex flex-col items-center gap-2 w-full">
+              <p className="text-sm font-semibold text-[#0E2538]/50">
+                Round {round} of {TOTAL_ROUNDS}
+              </p>
+              <div className="flex gap-2 items-center">
+                {Array.from({ length: TOTAL_ROUNDS }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-full transition-all duration-300 ${
+                      i < round - 1
+                        ? 'w-6 h-2 bg-[#3F8DD2]'
+                        : i === round - 1
+                          ? 'w-6 h-2 bg-[#3F8DD2]/50'
+                          : 'w-2 h-2 bg-[#0E2538]/15'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="relative flex items-center justify-center my-6">
               <motion.div
-                className="absolute rounded-full bg-gradient-to-br from-brand-primary/20 to-sky-300/20"
-                animate={{ scale: [1, 1.12, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                style={{ width: 160, height: 160, filter: 'blur(16px)' }}
+                className="absolute rounded-full"
+                animate={{
+                  scale: getCircleScale() * 1.4,
+                  opacity: [0.3, 0.55, 0.3],
+                }}
+                transition={{
+                  scale: { duration: getPhaseDuration() / 1000, ease },
+                  opacity: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
+                }}
+                style={{
+                  width: 200,
+                  height: 200,
+                  background: cfg.glow,
+                  filter: 'blur(28px)',
+                }}
               />
               <motion.div
-                className="relative w-28 h-28 rounded-full bg-gradient-to-br from-brand-primary/15 to-sky-300/20 border border-brand-primary/20 backdrop-blur-sm flex items-center justify-center"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className={`absolute rounded-full ${cfg.ring}`}
+                animate={{ scale: getCircleScale() * 1.18 }}
+                transition={{ duration: getPhaseDuration() / 1000, ease }}
+                style={{ width: 190, height: 190 }}
+              />
+              <motion.div
+                className={`relative rounded-full ${cfg.fill} flex items-center justify-center shadow-[0_12px_40px_rgba(63,141,210,0.25)]`}
+                animate={{ scale: getCircleScale() }}
+                transition={{ duration: getPhaseDuration() / 1000, ease }}
+                style={{ width: 180, height: 180 }}
               >
-                <span className="text-5xl">🌊</span>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={phase}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-center px-4"
+                  >
+                    <div className="text-xl font-extrabold text-white mb-1">{phaseLabel[phase]}</div>
+                    <div className="text-xs text-white/80 font-medium">{cfg.sub}</div>
+                  </motion.div>
+                </AnimatePresence>
               </motion.div>
             </div>
 
-            <div>
-              <h1 className="text-3xl font-extrabold text-text-primary tracking-tight mb-2">
-                5-5-5 Breathing
-              </h1>
-              <p className="text-text-primary/60 text-base leading-relaxed max-w-[260px] mx-auto">
-                Follow the circle and breathe in sync to relax and ease cravings.
-              </p>
-            </div>
-
-            {/* Step cards */}
-            <div className="grid grid-cols-3 gap-2 w-full mt-2">
-              {[
-                { emoji: '🫁', step: 'Breathe In', secs: '5s', color: 'from-brand-primary/10 to-sky-300/10 border-brand-primary/20' },
-                { emoji: '⏸️', step: 'Hold',       secs: '5s', color: 'from-violet-400/10 to-brand-primary/10 border-violet-300/20' },
-                { emoji: '💨', step: 'Breathe Out', secs: '5s', color: 'from-brand-accent/10 to-rose-300/10 border-brand-accent/20' },
-              ].map((s) => (
-                <div
-                  key={s.step}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gradient-to-br ${s.color} border backdrop-blur-sm`}
+            <div className="flex gap-3 w-full">
+              {isPaused ? (
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#3F8DD2] text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
                 >
-                  <span className="text-2xl">{s.emoji}</span>
-                  <span className="text-[10px] font-bold text-text-primary/70 text-center leading-tight">{s.step}</span>
-                  <span className="text-xs font-extrabold text-brand-primary">{s.secs}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-xs text-text-primary/40 font-medium">
-              {TOTAL_ROUNDS} rounds · ~{Math.ceil((TOTAL_ROUNDS * (INHALE_DURATION + HOLD_DURATION + EXHALE_DURATION + REST_DURATION)) / 60000)} min
-            </p>
-          </div>
-
-          {/* CTA */}
-          <motion.button
-            onClick={handleStart}
-            whileTap={{ scale: 0.97 }}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-accent text-white font-bold text-lg shadow-lg active:opacity-90 transition-all"
-          >
-            Start Exercise
-          </motion.button>
-        </div>
-
-      ) : (
-        /* ── Active Session ── */
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex-1 flex flex-col items-center justify-between px-6 pt-4 pb-10"
-        >
-          {/* Round dots */}
-          <div className="flex flex-col items-center gap-2 w-full">
-            <p className="text-text-primary/50 text-sm font-semibold tracking-wide">
-              Round {round} of {TOTAL_ROUNDS}
-            </p>
-            <div className="flex gap-2 items-center">
-              {Array.from({ length: TOTAL_ROUNDS }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`rounded-full transition-all duration-300 ${
-                    i < round - 1
-                      ? 'w-6 h-2 bg-gradient-to-r from-brand-primary to-brand-accent'
-                      : i === round - 1
-                      ? 'w-6 h-2 bg-brand-primary/60'
-                      : 'w-2 h-2 bg-white/30 border border-white/40'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Breathing Orb */}
-          <div className="relative flex items-center justify-center">
-            {/* Outer glow */}
-            <motion.div
-              className="absolute rounded-full"
-              animate={{
-                scale: getCircleScale() * 1.4,
-                opacity: [0.3, 0.6, 0.3],
-              }}
-              transition={{
-                scale: { duration: getPhaseDuration() / 1000, ease },
-                opacity: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
-              }}
-              style={{
-                width: 200,
-                height: 200,
-                background: cfg.glow,
-                filter: 'blur(28px)',
-              }}
-            />
-            {/* Mid ring */}
-            <motion.div
-              className={`absolute rounded-full bg-gradient-to-br ${cfg.gradient} opacity-25`}
-              animate={{ scale: getCircleScale() * 1.18 }}
-              transition={{ duration: getPhaseDuration() / 1000, ease }}
-              style={{ width: 190, height: 190 }}
-            />
-            {/* Main orb */}
-            <motion.div
-              className={`relative rounded-full bg-gradient-to-br ${cfg.gradient} flex items-center justify-center shadow-2xl`}
-              animate={{ scale: getCircleScale() }}
-              transition={{ duration: getPhaseDuration() / 1000, ease }}
-              style={{ width: 180, height: 180 }}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={phase}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.25 }}
-                  className="text-center px-4"
+                  <Play className="w-4 h-4" fill="currentColor" />
+                  Resume
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePause}
+                  className="flex-1 py-3.5 rounded-2xl bg-white border border-[#3F8DD2]/20 text-[#0E2538] font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform"
                 >
-                  <div className="text-xl font-extrabold text-white drop-shadow mb-1">
-                    {phaseLabel[phase]}
-                  </div>
-                  <div className="text-xs text-white/75 font-medium">{cfg.sub}</div>
-                </motion.div>
-              </AnimatePresence>
-            </motion.div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex gap-3 w-full max-w-xs">
-            {isPaused ? (
+                  <Pause className="w-4 h-4" />
+                  Pause
+                </button>
+              )}
               <button
-                onClick={handleResume}
-                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-accent text-white font-semibold text-sm shadow-lg active:scale-[0.97] transition-all"
+                type="button"
+                onClick={handleStop}
+                className="flex-1 py-3.5 rounded-2xl bg-white border border-[#0E2538]/10 text-[#0E2538]/50 font-semibold text-sm active:scale-[0.98] transition-transform"
               >
-                Resume
+                Stop
               </button>
-            ) : (
-              <button
-                onClick={handlePause}
-                className="flex-1 py-3.5 rounded-2xl bg-white/50 border border-white/40 backdrop-blur-sm text-text-primary font-semibold text-sm hover:bg-white/60 active:scale-[0.97] transition-all"
-              >
-                Pause
-              </button>
-            )}
-            <button
-              onClick={handleStop}
-              className="flex-1 py-3.5 rounded-2xl bg-white/30 border border-white/30 backdrop-blur-sm text-text-primary/60 font-semibold text-sm hover:bg-white/40 active:scale-[0.97] transition-all"
-            >
-              Stop
-            </button>
-          </div>
-        </motion.div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }
