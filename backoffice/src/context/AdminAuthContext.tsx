@@ -36,19 +36,47 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const currentUser = adminAuthHelpers.getCurrentUser()
-    if (currentUser) {
-      setUser(currentUser as any as AdminUser)
-    }
-    setIsLoading(false)
+    let cancelled = false
 
-    // Listen for auth changes
+    async function bootstrap() {
+      if (!pb.authStore.isValid) {
+        pb.authStore.clear()
+        if (!cancelled) {
+          setUser(null)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      try {
+        await pb.collection('admin_users').authRefresh()
+      } catch {
+        pb.authStore.clear()
+        if (!cancelled) {
+          setUser(null)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      if (!cancelled) {
+        setUser(pb.authStore.record as unknown as AdminUser)
+        setIsLoading(false)
+      }
+    }
+
+    bootstrap()
+
     const unsubscribe = pb.authStore.onChange((_token, model) => {
-      setUser(model as AdminUser | null)
+      if (pb.authStore.isValid && model) {
+        setUser(model as unknown as AdminUser)
+      } else {
+        setUser(null)
+      }
     })
 
     return () => {
+      cancelled = true
       unsubscribe()
     }
   }, [])
@@ -56,8 +84,10 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     const result = await adminAuthHelpers.login(email, password)
-    if (result.success) {
-      setUser(result.data?.record as any as AdminUser)
+    if (result.success && pb.authStore.isValid) {
+      setUser(result.data?.record as unknown as AdminUser)
+    } else {
+      setUser(null)
     }
     setIsLoading(false)
     return result
@@ -75,15 +105,10 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
         isLoading,
         login,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated: pb.authStore.isValid && !!user,
       }}
     >
       {children}
     </AdminAuthContext.Provider>
   )
 }
-
-
-
-
-

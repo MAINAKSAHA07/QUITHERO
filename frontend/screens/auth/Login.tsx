@@ -11,6 +11,7 @@ import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import SmonoLogo from '../../components/SmonoLogo'
 import { profileService } from '../../services/profile.service'
+import { isKycComplete } from '../../utils/kyc'
 import {
   getLoginLockout,
   recordLoginFailure,
@@ -57,8 +58,7 @@ export default function Login() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return
     profileService.getByUserId(user.id).then(result => {
-      const hasCompletedKYC = result.success && result.data && result.data.daily_consumption
-      navigate(hasCompletedKYC ? '/home' : '/kyc', { replace: true })
+      navigate(isKycComplete(result.data) ? '/home' : '/kyc', { replace: true })
     })
   }, [isAuthenticated, user?.id, navigate])
 
@@ -101,8 +101,7 @@ export default function Login() {
 
         // Check if user has completed onboarding
         const profileResult = await profileService.getByUserId(result.data.record.id)
-        const hasCompletedKYC = profileResult.success && profileResult.data && profileResult.data.daily_consumption
-        if (hasCompletedKYC) {
+        if (isKycComplete(profileResult.data)) {
           navigate('/home')
         } else {
           navigate('/kyc')
@@ -153,8 +152,7 @@ export default function Login() {
 
         // Check if user has completed onboarding (has profile with essential data)
         const profileResult = await profileService.getByUserId(record.id)
-        const hasCompletedKYC = profileResult.success && profileResult.data && profileResult.data.daily_consumption
-        if (hasCompletedKYC) {
+        if (isKycComplete(profileResult.data)) {
           navigate('/home')
         } else {
           navigate('/kyc')
@@ -170,7 +168,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-background pb-20 safe-area-bottom">
       <TopNavigation left="logo" center="" right="" />
 
       <div className="app-container px-3 sm:px-4 pt-8">

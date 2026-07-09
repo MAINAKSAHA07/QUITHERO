@@ -29,6 +29,7 @@ export interface UserProfile {
   country?: string
   quit_date: string // Date string
   daily_reminder_time?: string // Format: "HH:MM"
+  timezone?: string // IANA, e.g. America/Los_Angeles
   nicotine_forms?: string[] // JSON array
   how_long_using?: number // Months
   daily_consumption?: number

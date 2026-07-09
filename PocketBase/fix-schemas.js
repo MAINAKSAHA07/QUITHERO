@@ -45,6 +45,7 @@ const desired = {
     { name: 'language', type: 'select', required: true, values: ['en', 'es', 'fr', 'hi', 'de', 'zh', 'mr', 'gu', 'it'] },
     { name: 'quit_date', type: 'date', required: true },
     { name: 'daily_reminder_time', type: 'text' },
+    { name: 'timezone', type: 'text' },
     { name: 'nicotine_forms', type: 'json' },
     { name: 'how_long_using', type: 'number' },
     { name: 'daily_consumption', type: 'number' },

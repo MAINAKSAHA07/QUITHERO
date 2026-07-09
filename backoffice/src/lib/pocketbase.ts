@@ -1,12 +1,7 @@
 import PocketBase from 'pocketbase'
 
-// In production (Vercel), use the serverless proxy to avoid Mixed Content errors
-// In development, connect directly to PocketBase
-const PB_URL = import.meta.env.PROD
-  ? '/api/pocketbase'  // Use Vercel proxy in production
-  : import.meta.env.VITE_POCKETBASE_URL ||
-    import.meta.env.VITE_BACKOFFICE_PB_URL ||
-    'http://localhost:8096'
+// Dev + prod: same-origin proxy avoids CORS and wrong localhost defaults
+const PB_URL = '/api/pocketbase'
 
 export const pb = new PocketBase(PB_URL)
 
@@ -18,17 +13,78 @@ if (import.meta.env.DEV) {
   console.log('[Backoffice] PocketBase URL:', PB_URL)
 }
 
-// Enable auto cancellation for all pending requests
 pb.autoCancellation(false)
+
+// ponytail: belt-and-suspenders — SDK should attach token, but proxy setups have dropped it before
+pb.beforeSend = (url, options) => {
+  const token = pb.authStore.token
+  if (token) {
+    options.headers = { ...options.headers, Authorization: token }
+  }
+  return { url, options }
+}
+
+function assertAuthed() {
+  if (!pb.authStore.isValid) {
+    throw new Error('Session expired — please sign in again')
+  }
+}
+
+async function fetchFullList(
+  collectionName: string,
+  options?: { filter?: string; sort?: string; expand?: string; fields?: string }
+) {
+  assertAuthed()
+  const records = await pb.collection(collectionName).getFullList({
+    filter: options?.filter,
+    sort: options?.sort,
+    expand: options?.expand,
+    fields: options?.fields,
+  })
+  return { success: true as const, data: records }
+}
+
+async function fetchList(
+  collectionName: string,
+  page: number,
+  perPage: number,
+  options?: { filter?: string; sort?: string; expand?: string; fields?: string }
+) {
+  assertAuthed()
+  const result = await pb.collection(collectionName).getList(page, perPage, {
+    filter: options?.filter,
+    sort: options?.sort,
+    expand: options?.expand,
+    fields: options?.fields,
+  })
+  return { success: true as const, data: result }
+}
 
 // Admin auth helpers (custom auth collection: admin_users)
 export const adminAuthHelpers = {
   async login(email: string, password: string) {
     try {
       const result = await pb.collection('admin_users').authWithPassword(email, password)
+      if (!pb.authStore.isValid) {
+        return { success: false, error: 'Login succeeded but session was not saved. Try again.' }
+      }
       return { success: true, data: result }
     } catch (error: any) {
-      return { success: false, error: error?.message || 'Login failed' }
+      const msg = error?.message || 'Login failed'
+      if (msg.includes('Failed to authenticate')) {
+        return {
+          success: false,
+          error:
+            'Invalid email or password. Backoffice uses admin_users accounts — not your PocketBase superuser login. Try mainaksaha0807@gmail.com or admin@backoffice.com with your full admin password.',
+        }
+      }
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        return {
+          success: false,
+          error: 'Cannot reach PocketBase. Start the dev server (npm run dev) — it proxies /api/pocketbase to your server.',
+        }
+      }
+      return { success: false, error: msg }
     }
   },
   logout() {
@@ -54,15 +110,10 @@ export const adminCollectionHelpers = {
     fields?: string
   }) {
     try {
-      const records = await pb.collection(collectionName).getFullList({
-        filter: options?.filter,
-        sort: options?.sort,
-        expand: options?.expand,
-        fields: options?.fields,
-      })
-      return { success: true, data: records }
+      return await fetchFullList(collectionName, options)
     } catch (error: any) {
-      return { success: false, error: error.message, data: [] }
+      if (error?.status === 401 || error?.status === 403) pb.authStore.clear()
+      return { success: false, error: error.message, data: [] as never[] }
     }
   },
 
@@ -76,16 +127,10 @@ export const adminCollectionHelpers = {
     fields?: string
   }) {
     try {
-      const result = await pb.collection(collectionName).getList(page, perPage, {
-        filter: options?.filter,
-        sort: options?.sort,
-        expand: options?.expand,
-        fields: options?.fields,
-      })
-      // Return the full result so callers can access items/total from data
-      return { success: true, data: result }
+      return await fetchList(collectionName, page, perPage, options)
     } catch (error: any) {
-      return { success: false, error: error.message, data: [], totalItems: 0, totalPages: 0 }
+      if (error?.status === 401 || error?.status === 403) pb.authStore.clear()
+      return { success: false, error: error.message, data: { items: [], page: 1, perPage, totalItems: 0, totalPages: 0 } }
     }
   },
 

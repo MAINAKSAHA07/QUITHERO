@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { useAdminAuth } from '../../context/AdminAuthContext'
+import { countActiveUsers, getUserLastActive, indexActivityByUser } from '../../lib/userActivity'
 import { Users, Activity, Trophy, MessageSquare, UserPlus } from 'lucide-react'
 import { MetricCard } from '../../components/common/MetricCard'
 import { UserGrowthChart } from '../../components/charts/UserGrowthChart'
@@ -11,15 +13,19 @@ import { formatDistanceToNow } from 'date-fns'
 
 export const Dashboard = () => {
   const [activities, setActivities] = useState<any[]>([])
+  const { isAuthenticated } = useAdminAuth()
+  const queryEnabled = isAuthenticated
 
-  const { data: usersData } = useQuery({
+  const { data: usersData, isError: usersError, error: usersErr } = useQuery({
     queryKey: ['users', 'count'],
     queryFn: () => adminCollectionHelpers.getFullList('users'),
+    enabled: queryEnabled,
   })
 
   const { data: _programsData } = useQuery({
     queryKey: ['programs'],
     queryFn: () => adminCollectionHelpers.getFullList('programs'),
+    enabled: queryEnabled,
   })
 
   const { data: sessionsData } = useQuery({
@@ -27,11 +33,19 @@ export const Dashboard = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions', {
       filter: 'status = "completed"',
     }),
+    enabled: queryEnabled,
   })
 
   const { data: allSessionsData } = useQuery({
     queryKey: ['sessions', 'all'],
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions'),
+    enabled: queryEnabled,
+  })
+
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+    enabled: queryEnabled,
   })
 
   const { data: supportTicketsData } = useQuery({
@@ -49,7 +63,8 @@ export const Dashboard = () => {
         throw error
       }
     },
-    retry: false, // Don't retry if collection doesn't exist
+    retry: false,
+    enabled: queryEnabled,
   })
 
   const { data: recentUsers } = useQuery({
@@ -57,6 +72,7 @@ export const Dashboard = () => {
     queryFn: () => adminCollectionHelpers.getList('users', 1, 10, {
       sort: recentSort('users'),
     }),
+    enabled: queryEnabled,
   })
 
   const { data: recentAchievements } = useQuery({
@@ -65,7 +81,10 @@ export const Dashboard = () => {
       sort: '-unlocked_at',
       expand: 'user,achievement',
     }),
+    enabled: queryEnabled,
   })
+
+  const fetchFailed = usersData?.success === false
 
   useEffect(() => {
     const loadActivities = async () => {
@@ -122,17 +141,19 @@ export const Dashboard = () => {
   }, [recentUsers, sessionsData, recentAchievements])
 
   const totalUsers = usersData?.data?.length || 0
-  
-  // Calculate active users (logged in last 7 days)
+  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
+
+  // Active = last session completion, lastActive heartbeat, or profile update in last 7 days
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const activeUsers = usersData?.data?.filter((u: any) => {
-    if (!u.lastActive) return false
-    return new Date(u.lastActive) > sevenDaysAgo
-  }).length || 0
+  const activeUsers = countActiveUsers(usersData?.data || [], activityByUser, 7)
 
-  const completedPrograms = sessionsData?.data?.length || 0
-  const completionRate = totalUsers > 0 ? Math.round((completedPrograms / totalUsers) * 100) : 0
+  const completedDailySessions = (sessionProgressData?.data || []).filter(
+    (s: any) => s.status === 'completed'
+  ).length
+  const programGraduates = (allSessionsData?.data || []).filter(
+    (s: any) => s.status === 'completed'
+  ).length
   
   // Calculate pending tickets
   const pendingTickets = supportTicketsData?.data?.length || 0
@@ -173,20 +194,20 @@ export const Dashboard = () => {
         return created >= month && created < nextMonth
       }).length || 0
       
-      // Active users in this month (users who were active at least once)
+      // Active users in this month (from session activity + lastActive)
       const activeUsers = usersData?.data?.filter((u: any) => {
-        if (!u.lastActive) return false
-        const lastActive = new Date(u.lastActive)
-        return lastActive >= month && lastActive < nextMonth
+        const last = getUserLastActive(u, activityByUser.get(u.id))
+        if (!last) return false
+        return last >= month && last < nextMonth
       }).length || 0
       
       // Churned users (users who were active before but not in this month)
       const churned = usersData?.data?.filter((u: any) => {
-        if (!u.lastActive || !u.created) return false
+        if (!u.created) return false
         const created = new Date(u.created)
-        const lastActive = new Date(u.lastActive)
-        // User was created before this month but not active in this month
-        return created < month && lastActive < month && lastActive >= new Date(month.getTime() - 30 * 24 * 60 * 60 * 1000)
+        const last = getUserLastActive(u, activityByUser.get(u.id))
+        if (!last) return created < month
+        return created < month && last < month && last >= new Date(month.getTime() - 30 * 24 * 60 * 60 * 1000)
       }).length || 0
       
       months.push({
@@ -259,6 +280,13 @@ export const Dashboard = () => {
         <h1 className="text-3xl font-bold text-neutral-dark">Dashboard</h1>
       </div>
 
+      {(fetchFailed || usersError) && (
+        <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          Could not load dashboard data — your session may have expired.{' '}
+          {(usersData as { error?: string })?.error || (usersErr as Error)?.message || 'Sign out and sign in again.'}
+        </div>
+      )}
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
@@ -278,9 +306,9 @@ export const Dashboard = () => {
           gradient="from-white to-secondary/20"
         />
         <MetricCard
-          title="Completed Programs"
-          value={completedPrograms}
-          subtitle={`${completionRate}% completion rate`}
+          title="Sessions Completed"
+          value={completedDailySessions}
+          subtitle={`${programGraduates} finished 30-day program`}
           icon={Trophy}
           gradient="from-white to-success/20"
         />

@@ -1,5 +1,15 @@
 import { pb } from '../lib/pocketbase'
 import { NotificationService } from './notifications'
+import { UserProfile } from '../types/models'
+
+export async function setupRemindersForUser(
+  profile: UserProfile | null | undefined
+): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+  if (!profile?.enable_reminders || !profile.daily_reminder_time) {
+    return { ok: false, skipped: true }
+  }
+  return enablePushNotifications()
+}
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)

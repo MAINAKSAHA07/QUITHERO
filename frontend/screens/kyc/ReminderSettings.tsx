@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { sessionService, programService } from '../../services'
 import { analyticsService } from '../../services/analytics.service'
+import { getUserTimezone } from '../../utils/reminderTime'
 
 interface ReminderSettingsProps {
   step: number
@@ -38,6 +39,7 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
       const profileResult = await profileService.updateProfile(user.id, {
         enable_reminders: remindersEnabled,
         daily_reminder_time: reminderTime,
+        timezone: getUserTimezone(),
       })
 
       if (!profileResult.success) {

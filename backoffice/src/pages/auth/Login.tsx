@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { LogIn } from 'lucide-react'
 
@@ -10,6 +11,7 @@ export const Login = () => {
   const [loading, setLoading] = useState(false)
   const { login } = useAdminAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,6 +20,7 @@ export const Login = () => {
 
     const result = await login(email, password)
     if (result.success) {
+      await queryClient.invalidateQueries()
       navigate('/dashboard')
     } else {
       setError(result.error || 'Login failed')
@@ -33,7 +36,8 @@ export const Login = () => {
             <LogIn className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-neutral-dark">smono Admin</h1>
-          <p className="text-neutral-500 mt-2">Sign in to your admin account</p>
+          <p className="text-neutral-500 mt-2">Sign in with your admin_users account</p>
+          <p className="text-neutral-400 text-xs mt-1">Not the PocketBase superuser (_/ admin UI)</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

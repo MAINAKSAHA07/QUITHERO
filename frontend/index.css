@@ -37,6 +37,7 @@
                 radial-gradient(circle at 90% 80%, rgba(253, 180, 123, 0.18), transparent 40%),
                 linear-gradient(to bottom, #f4f8fa, #e5ecef);
     min-height: 100vh;
+    min-height: 100dvh;
     background-attachment: fixed;
   }
 }
@@ -75,9 +76,17 @@
   }
 }
 
-/* Smooth scrolling */
+/* Smooth scrolling + match body bg in iOS safe areas / overscroll */
 html {
   scroll-behavior: smooth;
+  background: #f4f8fa;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Custom scrollbar */

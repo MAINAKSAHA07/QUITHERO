@@ -1,12 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
-import { authHelpers } from '../lib/pocketbase'
+import { pb, authHelpers, touchLastActive } from '../lib/pocketbase'
 import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
 import { sessionService } from '../services/session.service'
 import { programService } from '../services/program.service'
 import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
-import { pb } from '../lib/pocketbase'
 import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
 
@@ -89,6 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: currentUser.name || currentUser.email,
         avatar: currentUser.avatar || '',
       })
+      touchLastActive()
     }
   }, [])
 
@@ -224,28 +224,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
   }, [user?.id, isAuthenticated, fetchUserProfile, fetchCurrentSession, refreshProgress])
 
-  // Reminder setup — separate from data load so profile fetch does not retrigger everything
+  // Server Web Push — reminders fire from EC2 even when app is closed (Pestyfi pattern)
   useEffect(() => {
-    if (!user?.id || !userProfile?.enable_reminders || !userProfile.daily_reminder_time) return
-    import('../utils/pushNotifications').then(({ syncPushSubscriptionIfGranted }) => {
-      syncPushSubscriptionIfGranted()
+    if (!user?.id || !userProfile?.enable_reminders || !userProfile?.daily_reminder_time) return
+    import('../utils/pushNotifications').then(({ setupRemindersForUser, syncPushSubscriptionIfGranted }) => {
+      setupRemindersForUser(userProfile).catch(() => {})
+      syncPushSubscriptionIfGranted().catch(() => {})
     })
-    import('../utils/notifications').then(({ NotificationService }) => {
-      NotificationService.requestPermission().then((granted) => {
-        if (granted && userProfile.daily_reminder_time) {
-          NotificationService.checkDueReminder()
-          NotificationService.scheduleDailyReminder(userProfile.daily_reminder_time)
-        }
-      })
-    })
-    const onFocus = () => {
-      import('../utils/notifications').then(({ NotificationService }) => {
-        NotificationService.checkDueReminder()
-      })
-    }
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [user?.id, userProfile?.enable_reminders, userProfile?.daily_reminder_time])
+  }, [user?.id, userProfile?.enable_reminders, userProfile?.daily_reminder_time, userProfile?.timezone])
 
   return (
     <AppContext.Provider

@@ -43,11 +43,14 @@ import {
   getSessionDuration,
   sessionTimerKey,
 } from '../utils/sessionDuration'
+import KycRequiredModal from '../components/KycRequiredModal'
+import { useKycGate } from '../hooks/useKycGate'
 
 export default function Session() {
   const { dayId: dayIdParam, day: dayNumParam } = useParams<{ dayId?: string; day?: string }>()
   const navigate = useNavigate()
   const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession, profileLoading } = useApp()
+  const { showKycModal, setShowKycModal, kycComplete } = useKycGate()
   const [resolvedDayId, setResolvedDayId] = useState<string | null>(null)
   const dayId = resolvedDayId
   const routeDayKey = dayIdParam || dayNumParam
@@ -163,11 +166,16 @@ export default function Session() {
 
   useEffect(() => {
     if (!user?.id || !resolvedDayId || profileLoading) return
+    if (!kycComplete) {
+      setShowKycModal(true)
+      setIsLoading(false)
+      return
+    }
     if (loadedDayRef.current === resolvedDayId) return
     loadedDayRef.current = resolvedDayId
     loadSession()
     behaviorTracker.init(user.id)
-  }, [user?.id, resolvedDayId, profileLoading])
+  }, [user?.id, resolvedDayId, profileLoading, kycComplete, setShowKycModal])
 
   useEffect(() => {
     loadedDayRef.current = null
@@ -739,6 +747,13 @@ export default function Session() {
         hasNextDay={(programDay.day_number || 0) < 30}
         onNextDay={() => {
           setShowCompletionModal(false)
+          navigate('/sessions')
+        }}
+      />
+      <KycRequiredModal
+        isOpen={showKycModal}
+        onClose={() => {
+          setShowKycModal(false)
           navigate('/sessions')
         }}
       />

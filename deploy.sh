@@ -422,6 +422,22 @@ run_push_setup() {
   node PocketBase/setup-push-collections.js || warn "setup-push-collections.js failed — push may not persist"
 }
 
+run_last_active_setup() {
+  [[ -f "$APP_DIR/PocketBase/add-last-active.js" ]] || return
+
+  log "Ensuring users.lastActive field exists"
+  cd "$APP_DIR"
+  node PocketBase/add-last-active.js || warn "add-last-active.js failed — dashboard active-user counts may be stale"
+}
+
+run_timezone_setup() {
+  [[ -f "$APP_DIR/PocketBase/add-timezone-field.js" ]] || return
+
+  log "Ensuring user_profiles.timezone field exists"
+  cd "$APP_DIR"
+  node PocketBase/add-timezone-field.js || warn "add-timezone-field.js failed — reminder timezone may be wrong"
+}
+
 run_oauth_setup() {
   local google_id="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-}}"
   local google_secret="${GOOGLE_CLIENT_SECRET:-}"
@@ -687,6 +703,8 @@ deploy_all() {
   deploy_pocketbase
   run_pb_setup
   run_push_setup
+  run_last_active_setup
+  run_timezone_setup
   run_oauth_setup
   build_frontend
   build_backoffice

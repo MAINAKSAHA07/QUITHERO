@@ -4,8 +4,8 @@
   "description": "Quit smoking with a guided 30-day program",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#7c3aed",
+  "background_color": "#f4f8fa",
+  "theme_color": "#f4f8fa",
   "orientation": "portrait",
   "icons": [
     {

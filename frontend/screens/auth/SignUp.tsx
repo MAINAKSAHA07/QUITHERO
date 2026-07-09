@@ -12,6 +12,7 @@ import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import { profileService } from '../../services/profile.service'
+import { isKycComplete } from '../../utils/kyc'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -34,8 +35,7 @@ export default function SignUp() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id || didSubmit) return
     profileService.getByUserId(user.id).then(result => {
-      const hasCompletedKYC = result.success && result.data && result.data.daily_consumption
-      navigate(hasCompletedKYC ? '/home' : '/kyc', { replace: true })
+      navigate(isKycComplete(result.data) ? '/home' : '/kyc', { replace: true })
     })
   }, [isAuthenticated, user?.id, navigate, didSubmit])
 
@@ -124,8 +124,7 @@ export default function SignUp() {
         await analyticsService.trackEvent('user_registered', { method: 'google' }, record.id)
 
         const profileResult = await profileService.getByUserId(record.id)
-        const hasCompletedKYC = profileResult.success && profileResult.data && profileResult.data.daily_consumption
-        if (hasCompletedKYC) {
+        if (isKycComplete(profileResult.data)) {
           navigate('/home')
         } else {
           navigate('/kyc')
@@ -141,7 +140,7 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-background pb-20 safe-area-bottom">
       <TopNavigation left="logo" center="" right="" />
 
       <div className="app-container px-3 sm:px-4 pt-8">

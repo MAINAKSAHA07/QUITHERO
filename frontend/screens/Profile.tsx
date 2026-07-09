@@ -30,6 +30,7 @@ import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
+import { getUserTimezone } from '../utils/reminderTime'
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -102,6 +103,7 @@ export default function Profile() {
       await updateUserProfile({
         enable_reminders: notifications.daily,
         daily_reminder_time: notifications.daily ? reminderTime : undefined,
+        timezone: getUserTimezone(),
       })
       setSuccess('Settings saved successfully!')
       await analyticsService.trackEvent('profile_settings_updated', { settings: 'notifications' }, user.id)

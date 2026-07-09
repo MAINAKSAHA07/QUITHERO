@@ -1,6 +1,7 @@
 import { Bell, ShieldAlert, Sparkles, TrendingUp, Heart } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import { enablePushNotifications } from '../../utils/pushNotifications'
 
 interface NotificationOptInProps {
   onContinue: (enabled: boolean) => void
@@ -68,7 +69,10 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
 
           <div className="space-y-3">
             <GlassButton
-              onClick={() => onContinue(true)}
+              onClick={async () => {
+                await enablePushNotifications().catch(() => {})
+                onContinue(true)
+              }}
               fullWidth
               className="py-4 text-sm font-bold shadow-glow"
             >

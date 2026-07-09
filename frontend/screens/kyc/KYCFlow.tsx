@@ -12,6 +12,8 @@ import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { sessionService } from '../../services/session.service'
 import { analyticsService } from '../../services/analytics.service'
+import { getUserTimezone, preferenceToReminderTime } from '../../utils/reminderTime'
+import { setupRemindersForUser } from '../../utils/pushNotifications'
 import { assignDetailedQuitArchetype, getArchetypeInfo } from '../../utils/archetypeAssignment'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
 
@@ -147,6 +149,8 @@ export default function KYCFlow() {
       reminder_frequency: rawAnswers.reminder_frequency || 'Yes, morning and evening',
       support_preference: rawAnswers.support_preference || 'Balanced: standard daily modules only',
       checkin_time_preference: rawAnswers.checkin_time_preference || 'Evening: 6 PM to 8 PM',
+      daily_reminder_time: preferenceToReminderTime(rawAnswers.checkin_time_preference),
+      timezone: getUserTimezone(),
       success_outcome: rawAnswers.success_outcome || '100% smoke-free',
       commitment_statement: rawAnswers.commitment_statement || 'I commit to my smoke-free future',
       enable_reminders: !!rawAnswers.enable_reminders,
@@ -252,6 +256,12 @@ export default function KYCFlow() {
     if (user?.id) {
       await sessionService.getOrCreateCurrentSession(user.id, 'en')
       await analyticsService.trackOnboardingCompleted(user.id)
+      if (answers.enable_reminders) {
+        await setupRemindersForUser({
+          enable_reminders: true,
+          daily_reminder_time: preferenceToReminderTime(answers.checkin_time_preference),
+        } as any)
+      }
     }
     try {
       localStorage.removeItem('kyc_answers')

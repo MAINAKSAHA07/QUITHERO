@@ -12,6 +12,12 @@ export default defineConfig({
   server: {
     port: 5175,
     host: true,
+    proxy: {
+      '/api/push': {
+        target: process.env.VITE_PUSH_PROXY_TARGET || 'http://54.153.95.239',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 5175,

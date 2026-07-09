@@ -25,7 +25,17 @@ function resolveNetlifyPbProxyTarget() {
   return raw
 }
 
+function resolveNetlifyPushProxyTarget() {
+  const raw = (
+    process.env.NETLIFY_PUSH_PROXY_TARGET ||
+    process.env.AWS_PUBLIC_URL ||
+    'http://54.153.95.239'
+  ).replace(/\/$/, '')
+  return raw.startsWith('http') ? raw : `http://${raw}`
+}
+
 const pbUrl = resolveNetlifyPbProxyTarget()
+const pushUrl = resolveNetlifyPushProxyTarget()
 
 const distDir = path.join(root, 'dist')
 if (!fs.existsSync(distDir)) {
@@ -43,9 +53,13 @@ const redirects = `# Auto-generated — do not edit
 # AI personalization proxy → Netlify Function
 /api/ai/personalize  /.netlify/functions/ai-personalize  200
 
+# Web Push API → EC2 (background reminders when app is closed)
+/api/push/*  ${pushUrl}/api/push/:splat  200
+
 # SPA fallback
 /*  /index.html  200
 `
 
 fs.writeFileSync(path.join(distDir, '_redirects'), redirects)
 console.log(`[write-netlify-redirects] PocketBase proxy → ${pbUrl}`)
+console.log(`[write-netlify-redirects] Push API proxy → ${pushUrl}/api/push`)

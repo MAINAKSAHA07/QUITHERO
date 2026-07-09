@@ -11,8 +11,11 @@ import { initPocketBase, getPocketBaseURL, loadEnv } from './utils.js'
 loadEnv()
 
 const PB_URL = getPocketBaseURL()
-const BACKOFFICE_ADMIN_EMAIL = process.env.BACKOFFICE_ADMIN_EMAIL || 'admin@backoffice.com'
-const BACKOFFICE_ADMIN_PASSWORD = process.env.BACKOFFICE_ADMIN_PASSWORD || process.env.PB_ADMIN_PASSWORD
+const BACKOFFICE_ADMIN_EMAIL = process.env.BACKOFFICE_ADMIN_EMAIL || process.env.PB_ADMIN_EMAIL || 'admin@backoffice.com'
+const BACKOFFICE_ADMIN_PASSWORD =
+  process.env.BACKOFFICE_ADMIN_PASSWORD ||
+  process.env.AWS_PB_ADMIN_PASSWORD ||
+  process.env.PB_ADMIN_PASSWORD
 if (!BACKOFFICE_ADMIN_PASSWORD) {
   throw new Error('FATAL: Set BACKOFFICE_ADMIN_PASSWORD or PB_ADMIN_PASSWORD env var.')
 }

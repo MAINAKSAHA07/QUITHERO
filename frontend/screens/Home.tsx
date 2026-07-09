@@ -19,6 +19,8 @@ import { analyticsService } from '../services/analytics.service'
 import { CravingType, CravingTrigger } from '../types/enums'
 import { haptic, hapticPatterns } from '../utils/haptic'
 import { formatMoney, getCountryConfig } from '../utils/currency'
+import KycRequiredModal from '../components/KycRequiredModal'
+import { useKycGate } from '../hooks/useKycGate'
 
 const MILESTONE_DAYS = [3, 7, 14, 30]
 
@@ -32,6 +34,7 @@ const motivationalQuotes = [
 export default function Home() {
   const navigate = useNavigate()
   const { user, userProfile, currentSession, sessionLoading, progressStats } = useApp()
+  const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [motivationalQuote, setMotivationalQuote] = useState(motivationalQuotes[0])
@@ -120,22 +123,24 @@ export default function Home() {
 
   const handleContinueProgram = async () => {
     if (!user?.id) return
-    try {
-      if (currentSession && currentSession.program) {
-        const programId = typeof currentSession.program === 'string'
-          ? currentSession.program
-          : (currentSession.program as any)?.id || currentSession.program
-        const dayResult = await programService.getProgramDayByNumber(programId, currentDay)
-        if (dayResult.success && dayResult.data) {
-          navigate(`/sessions/${dayResult.data.id}`)
-          analyticsService.trackEvent('continue_program_clicked', { day: currentDay }, user.id)
-          return
+    gateSessionAccess(async () => {
+      try {
+        if (currentSession && currentSession.program) {
+          const programId = typeof currentSession.program === 'string'
+            ? currentSession.program
+            : (currentSession.program as any)?.id || currentSession.program
+          const dayResult = await programService.getProgramDayByNumber(programId, currentDay)
+          if (dayResult.success && dayResult.data) {
+            navigate(`/sessions/${dayResult.data.id}`)
+            analyticsService.trackEvent('continue_program_clicked', { day: currentDay }, user.id)
+            return
+          }
         }
+        navigate('/sessions')
+      } catch {
+        navigate('/sessions')
       }
-      navigate('/sessions')
-    } catch {
-      navigate('/sessions')
-    }
+    })
   }
 
   return (
@@ -270,6 +275,7 @@ export default function Home() {
         days={milestoneDay || 0}
         onClose={() => setMilestoneDay(null)}
       />
+      <KycRequiredModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} />
 
       {/* Pinned Bottom Navigation */}
       <BottomNavigation />

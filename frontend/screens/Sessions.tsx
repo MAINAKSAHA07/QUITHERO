@@ -17,6 +17,8 @@ import {
   isDayUnlocked,
   dayStatus,
 } from '../utils/programProgress'
+import KycRequiredModal from '../components/KycRequiredModal'
+import { useKycGate } from '../hooks/useKycGate'
 
 interface DayWithProgress {
   day: ProgramDay
@@ -51,6 +53,7 @@ function sessionSubtitle(
 export default function Sessions() {
   const navigate = useNavigate()
   const { user, isPremium, currentSession, fetchCurrentSession } = useApp()
+  const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -116,7 +119,8 @@ export default function Sessions() {
   const handleDayClick = (d: DayWithProgress, dayIndex: number) => {
     if (!isPremium && dayIndex > 0) { navigate('/paywall'); return }
     if (d.isLocked) return
-    if (d.day.id) navigate(`/sessions/${d.day.id}`)
+    if (!d.day.id) return
+    gateSessionAccess(() => navigate(`/sessions/${d.day.id}`))
   }
 
   const headerChromeBtn =
@@ -230,6 +234,7 @@ export default function Sessions() {
       </div>
 
       <BottomNavigation />
+      <KycRequiredModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} />
     </div>
   )
 }
