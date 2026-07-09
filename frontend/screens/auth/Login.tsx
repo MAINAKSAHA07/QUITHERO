@@ -11,7 +11,7 @@ import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import SmonoLogo from '../../components/SmonoLogo'
 import { profileService } from '../../services/profile.service'
-import { isKycComplete } from '../../utils/kyc'
+import { postAuthPath } from '../../utils/kyc'
 import {
   getLoginLockout,
   recordLoginFailure,
@@ -58,7 +58,7 @@ export default function Login() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return
     profileService.getByUserId(user.id).then(result => {
-      navigate(isKycComplete(result.data) ? '/home' : '/kyc', { replace: true })
+      navigate(postAuthPath(result.data), { replace: true })
     })
   }, [isAuthenticated, user?.id, navigate])
 
@@ -101,11 +101,7 @@ export default function Login() {
 
         // Check if user has completed onboarding
         const profileResult = await profileService.getByUserId(result.data.record.id)
-        if (isKycComplete(profileResult.data)) {
-          navigate('/home')
-        } else {
-          navigate('/kyc')
-        }
+        navigate(postAuthPath(profileResult.data), { replace: true })
       } else {
         const failure = recordLoginFailure(email)
         refreshLockout()
@@ -152,11 +148,7 @@ export default function Login() {
 
         // Check if user has completed onboarding (has profile with essential data)
         const profileResult = await profileService.getByUserId(record.id)
-        if (isKycComplete(profileResult.data)) {
-          navigate('/home')
-        } else {
-          navigate('/kyc')
-        }
+        navigate(postAuthPath(profileResult.data), { replace: true })
       } else {
         setError(result.error || 'Google login failed')
       }

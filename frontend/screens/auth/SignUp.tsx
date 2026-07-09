@@ -12,7 +12,7 @@ import { useApp } from '../../context/AppContext'
 import { authHelpers } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import { profileService } from '../../services/profile.service'
-import { isKycComplete } from '../../utils/kyc'
+import { postAuthPath } from '../../utils/kyc'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -35,7 +35,7 @@ export default function SignUp() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id || didSubmit) return
     profileService.getByUserId(user.id).then(result => {
-      navigate(isKycComplete(result.data) ? '/home' : '/kyc', { replace: true })
+      navigate(postAuthPath(result.data), { replace: true })
     })
   }, [isAuthenticated, user?.id, navigate, didSubmit])
 
@@ -124,11 +124,7 @@ export default function SignUp() {
         await analyticsService.trackEvent('user_registered', { method: 'google' }, record.id)
 
         const profileResult = await profileService.getByUserId(record.id)
-        if (isKycComplete(profileResult.data)) {
-          navigate('/home')
-        } else {
-          navigate('/kyc')
-        }
+        navigate(postAuthPath(profileResult.data), { replace: true })
       } else {
         setError(result.error || 'Google sign up failed')
       }

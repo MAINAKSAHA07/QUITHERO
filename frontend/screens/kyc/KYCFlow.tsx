@@ -15,16 +15,17 @@ import { analyticsService } from '../../services/analytics.service'
 import { getUserTimezone, preferenceToReminderTime } from '../../utils/reminderTime'
 import { setupRemindersForUser } from '../../utils/pushNotifications'
 import { assignDetailedQuitArchetype, getArchetypeInfo } from '../../utils/archetypeAssignment'
+import { isKycComplete } from '../../utils/kyc'
+import { localDateISO } from '../../utils/smokeFreeDays'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
 
 export default function KYCFlow() {
   const [currentStep, setCurrentStep] = useState<
-    'optin' | 'questions_pre' | 'insight' | 'questions_post' | 'reveal' | 'belief' | 'loader'
-  >('optin')
+    'optin' | 'questions_pre' | 'insight' | 'questions_post' | 'reveal' | 'belief' | 'loader' | 'checking'
+  >('checking')
 
   const [questionIndex, setQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>(() => {
-    // Load progress from localStorage if available
     try {
       const saved = localStorage.getItem('kyc_answers')
       return saved ? JSON.parse(saved) : {}
@@ -34,9 +35,41 @@ export default function KYCFlow() {
   })
 
   const [assignedArchetype, setAssignedArchetype] = useState<QuitArchetype | null>(null)
+  const [profileChecked, setProfileChecked] = useState(false)
   const navigate = useNavigate()
-  const { user, updateUserProfile } = useApp()
+  const { user, userProfile, profileLoading, updateUserProfile } = useApp()
 
+  // Already finished — never show KYC again
+  useEffect(() => {
+    let cancelled = false
+    async function gate() {
+      if (!user?.id) return
+      if (profileLoading && !userProfile) return
+
+      let profile = userProfile
+      if (!isKycComplete(profile)) {
+        const result = await profileService.getByUserId(user.id)
+        if (cancelled) return
+        if (result.success && result.data) {
+          profile = result.data
+          if (result.data.id) updateUserProfile?.(result.data)
+        }
+      }
+
+      if (isKycComplete(profile)) {
+        try { localStorage.removeItem('kyc_answers') } catch { /* ignore */ }
+        navigate('/home', { replace: true })
+        return
+      }
+
+      if (!cancelled) {
+        setProfileChecked(true)
+        setCurrentStep((s) => (s === 'checking' ? 'optin' : s))
+      }
+    }
+    gate()
+    return () => { cancelled = true }
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // Save answers to localStorage dynamically
   useEffect(() => {
     try {
@@ -225,7 +258,7 @@ export default function KYCFlow() {
         relapse_risk_score: scoringResult.relapseRiskScore,
         support_intensity_score: scoringResult.supportIntensityScore,
         onboarding_completed_at: new Date().toISOString(),
-        quit_date: new Date().toISOString(),
+        quit_date: localDateISO(),
       })
 
       if (result.success && result.data) {
@@ -270,6 +303,14 @@ export default function KYCFlow() {
   }
 
   // --- STATE RENDER MACHINES ---
+
+  if (currentStep === 'checking' || !profileChecked) {
+    return (
+      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex items-center justify-center bg-background">
+        <p className="text-sm text-text-primary/60">Loading…</p>
+      </div>
+    )
+  }
 
   if (currentStep === 'optin') {
     return <NotificationOptIn onContinue={handleOptIn} />

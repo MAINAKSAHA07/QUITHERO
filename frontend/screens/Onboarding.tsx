@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -16,6 +16,9 @@ import Mascot from '../components/Mascot'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
+import { useApp } from '../context/AppContext'
+import { profileService } from '../services/profile.service'
+import { postAuthPath } from '../utils/kyc'
 
 const slides = [
   {
@@ -65,6 +68,15 @@ const slides = [
 export default function Onboarding() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useApp()
+
+  // Returning users should not see marketing slides again
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return
+    profileService.getByUserId(user.id).then((result) => {
+      navigate(postAuthPath(result.data), { replace: true })
+    })
+  }, [isAuthenticated, user?.id, navigate])
 
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {

@@ -5,6 +5,7 @@ import { pb } from '../lib/pocketbase'
 import { profileService } from './profile.service'
 import { cravingService } from './craving.service'
 import { getCountryConfig } from '../utils/currency'
+import { daysSinceQuitDate } from '../utils/smokeFreeDays'
 
 export class ProgressService extends BaseService {
   constructor() {
@@ -53,14 +54,10 @@ export class ProgressService extends BaseService {
         return { success: true, data: defaultCalculation }
       }
 
-      const quitDate = new Date(userProfile.quit_date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
       const countryConfig = getCountryConfig(userProfile.country)
 
-      // Calculate days smoke-free
-      const daysSmokeFree = Math.max(0, Math.floor((today.getTime() - quitDate.getTime()) / (1000 * 60 * 60 * 24)))
+      // Calendar days since quit_date (local date parts — not raw UTC timestamps)
+      const daysSmokeFree = daysSinceQuitDate(userProfile.quit_date)
 
       // Extract results from parallel fetches
       const cigarettesSmoked = slipsResult.success ? (slipsResult.data || 0) : 0
@@ -78,7 +75,7 @@ export class ProgressService extends BaseService {
         moneySaved = cigarettesNotSmoked * countryConfig.pricePerCigarette
         nicotineNotConsumed = cigarettesNotSmoked * countryConfig.nicotinePerCigarette
       } else {
-        // Pre-quit: each resisted craving = 1 cigarette not smoked
+        // Pre-quit / quit day: each resisted craving = 1 cigarette not smoked
         cigarettesNotSmoked = cravingsResisted
         moneySaved = cravingsResisted * countryConfig.pricePerCigarette
         nicotineNotConsumed = cravingsResisted * countryConfig.nicotinePerCigarette

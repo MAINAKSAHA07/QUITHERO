@@ -5,19 +5,24 @@ import { isKycComplete } from '../utils/kyc'
 export function useKycGate() {
   const { userProfile, profileLoading } = useApp()
   const [showKycModal, setShowKycModal] = useState(false)
-  const kycComplete = isKycComplete(userProfile)
 
   const gateSessionAccess = useCallback(
     (onAllowed: () => void) => {
       if (profileLoading) return
-      if (!kycComplete) {
+      if (!isKycComplete(userProfile)) {
         setShowKycModal(true)
         return
       }
       onAllowed()
     },
-    [kycComplete, profileLoading]
+    [userProfile, profileLoading]
   )
 
-  return { kycComplete, profileLoading, showKycModal, setShowKycModal, gateSessionAccess }
+  return {
+    kycComplete: profileLoading ? true : isKycComplete(userProfile),
+    profileLoading,
+    showKycModal,
+    setShowKycModal,
+    gateSessionAccess,
+  }
 }

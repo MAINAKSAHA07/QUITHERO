@@ -22,6 +22,8 @@ import LegalScreen from './screens/LegalScreen'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import InstallPrompt from './components/InstallPrompt'
+import { profileService } from './services/profile.service'
+import { postAuthPath } from './utils/kyc'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useApp()
@@ -29,12 +31,30 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function RootRedirect() {
+  const { isAuthenticated, user } = useApp()
+  const [path, setPath] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setPath('/onboarding')
+      return
+    }
+    profileService.getByUserId(user.id).then((result) => {
+      setPath(postAuthPath(result.data))
+    })
+  }, [isAuthenticated, user?.id])
+
+  if (!path) return null
+  return <Navigate to={path} replace />
+}
+
 function AppRoutes() {
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/language" element={<LanguageSelection />} />
-      <Route path="/" element={<Navigate to="/onboarding" replace />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />

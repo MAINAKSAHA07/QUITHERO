@@ -3,6 +3,13 @@ import { Home, Calendar, Plus, Trophy, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 import TranslatedText from './TranslatedText'
 
+const ACTIVE_COLORS: Record<string, string> = {
+  '/home': '#3F8DD2',
+  '/sessions': '#6EA48F',
+  '/progress': '#F6B884',
+  '/profile': '#3F8DD2',
+}
+
 export default function BottomNavigation() {
   const location = useLocation()
 
@@ -20,81 +27,98 @@ export default function BottomNavigation() {
     return location.pathname === path
   }
 
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-50 glass-strong border-t border-white/30 w-full" aria-label="Main navigation">
-      <div className="app-container flex items-center justify-around px-2 sm:px-4 py-2 sm:py-3 safe-area-bottom">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const active = isActive(item.path)
+  const activePath = navItems.find((i) => !i.isFAB && isActive(i.path))?.path ?? '/home'
+  const activeColor = ACTIVE_COLORS[activePath] ?? '#3F8DD2'
+  const activeIndex = navItems.filter((i) => !i.isFAB).findIndex((i) => i.path === activePath)
+  // 4 side tabs → slots 0,1,3,4 in a 5-column grid
+  const slotIndex = activeIndex <= 1 ? activeIndex : activeIndex + 1
+  const dotLeft = `${((slotIndex + 0.5) / 5) * 100}%`
 
-          if (item.isFAB) {
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3 safe-area-bottom pointer-events-none"
+      aria-label="Main navigation"
+    >
+      <div className="max-w-md mx-auto pointer-events-auto">
+        <div
+          className="relative grid grid-cols-5 items-center gap-0 px-1.5 pt-2.5 pb-3.5 rounded-full bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(14,37,56,0.12)] overflow-visible"
+          style={{
+            border: '1.5px solid transparent',
+            backgroundImage:
+              'linear-gradient(white, white), linear-gradient(90deg, #3F8DD2, #F6B884, #6EA48F)',
+            backgroundOrigin: 'border-box',
+            backgroundClip: 'padding-box, border-box',
+          }}
+        >
+          {/* Color-pop rail — inset so it doesn't clip the pill edge */}
+          <div
+            className="absolute bottom-2.5 left-4 right-4 h-[3px] rounded-full opacity-70 pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, #3F8DD2, #6EA48F, #F6B884, #6EA48F)',
+            }}
+            aria-hidden
+          />
+          <motion.div
+            className="absolute bottom-2 w-2 h-2 rounded-full -translate-x-1/2 z-10 pointer-events-none"
+            style={{ backgroundColor: activeColor, left: `calc(${dotLeft})` }}
+            layout
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+            aria-hidden
+          />
+
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const active = isActive(item.path)
+            const color = ACTIVE_COLORS[item.path] ?? '#3F8DD2'
+
+            if (item.isFAB) {
+              return (
+                <div key={item.path} className="relative flex justify-center items-center h-12">
+                  <Link
+                    to={item.path}
+                    className="absolute left-1/2 -translate-x-1/2 -top-6"
+                    aria-label={item.label}
+                  >
+                    <motion.div
+                      className="w-14 h-14 rounded-full flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #F6B884 0%, #E8894A 100%)',
+                        boxShadow: '0 6px 20px rgba(246, 184, 132, 0.45), 0 0 0 4px rgba(255,255,255,0.95)',
+                      }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.94 }}
+                    >
+                      <Icon className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    </motion.div>
+                  </Link>
+                </div>
+              )
+            }
+
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className="relative -mt-8"
+                className="flex flex-col items-center justify-center gap-0.5 h-12 touch-target"
                 aria-label={item.label}
+                aria-current={active ? 'page' : undefined}
               >
-                <motion.div
-                  className="w-16 h-16 rounded-full glass-button-primary flex items-center justify-center shadow-glass-lg"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{
-                    boxShadow: active
-                      ? [
-                          '0 0 20px rgba(245, 134, 52, 0.3)',
-                          '0 0 30px rgba(245, 134, 52, 0.5)',
-                          '0 0 20px rgba(245, 134, 52, 0.3)',
-                        ]
-                      : '0 0 20px rgba(245, 134, 52, 0.3)',
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    repeatType: 'reverse',
-                  }}
-                >
-                  <Icon className="w-6 h-6 text-white" />
-                </motion.div>
-              </Link>
-            )
-          }
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex flex-col items-center gap-1 flex-1"
-              aria-label={item.label}
-              aria-current={active ? 'page' : undefined}
-            >
-              <div className="relative flex items-center justify-center w-5 h-5">
                 <Icon
                   strokeWidth={active ? 2.5 : 1.75}
-                  className={`w-5 h-5 transition-all ${
-                    active ? 'text-brand-primary scale-105' : 'text-text-primary/50 hover:text-text-primary/75'
-                  }`}
+                  className="w-5 h-5 transition-colors duration-200"
+                  style={{ color: active ? color : 'rgba(14, 37, 56, 0.4)' }}
                 />
-                {active && (
-                  <motion.div
-                    className="absolute -bottom-1.5 left-[7px] w-1.5 h-1.5 rounded-full bg-brand-primary shadow-glow-sm"
-                    layoutId="activeIndicator"
-                    initial={false}
-                  />
-                )}
-              </div>
-              <span
-                className={`text-xs transition-colors ${
-                  active ? 'text-brand-primary font-medium' : 'text-text-primary/50'
-                }`}
-              >
-                <TranslatedText text={item.label} />
-              </span>
-            </Link>
-          )
-        })}
+                <span
+                  className="text-[10px] font-semibold leading-none transition-colors duration-200"
+                  style={{ color: active ? color : 'rgba(14, 37, 56, 0.4)' }}
+                >
+                  <TranslatedText text={item.label} />
+                </span>
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </nav>
   )
 }
-
