@@ -7,7 +7,7 @@ import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
 import { useApp } from '../../context/AppContext'
-import { authHelpers } from '../../lib/pocketbase'
+import { authHelpers, mapAuthRecordToAppUser } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import SmonoLogo from '../../components/SmonoLogo'
 import { profileService } from '../../services/profile.service'
@@ -90,12 +90,8 @@ export default function Login() {
       if (result.success && result.data) {
         recordLoginSuccess(email)
         setIsAuthenticated(true)
-        setUser({
-          id: result.data.record.id,
-          email: result.data.record.email,
-          name: result.data.record.name || result.data.record.email,
-          avatar: result.data.record.avatar || '',
-        })
+        const mapped = mapAuthRecordToAppUser(result.data.record as Record<string, unknown>)
+        if (mapped) setUser(mapped)
         // Track login
         await analyticsService.trackEvent('login', {}, result.data.record.id)
 
@@ -135,14 +131,10 @@ export default function Login() {
       const result = await authHelpers.loginWithGoogle()
       if (result.redirecting) return
       if (result.success && result.data) {
-        setIsAuthenticated(true)
         const record = result.data.record
-        setUser({
-          id: record.id,
-          email: record.email,
-          name: record.name || record.email,
-          avatar: record.avatar || '',
-        })
+        setIsAuthenticated(true)
+        const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
+        if (mapped) setUser(mapped)
         // Track login
         await analyticsService.trackEvent('login', { method: 'google' }, record.id)
 

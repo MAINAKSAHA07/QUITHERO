@@ -105,8 +105,16 @@ export const FlaggedJournals = () => {
   }
 
   const highlightKeywords = (text: string) => {
+    // Escape HTML first to prevent XSS
+    const escaped = (text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+
     const keywords = ['suicide', 'self-harm', 'hurt myself', 'end it']
-    let highlighted = text
+    let highlighted = escaped
     keywords.forEach(keyword => {
       const regex = new RegExp(`(${keyword})`, 'gi')
       highlighted = highlighted.replace(regex, '<mark class="bg-danger/20 text-danger">$1</mark>')

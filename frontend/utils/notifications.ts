@@ -58,13 +58,17 @@ export class NotificationService {
     return null
   }
 
-  static scheduleDailyReminder(time: string, callback?: () => void): number | null {
+  static scheduleDailyReminder(time: string, body?: string, callback?: () => void): number | null {
     if (!this.isSupported()) return null
 
     if (activeReminderTimeout) {
       clearTimeout(activeReminderTimeout)
       activeReminderTimeout = null
     }
+
+    const message =
+      body?.trim() ||
+      'Start your smoke-free day with intention.'
 
     const [hours, minutes] = time.split(':').map(Number)
     const reminderTime = new Date()
@@ -75,18 +79,14 @@ export class NotificationService {
 
     localStorage.setItem(
       REMINDER_STORAGE_KEY,
-      JSON.stringify({ time, nextAt: reminderTime.getTime() })
+      JSON.stringify({ time, body: message, nextAt: reminderTime.getTime() })
     )
 
     const msUntil = reminderTime.getTime() - Date.now()
     activeReminderTimeout = window.setTimeout(() => {
-      this.triggerNativeNotification(
-        'smono',
-        'Time for your daily check-in. How are you feeling today?',
-        '/home'
-      )
+      this.triggerNativeNotification('Good morning ☀️', message, '/home')
       callback?.()
-      this.scheduleDailyReminder(time, callback)
+      this.scheduleDailyReminder(time, message, callback)
     }, msUntil)
 
     return activeReminderTimeout
@@ -97,14 +97,18 @@ export class NotificationService {
     try {
       const raw = localStorage.getItem(REMINDER_STORAGE_KEY)
       if (!raw || !this.isSupported()) return
-      const { time, nextAt } = JSON.parse(raw) as { time: string; nextAt: number }
+      const { time, body, nextAt } = JSON.parse(raw) as {
+        time: string
+        body?: string
+        nextAt: number
+      }
       if (Date.now() >= nextAt) {
         this.triggerNativeNotification(
-          'smono',
-          'Time for your daily check-in. How are you feeling today?',
+          'Good morning ☀️',
+          body || 'Start your smoke-free day with intention.',
           '/home'
         )
-        this.scheduleDailyReminder(time)
+        this.scheduleDailyReminder(time, body)
       }
     } catch {
       /* ignore */

@@ -8,15 +8,7 @@ import TranslatedText from './TranslatedText'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { Language } from '../types/enums'
-
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'hi', name: 'हिंदी', flag: '🇮🇳' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
-]
+import { APP_LANGUAGES } from '../constants/languages'
 
 interface LanguageModalProps {
   isOpen: boolean
@@ -143,7 +135,7 @@ export default function LanguageModal({
 
                 {/* Language options */}
                 <div className="space-y-2 mb-6 max-h-[60vh] overflow-y-auto">
-                  {languages.map((lang) => (
+                  {APP_LANGUAGES.map((lang) => (
                     <motion.button
                       key={lang.code}
                       onClick={() => setSelectedLang(lang.code)}

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { getUserLastActive, indexActivityByUser, isUserActiveWithinDays } from '../../lib/userActivity'
 import { Plus, Download, Search, Eye, Edit, Trash2, Mail, UserCheck, UserX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -41,8 +42,19 @@ export const AllUsers = () => {
     queryFn: () => adminCollectionHelpers.getList('users', page, perPage, {
       filter: searchQuery ? `email ~ "${searchQuery}" || name ~ "${searchQuery}"` : undefined,
       sort: recentSort('users'),
+      fields: 'id,email,name,created,updated,lastActive',
     }),
   })
+
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  })
+
+  const activityByUser = useMemo(
+    () => indexActivityByUser((sessionProgressData?.data || []) as any[]),
+    [sessionProgressData?.data]
+  )
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -190,15 +202,14 @@ export const AllUsers = () => {
         accessorKey: 'lastActive',
         header: 'Last Active',
         cell: ({ row }) => {
-          const date = row.original.lastActive
-          if (!date) return <span className="text-neutral-400">Never</span>
-          const lastActive = new Date(date)
+          const last = getUserLastActive(row.original, activityByUser.get(row.original.id))
+          if (!last) return <span className="text-neutral-400">Never</span>
           const now = new Date()
-          const diffDays = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
+          const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24))
           if (diffDays === 0) return <span className="text-success">Today</span>
           if (diffDays === 1) return <span className="text-success">Yesterday</span>
           if (diffDays < 7) return <span>{diffDays} days ago</span>
-          return <span className="text-neutral-500">{new Date(date).toLocaleDateString()}</span>
+          return <span className="text-neutral-500">{last.toLocaleDateString()}</span>
         },
       },
       {
@@ -206,8 +217,7 @@ export const AllUsers = () => {
         header: 'Status',
         cell: ({ row }) => {
           const user = row.original
-          const lastActive = user.lastActive ? new Date(user.lastActive) : null
-          const isActive = lastActive && (new Date().getTime() - lastActive.getTime()) < 7 * 24 * 60 * 60 * 1000
+          const isActive = isUserActiveWithinDays(user, activityByUser, 7)
           
           return (
             <span className={`px-2 py-1 text-xs rounded ${
@@ -252,7 +262,7 @@ export const AllUsers = () => {
         },
       },
     ],
-    [navigate, deleteUserMutation]
+    [navigate, deleteUserMutation, activityByUser]
   )
 
   const table = useReactTable({

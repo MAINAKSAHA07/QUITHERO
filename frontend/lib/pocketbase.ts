@@ -15,6 +15,26 @@ const PB_URL = import.meta.env.PROD
 
 export const pb = new PocketBase(PB_URL)
 
+export type AppUser = {
+  id: string
+  email: string
+  name: string
+  avatar: string
+  created?: string
+}
+
+/** Map PocketBase auth record → app user (preserves registration date for Joined display) */
+export function mapAuthRecordToAppUser(record: Record<string, unknown> | null | undefined): AppUser | null {
+  if (!record?.id) return null
+  return {
+    id: String(record.id),
+    email: String(record.email ?? ''),
+    name: String(record.name || record.email || ''),
+    avatar: String(record.avatar ?? ''),
+    created: typeof record.created === 'string' ? record.created : undefined,
+  }
+}
+
 // Base collections were created without system date fields; only `users` supports `-created`.
 export const recentSort = (collection: string) =>
   collection === 'users' ? '-created' : '-id'

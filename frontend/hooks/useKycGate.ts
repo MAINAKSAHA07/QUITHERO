@@ -1,10 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { isKycComplete } from '../utils/kyc'
 
 export function useKycGate() {
   const { userProfile, profileLoading } = useApp()
   const [showKycModal, setShowKycModal] = useState(false)
+
+  useEffect(() => {
+    if (!profileLoading && !isKycComplete(userProfile)) {
+      setShowKycModal(true)
+    }
+  }, [profileLoading, userProfile])
 
   const gateSessionAccess = useCallback(
     (onAllowed: () => void) => {

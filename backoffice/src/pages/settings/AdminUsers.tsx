@@ -2,15 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, UserCheck, UserX, Shield } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 
 interface AdminUser {
   id: string
   email: string
   name?: string
   role?: string
-  status?: string
-  lastLogin?: string
+  verified?: boolean
   created?: string
   [key: string]: any
 }
@@ -20,27 +18,20 @@ export const AdminUsers = () => {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null)
 
-  // Note: Admin users would typically be in a separate 'admins' collection
-  // Or have a 'role' field in the users collection
-  const { data: adminsData, isLoading } = useQuery({
+  // Backoffice accounts live in admin_users (not app users)
+  const { data: adminsData, isLoading, isError } = useQuery({
     queryKey: ['admin_users'],
-    queryFn: async () => {
-      try {
-        // Try to get users with admin roles
-        return await adminCollectionHelpers.getFullList('users', {
-          filter: 'role != ""',
-          sort: recentSort('users'),
-        })
-      } catch (error: any) {
-        // If that fails, return empty
-        return { data: [] }
-      }
-    },
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('admin_users', {
+        sort: recentSort('admin_users'),
+      }),
   })
+
+  const fetchError = adminsData?.success === false ? adminsData.error : isError ? 'Failed to load admin users' : null
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminCollectionHelpers.delete('users', id)
+      return adminCollectionHelpers.delete('admin_users', id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin_users'] })
@@ -48,8 +39,8 @@ export const AdminUsers = () => {
   })
 
   const toggleStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return adminCollectionHelpers.update('users', id, { status })
+    mutationFn: async ({ id, verified }: { id: string; verified: boolean }) => {
+      return adminCollectionHelpers.update('admin_users', id, { verified })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin_users'] })
@@ -73,7 +64,7 @@ export const AdminUsers = () => {
     try {
       await toggleStatusMutation.mutateAsync({
         id: admin.id,
-        status: admin.status === 'active' ? 'inactive' : 'active',
+        verified: !admin.verified,
       })
     } catch (error) {
       console.error('Failed to update admin status:', error)
@@ -96,6 +87,12 @@ export const AdminUsers = () => {
           Add Admin User
         </button>
       </div>
+
+      {fetchError && (
+        <div className="bg-danger/10 border border-danger/20 text-danger rounded-lg px-4 py-3 text-sm">
+          {fetchError}
+        </div>
+      )}
 
       {/* Admin Users Table */}
       {isLoading ? (
@@ -121,8 +118,7 @@ export const AdminUsers = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Admin</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Last Login</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Verified</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -147,13 +143,10 @@ export const AdminUsers = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs rounded ${
-                      admin.status === 'active' ? 'bg-success/10 text-success' : 'bg-neutral-200 text-neutral-600'
+                      admin.verified ? 'bg-success/10 text-success' : 'bg-neutral-200 text-neutral-600'
                     }`}>
-                      {admin.status === 'active' ? 'Active' : 'Inactive'}
+                      {admin.verified ? 'Verified' : 'Unverified'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-500">
-                    {admin.lastLogin ? formatDistanceToNow(new Date(admin.lastLogin), { addSuffix: true }) : 'Never'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -167,10 +160,10 @@ export const AdminUsers = () => {
                       <button
                         onClick={() => handleToggleStatus(admin)}
                         className="p-2 hover:bg-neutral-100 rounded-lg"
-                        title={admin.status === 'active' ? 'Deactivate' : 'Activate'}
+                        title={admin.verified ? 'Mark unverified' : 'Mark verified'}
                         disabled={toggleStatusMutation.isPending}
                       >
-                        {admin.status === 'active' ? (
+                        {admin.verified ? (
                           <UserX className="w-4 h-4 text-warning" />
                         ) : (
                           <UserCheck className="w-4 h-4 text-success" />
@@ -226,16 +219,17 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ admin, onClose, onSucce
     password: '',
     passwordConfirm: '',
     role: admin?.role || 'admin',
-    status: admin?.status || 'active',
-    sendWelcomeEmail: false,
+    emailVisibility: true,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const { passwordConfirm, sendWelcomeEmail, ...userData } = data
-      return adminCollectionHelpers.create('users', {
-        ...userData,
+    mutationFn: async (data: typeof formData) => {
+      return adminCollectionHelpers.create('admin_users', {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        passwordConfirm: data.passwordConfirm,
         role: data.role,
         emailVisibility: true,
       })
@@ -243,13 +237,18 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ admin, onClose, onSucce
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const { password, passwordConfirm, sendWelcomeEmail, ...updateData } = data
-      if (password) {
-        updateData.password = password
-        updateData.passwordConfirm = passwordConfirm
+    mutationFn: async (data: typeof formData) => {
+      const updateData: Record<string, unknown> = {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        emailVisibility: true,
       }
-      return adminCollectionHelpers.update('users', admin!.id, updateData)
+      if (data.password) {
+        updateData.password = data.password
+        updateData.passwordConfirm = data.passwordConfirm
+      }
+      return adminCollectionHelpers.update('admin_users', admin!.id, updateData)
     },
   })
 
@@ -270,10 +269,12 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ admin, onClose, onSucce
 
     setIsSubmitting(true)
     try {
-      if (admin) {
-        await updateMutation.mutateAsync(formData)
-      } else {
-        await createMutation.mutateAsync(formData)
+      const result = admin
+        ? await updateMutation.mutateAsync(formData)
+        : await createMutation.mutateAsync(formData)
+      if (result.success === false) {
+        alert(result.error || 'Failed to save admin user')
+        return
       }
       onSuccess()
     } catch (error: any) {
@@ -366,35 +367,12 @@ const AdminUserModal: React.FC<AdminUserModalProps> = ({ admin, onClose, onSucce
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="super_admin">Super Admin</option>
               <option value="admin">Admin</option>
-              <option value="content_manager">Content Manager</option>
-              <option value="support_agent">Support Agent</option>
+              <option value="editor">Editor</option>
+              <option value="support">Support</option>
               <option value="analyst">Analyst</option>
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          {!admin && (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.sendWelcomeEmail}
-                onChange={(e) => setFormData({ ...formData, sendWelcomeEmail: e.target.checked })}
-                className="rounded border-neutral-300"
-              />
-              <span className="text-sm text-neutral-700">Send Welcome Email</span>
-            </label>
-          )}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
             <button
               type="button"

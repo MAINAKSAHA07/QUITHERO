@@ -4,7 +4,7 @@ const MODEL = 'claude-haiku-4-5'
 const MAX_TOKENS = 900
 const TEMPERATURE = 0.7
 
-// ─── Per-user rate limiting (in-memory, resets on cold start) ────────────────
+// ponytail: in-memory rate limiting; resets on serverless cold starts. Upgrade to Redis or query personalization_logs in PocketBase if abused.
 
 const rateLimits = new Map()
 

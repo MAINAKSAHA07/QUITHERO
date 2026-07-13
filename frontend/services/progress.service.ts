@@ -4,9 +4,9 @@ import { ApiResponse } from '../types/api'
 import { pb } from '../lib/pocketbase'
 import { profileService } from './profile.service'
 import { cravingService } from './craving.service'
+import { smokeCheckService, SmokeCheckService } from './smoke-check.service'
 import { getCountryConfig } from '../utils/currency'
-import { daysSinceQuitDate } from '../utils/smokeFreeDays'
-import { syncQuitDateWithSessions } from './quitDateSync.service'
+import { isPastQuitDay } from '../utils/smokeCheckTiming'
 
 export class ProgressService extends BaseService {
   constructor() {
@@ -18,14 +18,11 @@ export class ProgressService extends BaseService {
    */
   async calculateProgress(userId: string): Promise<ApiResponse<ProgressCalculation>> {
     try {
-      // Keep quit_date aligned with session pace before counting smoke-free days
-      await syncQuitDateWithSessions(userId).catch(() => null)
-
-      // Fetch user profile, slips, and resisted cravings in parallel to cut latency
-      const [profile, slipsResult, resistedResult] = await Promise.all([
+      const [profile, slipsResult, resistedResult, aggResult] = await Promise.all([
         profileService.getByUserId(userId),
         cravingService.getCountByType(userId, 'slip'),
-        cravingService.getCountByType(userId, 'craving')
+        cravingService.getCountByType(userId, 'craving'),
+        smokeCheckService.getAggregatedStats(userId),
       ])
 
       if (!profile.success || !profile.data) {
@@ -59,27 +56,28 @@ export class ProgressService extends BaseService {
       }
 
       const countryConfig = getCountryConfig(userProfile.country)
-
-      // Calendar days since quit_date (local date parts — not raw UTC timestamps)
-      const daysSmokeFree = daysSinceQuitDate(userProfile.quit_date)
-
-      // Extract results from parallel fetches
-      const cigarettesSmoked = slipsResult.success ? (slipsResult.data || 0) : 0
-      const cravingsResisted = resistedResult.success ? (resistedResult.data || 0) : 0
-
       const dailyConsumption = userProfile.daily_consumption || 0
+      const cigarettesSmoked = slipsResult.success ? slipsResult.data || 0 : 0
+      const cravingsResisted = resistedResult.success ? resistedResult.data || 0 : 0
+      const smokeFreePeriods = aggResult.success ? aggResult.data?.totalPeriods || 0 : 0
+      const currentStreakDays = aggResult.success ? aggResult.data?.currentStreakDays || 0 : 0
+      const postQuit = isPastQuitDay(userProfile.quit_date)
 
+      let daysSmokeFree: number
       let cigarettesNotSmoked: number
       let moneySaved: number
       let nicotineNotConsumed: number
 
-      if (daysSmokeFree > 0) {
-        // Post-quit: calculate based on days * daily consumption minus slips
-        cigarettesNotSmoked = Math.max(0, daysSmokeFree * dailyConsumption - cigarettesSmoked)
+      if (postQuit) {
+        const fromChecks = SmokeCheckService.statsFromPeriods(smokeFreePeriods, dailyConsumption)
+        // ponytail: use the larger verified signal so resisted cravings count without
+        // double-counting them on top of check-in estimates; slips remain visible separately.
+        daysSmokeFree = fromChecks.daysSmokeFree
+        cigarettesNotSmoked = Math.max(fromChecks.cigarettesNotSmoked, cravingsResisted)
         moneySaved = cigarettesNotSmoked * countryConfig.pricePerCigarette
         nicotineNotConsumed = cigarettesNotSmoked * countryConfig.nicotinePerCigarette
       } else {
-        // Pre-quit / quit day: each resisted craving = 1 cigarette not smoked
+        daysSmokeFree = 0
         cigarettesNotSmoked = cravingsResisted
         moneySaved = cravingsResisted * countryConfig.pricePerCigarette
         nicotineNotConsumed = cravingsResisted * countryConfig.nicotinePerCigarette
@@ -95,6 +93,8 @@ export class ProgressService extends BaseService {
         life_regained_hours: lifeRegainedHours,
         nicotine_not_consumed: nicotineNotConsumed,
         cigarettes_smoked: cigarettesSmoked,
+        smoke_free_periods: smokeFreePeriods,
+        current_streak_days: currentStreakDays,
       }
 
       // Update or create progress_stats record in the background to avoid blocking the main thread

@@ -1,5 +1,6 @@
 import { adminAuth, getPbUrl } from './pb-admin.js'
 import { isPushReady, notifyUserPush } from './push.js'
+import { getDailyQuoteText } from './daily-quote.js'
 
 const sentToday = new Map()
 
@@ -16,7 +17,10 @@ const PREF_TO_TIME = {
 
 function reminderTimeForProfile(profile) {
   if (profile.daily_reminder_time) return profile.daily_reminder_time
-  return PREF_TO_TIME[profile.checkin_time_preference] || null
+  if (profile.checkin_time_preference) {
+    return PREF_TO_TIME[profile.checkin_time_preference] || '09:00'
+  }
+  return '09:00'
 }
 
 function localHHMM(timezone) {
@@ -46,7 +50,7 @@ export function startReminderScheduler() {
     const pb = getPbUrl()
     const filter = encodeURIComponent('enable_reminders=true')
     const res = await fetch(
-      `${pb}/api/collections/user_profiles/records?filter=${filter}&perPage=200&fields=user,daily_reminder_time,timezone,checkin_time_preference`,
+      `${pb}/api/collections/user_profiles/records?filter=${filter}&perPage=200&fields=user,daily_reminder_time,timezone,checkin_time_preference,language`,
       { headers: { Authorization: token } }
     ).catch(() => null)
 
@@ -66,18 +70,25 @@ export function startReminderScheduler() {
       if (sentToday.get(dedupe)) continue
       sentToday.set(dedupe, true)
 
+      const quoteBody = await getDailyQuoteText(token, profile.language || 'en')
       const sent = await notifyUserPush(userId, {
-        title: 'smono',
-        body: 'Time for your daily check-in. How are you feeling today?',
+        title: 'Good morning ☀️',
+        body: quoteBody,
         url: '/home',
-        tag: 'daily-reminder',
+        tag: `daily-quote-${day}`,
       })
       if (sent > 0) {
-        console.log(`[Reminder] Sent daily push to user ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'})`)
+        console.log(`[Reminder] Sent morning quote to ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'})`)
       }
     }
 
-    if (sentToday.size > 5000) sentToday.clear()
+    if (sentToday.size > 5000) {
+      for (const [key] of sentToday.entries()) {
+        if (!key.endsWith(`:${day}`)) {
+          sentToday.delete(key)
+        }
+      }
+    }
   }
 
   setInterval(tick, 60_000)

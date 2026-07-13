@@ -11,18 +11,7 @@ import TranslatedText from '../components/TranslatedText'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { Language } from '../types/enums'
-
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'hi', name: 'हिंदी', flag: '🇮🇳' },
-  { code: 'mr', name: 'मराठी', flag: '🇮🇳' },
-  { code: 'gu', name: 'ગુજરાતી', flag: '🇮🇳' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
-]
+import { APP_LANGUAGES } from '../constants/languages'
 
 export default function LanguageSelection() {
   const { user, language: currentLanguage, setLanguage, updateUserProfile } = useApp()
@@ -105,7 +94,7 @@ export default function LanguageSelection() {
           </div>
 
           <div className="space-y-3 mb-8">
-            {languages.map((lang) => (
+            {APP_LANGUAGES.map((lang) => (
               <motion.div
                 key={lang.code}
                 whileTap={{ scale: 0.98 }}

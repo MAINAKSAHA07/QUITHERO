@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Edit, Shield, CheckCircle } from 'lucide-react'
 
 interface Role {
@@ -23,8 +23,8 @@ const permissionModules = {
 
 const predefinedRoles: Role[] = [
   {
-    id: 'super_admin',
-    name: 'Super Admin',
+    id: 'admin',
+    name: 'Admin',
     description: 'Full access to all features',
     permissions: Object.values(permissionModules).flat().reduce((acc, perm) => {
       acc[perm] = true
@@ -33,8 +33,8 @@ const predefinedRoles: Role[] = [
     admin_count: 0,
   },
   {
-    id: 'content_manager',
-    name: 'Content Manager',
+    id: 'editor',
+    name: 'Editor',
     description: 'Manage programs, articles, and media',
     permissions: {
       'View Dashboard': true,
@@ -50,8 +50,8 @@ const predefinedRoles: Role[] = [
     admin_count: 0,
   },
   {
-    id: 'support_agent',
-    name: 'Support Agent',
+    id: 'support',
+    name: 'Support',
     description: 'Manage tickets and view users',
     permissions: {
       'View Dashboard': true,
@@ -88,15 +88,10 @@ export const RolesPermissions = () => {
 
   const { data: adminsData } = useQuery({
     queryKey: ['admin_users'],
-    queryFn: async () => {
-      try {
-        return await adminCollectionHelpers.getFullList('users', {
-          filter: 'role != ""',
-        })
-      } catch {
-        return { data: [] }
-      }
-    },
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('admin_users', {
+        sort: recentSort('admin_users'),
+      }),
   })
 
   const admins = adminsData?.data || []

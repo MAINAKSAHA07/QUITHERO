@@ -22,6 +22,7 @@ import LegalScreen from './screens/LegalScreen'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import InstallPrompt from './components/InstallPrompt'
+import SmokeCheckGate from './components/SmokeCheckGate'
 import { profileService } from './services/profile.service'
 import { postAuthPath } from './utils/kyc'
 
@@ -111,6 +112,7 @@ function App() {
         >
           <AppRoutes />
           <InstallPrompt />
+          <SmokeCheckGate />
         </Router>
       </AppProvider>
     </ErrorBoundary>

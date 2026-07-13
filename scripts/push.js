@@ -39,7 +39,7 @@ async function upsertSubscription({ endpoint, subscription, userId }) {
   const payload = {
     endpoint,
     subscription,
-    user: userId || '',
+    user: userId,
     active: true,
   }
 
@@ -68,6 +68,7 @@ async function upsertSubscription({ endpoint, subscription, userId }) {
 
 export async function savePushSubscription({ subscription, userId }) {
   if (!subscription?.endpoint) throw new Error('Invalid push subscription')
+  if (!userId) throw new Error('userId required')
   return upsertSubscription({ endpoint: subscription.endpoint, subscription, userId })
 }
 
@@ -106,6 +107,10 @@ async function loadSubscriptionsForUser(userId) {
 export async function notifyUserPush(userId, { title, body, url = '/home', tag }) {
   if (!pushReady || !userId) return 0
   const records = await loadSubscriptionsForUser(userId)
+  if (!records.length) {
+    console.warn(`[Push] No subscriptions for user ${userId.slice(0, 8)}…`)
+    return 0
+  }
   let sent = 0
   const payload = { title, message: body, body, url, tag: tag || 'smono' }
 

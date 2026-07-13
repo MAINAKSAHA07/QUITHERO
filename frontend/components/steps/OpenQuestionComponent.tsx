@@ -4,9 +4,16 @@ import { OpenStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import { splitReflectionPrompts, sanitizeStepText } from '../../utils/stepContentFormat'
 
+export type ReflectionAnswer = { prompt: string; answer: string }
+
+export type ReflectionResponse = {
+  answers: ReflectionAnswer[]
+}
+
 interface OpenQuestionComponentProps {
   step: Step
-  onNext: (response: any) => void
+  onNext: (response: ReflectionResponse) => void | Promise<boolean | void>
+  onSavePartial?: (response: ReflectionResponse) => void | Promise<boolean | void>
 }
 
 const removeEmojis = (text: string): string => {
@@ -34,46 +41,60 @@ const removeEmojis = (text: string): string => {
     .trim()
 }
 
-export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComponentProps) {
+export default function OpenQuestionComponent({ step, onNext, onSavePartial }: OpenQuestionComponentProps) {
   const content = step.content_json as OpenStepContent
-  const [answer, setAnswer] = useState('')
-
   const prompts = splitReflectionPrompts(sanitizeStepText(content.question || ''))
-  const hasMultiplePrompts = prompts.length > 1
+  const total = Math.max(prompts.length, 1)
+  const [promptIndex, setPromptIndex] = useState(0)
+  const [savedAnswers, setSavedAnswers] = useState<ReflectionAnswer[]>([])
+  const [answer, setAnswer] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleSubmit = () => {
-    if (answer.trim()) {
-      onNext({ answer: answer.trim() })
-    }
-  }
+  const currentPrompt = prompts[promptIndex] || content.question || ''
+  const isLastPrompt = promptIndex >= total - 1
 
   const stepPlaceholder = content.placeholder?.trim()
-  const cleanPlaceholder = removeEmojis(stepPlaceholder || 'Write a few sentences for each prompt above…')
+  const cleanPlaceholder = removeEmojis(
+    stepPlaceholder || 'Write a few sentences in your own words…'
+  )
 
   const wordCount = answer.trim() ? answer.trim().split(/\s+/).length : 0
-  const mindfulTarget = hasMultiplePrompts ? 15 : 10
+  const mindfulTarget = 10
   const targetMet = wordCount >= mindfulTarget
+
+  const handleSubmit = async () => {
+    const trimmed = answer.trim()
+    if (!trimmed || isSaving) return
+
+    const entry: ReflectionAnswer = { prompt: currentPrompt, answer: trimmed }
+    const nextAnswers = [...savedAnswers, entry]
+    setIsSaving(true)
+    try {
+      if (isLastPrompt) {
+        await onNext({ answers: nextAnswers })
+        return
+      }
+
+      if (onSavePartial) {
+        await onSavePartial({ answers: nextAnswers })
+      }
+      setSavedAnswers(nextAnswers)
+      setPromptIndex((i) => i + 1)
+      setAnswer('')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
       <div className="space-y-3">
-        {hasMultiplePrompts ? (
-          <>
-            <h3 className="text-lg font-bold text-text-primary">Reflection</h3>
-            <ol className="space-y-3">
-              {prompts.map((prompt, i) => (
-                <li key={i} className="flex gap-2.5 items-start text-sm sm:text-[15px] text-text-primary/90">
-                  <span className="text-brand-primary font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
-                  <span className="leading-relaxed">{prompt}</span>
-                </li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          <h3 className="text-lg font-bold text-text-primary leading-snug">
-            {content.question}
-          </h3>
+        {total > 1 && (
+          <p className="text-xs font-semibold text-brand-primary uppercase tracking-wide">
+            Reflection {promptIndex + 1} of {total}
+          </p>
         )}
+        <h3 className="text-lg font-bold text-text-primary leading-snug">{currentPrompt}</h3>
       </div>
 
       <div className="relative">
@@ -85,21 +106,23 @@ export default function OpenQuestionComponent({ step, onNext }: OpenQuestionComp
           rows={6}
         />
         <div className="absolute bottom-3 right-4 flex items-center gap-2">
-          <span className={`text-[10px] font-bold tracking-wide uppercase ${
-            targetMet ? 'text-emerald-400' : 'text-text-primary/45'
-          }`}>
+          <span
+            className={`text-[10px] font-bold tracking-wide uppercase ${
+              targetMet ? 'text-emerald-400' : 'text-text-primary/45'
+            }`}
+          >
             {targetMet ? '✓ Mindful Entry Met' : `${wordCount}/${mindfulTarget} words`}
           </span>
         </div>
       </div>
       <div className="pt-2">
         <GlassButton
-          onClick={handleSubmit}
-          disabled={!answer.trim()}
+          onClick={() => void handleSubmit()}
+          disabled={!answer.trim() || isSaving}
           fullWidth
           className="py-3.5 sm:py-4 font-bold"
         >
-          Save & Continue
+          {isSaving ? 'Saving…' : isLastPrompt ? 'Save & Continue' : 'Next Question'}
         </GlassButton>
       </div>
     </div>

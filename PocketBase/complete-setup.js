@@ -178,6 +178,21 @@ const collections = [
     ],
   },
 
+  // Smoke check-ins (6-hour user-confirmed stats)
+  {
+    name: 'smoke_check_ins',
+    type: 'base',
+    schema: [
+      { name: 'user', type: 'relation', options: { collectionId: '_pb_users_auth_', maxSelect: 1, cascadeDelete: true }, required: true },
+      { name: 'smoked', type: 'bool', options: {} },
+      { name: 'periods_credited', type: 'number', options: {} },
+      { name: 'period_start', type: 'date', options: {}, required: true },
+      { name: 'period_end', type: 'date', options: {}, required: true },
+      { name: 'responded_at', type: 'date', options: {}, required: true },
+      { name: 'source', type: 'select', options: { values: ['in_app', 'push', 'scheduler'], maxSelect: 1 } },
+    ],
+  },
+
   // Journal Entries
   {
     name: 'journal_entries',

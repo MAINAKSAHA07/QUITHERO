@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Article {
@@ -12,52 +11,29 @@ interface Article {
   type?: string
   language?: string
   status?: string
+  image_url?: string
+  is_active?: boolean
   created?: string
   updated?: string
   [key: string]: any
 }
 
+const ARTICLE_TYPES = ['article', 'blog', 'guide'] as const
+
 export const Articles = () => {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [languageFilter, setLanguageFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-
-  // Note: This assumes a 'content_items' or 'articles' collection exists
-  // Adjust collection name based on your PocketBase setup
-  const { data: articlesData, isLoading } = useQuery({
-    queryKey: ['articles', searchQuery, typeFilter, languageFilter, statusFilter],
-    queryFn: async () => {
-      try {
-        return await adminCollectionHelpers.getFullList('content_items', {
-          filter: buildFilter(),
-          sort: recentSort('content_items'),
-        })
-      } catch (error: any) {
-        // If collection doesn't exist, return empty array
-        if (error?.status === 404 || error?.message?.includes('not found')) {
-          return { data: [] }
-        }
-        throw error
-      }
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return adminCollectionHelpers.delete('content_items', id)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null)
+  const [viewingArticle, setViewingArticle] = useState<Article | null>(null)
 
   const buildFilter = () => {
-    const filters: string[] = []
+    const filters: string[] = [`(type = "article" || type = "blog" || type = "guide")`]
     if (searchQuery) {
-      filters.push(`title ~ "${searchQuery}" || content ~ "${searchQuery}"`)
+      filters.push(`(title ~ "${searchQuery}" || content ~ "${searchQuery}")`)
     }
     if (typeFilter !== 'all') {
       filters.push(`type = "${typeFilter}"`)
@@ -68,35 +44,51 @@ export const Articles = () => {
     if (statusFilter !== 'all') {
       filters.push(`status = "${statusFilter}"`)
     }
-    return filters.length > 0 ? filters.join(' && ') : undefined
+    return filters.join(' && ')
   }
 
-  const articles = articlesData?.data || []
+  const { data: articlesData, isLoading, isError, error } = useQuery({
+    queryKey: ['articles', searchQuery, typeFilter, languageFilter, statusFilter],
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('content_items', {
+        filter: buildFilter(),
+        sort: recentSort('content_items'),
+      }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminCollectionHelpers.delete('content_items', id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['articles'] }),
+  })
+
+  const articles = articlesData?.success ? articlesData.data || [] : []
 
   const handleDelete = async (article: Article) => {
-    if (confirm(`Are you sure you want to delete "${article.title}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(article.id)
-      } catch (error) {
-        console.error('Failed to delete article:', error)
-        alert('Failed to delete article')
-      }
+    if (!confirm(`Are you sure you want to delete "${article.title}"?`)) return
+    const result = await deleteMutation.mutateAsync(article.id)
+    if (!result.success) {
+      alert(result.error || 'Failed to delete article')
     }
   }
 
   const handleDuplicate = async (article: Article) => {
-    try {
-      const { id, created, updated, ...articleData } = article
-      await adminCollectionHelpers.create('content_items', {
-        ...articleData,
-        title: `${article.title} (Copy)`,
-        status: 'draft',
-      })
+    const { id, created, updated, ...articleData } = article
+    const result = await adminCollectionHelpers.create('content_items', {
+      ...articleData,
+      title: `${article.title} (Copy)`,
+      status: 'draft',
+    })
+    if (result.success) {
       queryClient.invalidateQueries({ queryKey: ['articles'] })
-    } catch (error) {
-      console.error('Failed to duplicate article:', error)
-      alert('Failed to duplicate article')
+    } else {
+      alert(result.error || 'Failed to duplicate article')
     }
+  }
+
+  const closeModal = () => {
+    setShowAddModal(false)
+    setEditingArticle(null)
+    setViewingArticle(null)
   }
 
   return (
@@ -104,7 +96,7 @@ export const Articles = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-neutral-dark">Articles</h1>
         <button
-          onClick={() => navigate('/content/articles/add')}
+          onClick={() => setShowAddModal(true)}
           className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -112,7 +104,6 @@ export const Articles = () => {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-lg shadow-card p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[300px] relative">
@@ -159,24 +150,26 @@ export const Articles = () => {
         </div>
       </div>
 
-      {/* Articles Table */}
       {isLoading ? (
         <div className="bg-white rounded-lg shadow-card p-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+        </div>
+      ) : isError || articlesData?.success === false ? (
+        <div className="bg-white rounded-lg shadow-card p-12 text-center">
+          <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+          <p className="text-neutral-500 mb-2">Could not load articles</p>
+          <p className="text-sm text-neutral-400">
+            {(error as Error)?.message ||
+              (articlesData && !articlesData.success ? articlesData.error : undefined) ||
+              'Check PocketBase content_items collection and admin permissions'}
+          </p>
         </div>
       ) : articles.length === 0 ? (
         <div className="bg-white rounded-lg shadow-card p-12 text-center">
           <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
           <p className="text-neutral-500 mb-2">No articles found</p>
-          <p className="text-sm text-neutral-400 mb-4">
-            {articlesData === undefined
-              ? 'Articles collection may need to be created in PocketBase'
-              : 'Create your first article to get started'}
-          </p>
-          <button
-            onClick={() => navigate('/content/articles/add')}
-            className="btn-primary"
-          >
+          <p className="text-sm text-neutral-400 mb-4">Create your first article to get started</p>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
             Create Article
           </button>
         </div>
@@ -195,7 +188,7 @@ export const Articles = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {(articles as any as Article[]).map((article: Article) => (
+              {(articles as unknown as Article[]).map((article) => (
                 <tr key={article.id} className="hover:bg-neutral-50">
                   <td className="px-6 py-4">
                     <div>
@@ -219,34 +212,42 @@ export const Articles = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      article.status === 'published' ? 'bg-success/10 text-success' :
-                      article.status === 'draft' ? 'bg-warning/10 text-warning' :
-                      'bg-neutral-100 text-neutral-600'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded ${
+                        article.status === 'published'
+                          ? 'bg-success/10 text-success'
+                          : article.status === 'draft'
+                            ? 'bg-warning/10 text-warning'
+                            : 'bg-neutral-100 text-neutral-600'
+                      }`}
+                    >
                       {article.status || 'draft'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-neutral-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      {article.created ? formatDistanceToNow(new Date(article.created), { addSuffix: true }) : '-'}
+                      {article.created
+                        ? formatDistanceToNow(new Date(article.created), { addSuffix: true })
+                        : '-'}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-neutral-500">
-                    {article.updated ? formatDistanceToNow(new Date(article.updated), { addSuffix: true }) : '-'}
+                    {article.updated
+                      ? formatDistanceToNow(new Date(article.updated), { addSuffix: true })
+                      : '-'}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => navigate(`/content/articles/${article.id}`)}
+                        onClick={() => setViewingArticle(article)}
                         className="p-2 hover:bg-neutral-100 rounded-lg"
                         title="View"
                       >
                         <Eye className="w-4 h-4 text-secondary" />
                       </button>
                       <button
-                        onClick={() => navigate(`/content/articles/${article.id}/edit`)}
+                        onClick={() => setEditingArticle(article)}
                         className="p-2 hover:bg-neutral-100 rounded-lg"
                         title="Edit"
                       >
@@ -275,6 +276,217 @@ export const Articles = () => {
           </table>
         </div>
       )}
+
+      {(showAddModal || editingArticle) && (
+        <ArticleModal
+          article={editingArticle}
+          onClose={closeModal}
+          onSuccess={() => {
+            closeModal()
+            queryClient.invalidateQueries({ queryKey: ['articles'] })
+          }}
+        />
+      )}
+
+      {viewingArticle && (
+        <ArticleViewModal article={viewingArticle} onClose={() => setViewingArticle(null)} />
+      )}
     </div>
   )
 }
+
+interface ArticleModalProps {
+  article?: Article | null
+  onClose: () => void
+  onSuccess: () => void
+}
+
+const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
+  const [formData, setFormData] = useState({
+    title: article?.title || '',
+    content: article?.content || '',
+    type: article?.type || 'article',
+    language: article?.language || 'en',
+    status: article?.status || 'draft',
+    image_url: article?.image_url || '',
+    is_active: article?.is_active !== undefined ? article.is_active : true,
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.title.trim()) {
+      alert('Title is required')
+      return
+    }
+    if (!ARTICLE_TYPES.includes(formData.type as (typeof ARTICLE_TYPES)[number])) {
+      alert('Invalid article type')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const payload = {
+        title: formData.title.trim(),
+        content: formData.content.trim(),
+        type: formData.type,
+        language: formData.language,
+        status: formData.status,
+        image_url: formData.image_url.trim() || undefined,
+        is_active: formData.is_active,
+      }
+
+      const result = article
+        ? await adminCollectionHelpers.update('content_items', article.id, payload)
+        : await adminCollectionHelpers.create('content_items', payload)
+
+      if (!result.success) {
+        alert(result.error || 'Failed to save article')
+        return
+      }
+      onSuccess()
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save article')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-neutral-200 flex items-center justify-between sticky top-0 bg-white">
+          <h2 className="text-xl font-semibold">{article ? 'Edit Article' : 'Create Article'}</h2>
+          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
+            ✕
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Title <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Content</label>
+            <textarea
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              rows={8}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Article body..."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="article">Article</option>
+                <option value="blog">Blog Post</option>
+                <option value="guide">Guide</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Language</label>
+              <select
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="hi">Hindi</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Image URL (optional)</label>
+            <input
+              type="url"
+              value={formData.image_url}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="https://..."
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_active"
+              checked={formData.is_active}
+              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+              className="rounded border-neutral-300"
+            />
+            <label htmlFor="is_active" className="text-sm text-neutral-700">
+              Active (visible in app when published)
+            </label>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
+            <button type="button" onClick={onClose} className="btn-secondary" disabled={isSubmitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : article ? 'Update' : 'Create'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () => void }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div
+      className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 border-b border-neutral-200 flex items-center justify-between sticky top-0 bg-white">
+        <h2 className="text-xl font-semibold">{article.title}</h2>
+        <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
+          ✕
+        </button>
+      </div>
+      <div className="p-6 space-y-4">
+        <div className="flex flex-wrap gap-2 text-sm">
+          <span className="px-2 py-1 bg-neutral-100 rounded capitalize">{article.type || 'article'}</span>
+          <span className="px-2 py-1 bg-neutral-100 rounded uppercase">{article.language || 'en'}</span>
+          <span className="px-2 py-1 bg-neutral-100 rounded capitalize">{article.status || 'draft'}</span>
+        </div>
+        {article.image_url && (
+          <img src={article.image_url} alt="" className="rounded-lg max-h-48 object-cover w-full" />
+        )}
+        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-neutral-700">
+          {article.content || <span className="text-neutral-400">No content</span>}
+        </div>
+      </div>
+    </div>
+  </div>
+)

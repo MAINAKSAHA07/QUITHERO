@@ -1,0 +1,54 @@
+export function Pricing() {
+  return (
+    <>
+<section className="pricing" id="pricing">
+    <div className="container">
+      <h2 className="section-title reveal">What You Get Inside Smono</h2>
+      <p className="section-sub reveal">A simple program that fits into real life. Most daily sessions take 20 to 40 minutes — you do not need to be perfect, only committed.</p>
+      <div className="pricing-card reveal">
+        <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px', flexWrap: 'wrap'}}>
+          <span className="pricing-badge">10-Day Quit Program</span>
+          <span className="pricing-badge" style={{background: 'rgba(56,189,248,0.1)', color: 'var(--primary)', borderColor: 'rgba(56,189,248,0.25)'}}>20-Day Support</span>
+        </div>
+        <h3 className="pricing-name">Smono Complete Program</h3>
+        <div className="pricing-original" id="priceOriginal">₹3,999</div>
+        <div className="pricing-price" id="pricePromo">₹1,999</div>
+        <div className="pricing-caption">One-time payment. Lifetime access.</div>
+        
+        {/* Comparison Block */}
+        <div className="pricing-comparison">
+          <div className="comparison-item bad">
+            <span className="comp-title" id="comparisonBadTitle">17 Days of Cigarettes</span>
+            <span className="comp-cost" id="priceComparisonBad">₹2,040</span>
+          </div>
+          <div className="comparison-divider">vs</div>
+          <div className="comparison-item good">
+            <span className="comp-title">Smono Lifetime Reset</span>
+            <span className="comp-cost" id="priceComparisonGood">₹1,999</span>
+          </div>
+        </div>
+
+        <div className="pricing-savings" id="priceSavingsText">Less than 17 days of cigarettes. Pays for itself in a week.</div>
+        <ul className="pricing-features">
+          <li><span className="pricing-check">✓</span> Daily app-based lessons &amp; guided exercises</li>
+          <li><span className="pricing-check">✓</span> Personal trigger reflection &amp; CBT thought reframing</li>
+          <li><span className="pricing-check">✓</span> Mindfulness, relaxation &amp; final cigarette preparation</li>
+          <li><span className="pricing-check">✓</span> Anti-relapse training &amp; smoke-free identity building</li>
+          <li><span className="pricing-check">✓</span> Emergency craving support &amp; progress milestones</li>
+          <li><span className="pricing-check">✓</span> Optional personal consultations</li>
+        </ul>
+        <button className="pricing-cta js-start-app" id="priceCta">Start My 10-Day Quit Program</button>
+        <div className="pricing-trust-row">
+          <div className="trust-pill">🔒 Secure payment</div>
+          <div className="trust-pill">⚡ 20–40 min daily sessions</div>
+          <div className="trust-pill">🌍 Private &amp; judgement-free</div>
+        </div>
+        <p className="pricing-trust">Complete the full program for the best results.</p>
+      </div>
+    </div>
+  </section>
+
+  {/* FAQ */}
+    </>
+  )
+}

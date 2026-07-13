@@ -71,6 +71,18 @@ export default function Session() {
   const [comprehensionCheckDone, setComprehensionCheckDone] = useState(false)
   const [showComprehensionCheck, setShowComprehensionCheck] = useState(false)
   const loadedDayRef = useRef<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollSessionToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }
+
+  useEffect(() => {
+    requestAnimationFrame(() => scrollSessionToTop())
+  }, [currentStepIndex, showTriggerCheck, showComprehensionCheck])
 
   const beginSessionTimer = () => {
     if (sessionStartTime) return
@@ -532,6 +544,28 @@ export default function Session() {
     }
   }
 
+  const saveStepResponseOnly = async (response: unknown): Promise<boolean> => {
+    if (!user?.id || !steps[currentStepIndex]?.id || isInjectedStep(steps[currentStepIndex].id)) {
+      return true
+    }
+    setIsSaving(true)
+    try {
+      const saved = await sessionService.saveStepResponse(
+        user.id,
+        steps[currentStepIndex].id,
+        response
+      )
+      if (!saved.success) {
+        console.error('Failed to save step response:', saved.error)
+        alert('Could not save your answer. Please try again.')
+        return false
+      }
+      return true
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleStepResponse = (response: unknown) => moveToNextStep(response)
 
   const renderStepComponent = () => {
@@ -551,6 +585,7 @@ export default function Session() {
           <OpenQuestionComponent
             step={step}
             onNext={handleStepResponse}
+            onSavePartial={saveStepResponseOnly}
           />
         )
 
@@ -621,14 +656,18 @@ export default function Session() {
   const isLastStep = currentStepIndex === steps.length - 1
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-24">
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background">
       <TopNavigation
         left="back"
         center={`Day ${programDay.day_number}: Step ${currentStepIndex + 1}/${steps.length}`}
         right=""
       />
 
-      <div className="app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8" {...swipeHandlers}>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8 scrollbar-thin"
+        {...swipeHandlers}
+      >
         <div className="mb-4 sm:mb-6">
           <div className="h-1.5 sm:h-2 glass rounded-full overflow-hidden">
             <motion.div

@@ -1,3 +1,5 @@
+import { KYC_LANGUAGE_OPTIONS } from '../../constants/languages'
+
 export interface KYCQuestion {
   id: string
   group: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'
@@ -82,17 +84,7 @@ export const kycQuestions: KYCQuestion[] = [
     question: 'What is your main language for learning modules?',
     support: 'Your daily CBT exercises will be delivered in this language.',
     type: 'single_select',
-    options: [
-      'English',
-      'Hindi',
-      'Marathi',
-      'Gujarati',
-      'Español',
-      'Français',
-      'Deutsch',
-      'Italiano',
-      '中文'
-    ],
+    options: KYC_LANGUAGE_OPTIONS,
     required: true,
     profileField: 'language',
     whyWeAsk: 'You can change your language settings anytime in your profile.'

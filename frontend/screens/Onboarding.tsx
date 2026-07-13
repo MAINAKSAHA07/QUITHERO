@@ -139,10 +139,11 @@ export default function Onboarding() {
                 <GlassCard
                   className={`p-6 bg-gradient-to-br ${slides[currentSlide].gradient} shadow-glow border-white/10`}
                 >
-                  {(currentSlide === 0 || currentSlide === slides.length - 1) && (
-                    <Mascot size="md" className="mx-auto mb-3" />
+                  {currentSlide === 0 || currentSlide === slides.length - 1 ? (
+                    <Mascot size="md" className="mx-auto" />
+                  ) : (
+                    <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
                   )}
-                  <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
                 </GlassCard>
               </motion.div>
             </motion.div>

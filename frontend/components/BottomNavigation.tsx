@@ -29,10 +29,10 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto safe-area-bottom"
+      className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto safe-area-bottom bg-white border-t border-[#0E2538]/10 shadow-[0_-4px_20px_rgba(14,37,56,0.06)] rounded-t-3xl"
       aria-label="Main navigation"
     >
-      <div className="relative grid grid-cols-5 items-center gap-0 px-2 pt-2 pb-2 bg-white border-t border-[#0E2538]/10 shadow-[0_-4px_20px_rgba(14,37,56,0.06)]">
+      <div className="relative grid grid-cols-5 items-center gap-0 px-2 pt-2 pb-2">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)

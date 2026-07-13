@@ -66,15 +66,24 @@ self.addEventListener('push', (event) => {
   )
 })
 
+function absoluteUrl(path) {
+  if (!path) return self.location.origin + '/'
+  if (path.startsWith('http')) return path
+  return new URL(path, self.location.origin).href
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/'
+  const targetUrl = absoluteUrl(event.notification.data?.url || '/')
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {
         if ('focus' in client) {
-          client.navigate(targetUrl)
-          return client.focus()
+          if ('navigate' in client) {
+            return client.navigate(targetUrl).then(() => client.focus())
+          }
+          client.focus()
+          return undefined
         }
       }
       return clients.openWindow(targetUrl)

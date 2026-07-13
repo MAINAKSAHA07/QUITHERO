@@ -29,7 +29,7 @@ import GlassInput from '../components/GlassInput'
 import TranslatedText from '../components/TranslatedText'
 import AppHeader from '../components/AppHeader'
 import { useApp } from '../context/AppContext'
-import pb, { authHelpers } from '../lib/pocketbase'
+import pb, { authHelpers, mapAuthRecordToAppUser } from '../lib/pocketbase'
 import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
 import Mascot from '../components/Mascot'
@@ -38,14 +38,7 @@ import { getUserTimezone } from '../utils/reminderTime'
 import { daysSinceQuitDate } from '../utils/smokeFreeDays'
 import { useProgress } from '../hooks/useProgress'
 
-const languages = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'हिंदी' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'zh', name: '中文' },
-]
+import { getLanguageDisplayName } from '../constants/languages'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -181,7 +174,10 @@ export default function Profile() {
       setIsEditing(false)
       await analyticsService.trackEvent('profile_updated', {}, user.id)
       await fetchUserProfile()
-      if (pb.authStore.model) setUser(pb.authStore.model)
+      if (pb.authStore.model) {
+        const mapped = mapAuthRecordToAppUser(pb.authStore.model as Record<string, unknown>)
+        if (mapped) setUser(mapped)
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to update profile')
       setTimeout(() => setError(''), 5000)
@@ -250,7 +246,8 @@ export default function Profile() {
       // Update user context
       const updatedUser = pb.authStore.model
       if (updatedUser) {
-        setUser(updatedUser)
+        const mapped = mapAuthRecordToAppUser(updatedUser as Record<string, unknown>)
+        if (mapped) setUser(mapped)
       }
 
       setSuccess('Password changed successfully!')
@@ -400,12 +397,10 @@ export default function Profile() {
     }
   }
 
-  // Calculate member since date
-  const memberSince = user?.created
-    ? new Date(user.created)
-    : user?.id
-      ? new Date()
-      : new Date()
+  const memberSinceRaw =
+    user?.created ||
+    (pb.authStore.model as { created?: string } | null)?.created
+  const memberSince = memberSinceRaw ? new Date(memberSinceRaw) : null
 
   const daysSmokeFree =
     calculation?.days_smoke_free ??
@@ -414,7 +409,7 @@ export default function Profile() {
     0
   const currentDay = currentSession?.current_day || 0
   const displayName = userProfile?.onboarding_name?.trim() || user?.name || 'Guest'
-  const langLabel = languages.find((l) => l.code === language)?.name || 'English'
+  const langLabel = getLanguageDisplayName(language)
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
@@ -534,7 +529,9 @@ export default function Profile() {
                 <Calendar className="w-4 h-4 text-[#3F8DD2]" />
               </div>
               <div className="text-base font-bold text-[#0E2538]">
-                {memberSince.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {memberSince
+                  ? memberSince.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                  : '—'}
               </div>
               <div className="text-[10px] font-medium text-[#0E2538]/45">
                 <TranslatedText text="Joined" />

@@ -9,7 +9,7 @@ import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
 import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
-import { authHelpers } from '../../lib/pocketbase'
+import { authHelpers, mapAuthRecordToAppUser } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import { profileService } from '../../services/profile.service'
 import { postAuthPath } from '../../utils/kyc'
@@ -81,12 +81,8 @@ export default function SignUp() {
       if (result.success && result.data) {
         setDidSubmit(true)
         setIsAuthenticated(true)
-        setUser({
-          id: result.data.record.id,
-          email: result.data.record.email,
-          name: result.data.record.name || formData.name,
-          avatar: result.data.record.avatar || '',
-        })
+        const mapped = mapAuthRecordToAppUser(result.data.record as Record<string, unknown>)
+        if (mapped) setUser(mapped)
         // Track registration
         await analyticsService.trackEvent('user_registered', {
           email: formData.email,
@@ -115,12 +111,8 @@ export default function SignUp() {
         setDidSubmit(true)
         const record = result.data.record
         setIsAuthenticated(true)
-        setUser({
-          id: record.id,
-          email: record.email,
-          name: record.name || record.email,
-          avatar: record.avatar || '',
-        })
+        const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
+        if (mapped) setUser(mapped)
         await analyticsService.trackEvent('user_registered', { method: 'google' }, record.id)
 
         const profileResult = await profileService.getByUserId(record.id)

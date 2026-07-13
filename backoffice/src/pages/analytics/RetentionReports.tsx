@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
+import {
+  daysSinceLastActive,
+  getUserLastActive,
+  indexActivityByUser,
+} from '../../lib/userActivity'
 import { TrendingDown, Users, Download, AlertCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
@@ -19,8 +24,14 @@ export const RetentionReports = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions'),
   })
 
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  })
+
   const users = usersData?.data || []
   const sessions = sessionsData?.data || []
+  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
 
   // Retention Curve Data
   const generateRetentionData = () => {
@@ -29,10 +40,9 @@ export const RetentionReports = () => {
     
     for (let i = 0; i <= days; i += Math.max(1, Math.floor(days / 20))) {
       const activeUsers = users.filter((u: any) => {
-        if (!u.lastActive) return false
-        const lastActive = new Date(u.lastActive)
-        const daysSinceActive = Math.floor((new Date().getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
-        return daysSinceActive <= i
+        const daysSince = daysSinceLastActive(u, activityByUser)
+        if (daysSince === null) return false
+        return daysSince <= i
       }).length
       
       const retentionRate = users.length > 0 ? Math.round((activeUsers / users.length) * 100) : 0
@@ -48,10 +58,8 @@ export const RetentionReports = () => {
 
   // Churn Analysis
   const churnedUsers = users.filter((u: any) => {
-    if (!u.lastActive) return true
-    const lastActive = new Date(u.lastActive)
-    const daysSinceActive = Math.floor((new Date().getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
-    return daysSinceActive > 30
+    const daysSince = daysSinceLastActive(u, activityByUser)
+    return daysSince === null || daysSince > 30
   })
 
   const churnRate = users.length > 0 ? Math.round((churnedUsers.length / users.length) * 100) : 0
@@ -76,10 +84,8 @@ export const RetentionReports = () => {
       })
       
       const churnedInCohort = cohortUsers.filter((u: any) => {
-        if (!u.lastActive) return true
-        const lastActive = new Date(u.lastActive)
-        const daysSinceActive = Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
-        return daysSinceActive > 30
+        const daysSince = daysSinceLastActive(u, activityByUser)
+        return daysSince === null || daysSince > 30
       }).length
       
       const churnRate = cohortUsers.length > 0 
@@ -128,15 +134,14 @@ export const RetentionReports = () => {
     const lastSession = userSessions.sort((a: any, b: any) => 
       new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime()
     )[0]
+    const last = getUserLastActive(user, activityByUser.get(user.id))
     
     return {
       id: user.id,
       name: user.name || user.email,
       email: user.email,
-      lastActive: user.lastActive ? new Date(user.lastActive) : null,
-      daysSinceActive: user.lastActive 
-        ? Math.floor((new Date().getTime() - new Date(user.lastActive).getTime()) / (1000 * 60 * 60 * 24))
-        : null,
+      lastActive: last,
+      daysSinceActive: daysSinceLastActive(user, activityByUser),
       programProgress: lastSession?.current_day || 0,
       suggestedAction: lastSession?.current_day < 3 ? 'Send personalized email' : 'Offer incentive',
     }

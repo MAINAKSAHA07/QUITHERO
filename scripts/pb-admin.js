@@ -38,9 +38,11 @@ export async function adminAuth() {
 
 export async function getAuthUser(token) {
   if (!token) return null
+  const clean = String(token).replace(/^Bearer\s+/i, '').trim()
+  if (!clean) return null
   const res = await fetch(`${PB_URL}/api/collections/users/auth-refresh`, {
     method: 'POST',
-    headers: { Authorization: token },
+    headers: { Authorization: clean },
   }).catch(() => null)
   if (!res?.ok) return null
   const data = await res.json()

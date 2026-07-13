@@ -170,7 +170,17 @@ class SessionPersonalizationService {
         const payload = raw.response_json || {}
         const slug = step?.slug || raw.step
 
-        if (payload.answer) {
+        if (Array.isArray(payload.answers) && payload.answers.length) {
+          for (const item of payload.answers) {
+            const q = String(item.prompt || '').slice(0, 100)
+            const a = String(item.answer || '').slice(0, 120)
+            if (!a) continue
+            lines.push(
+              `- Day ${dayNum ?? '?'} reflection (${slug}) Q: "${q}${q.length >= 100 ? '…' : ''}" → "${a}${String(item.answer).length > 120 ? '…' : ''}"`
+            )
+            count++
+          }
+        } else if (payload.answer) {
           const snippet = String(payload.answer).slice(0, 120)
           lines.push(`- Day ${dayNum ?? '?'} reflection (${slug}): "${snippet}${payload.answer.length > 120 ? '…' : ''}"`)
           count++

@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
       host: true,
     },
     root: './',
+    publicDir: 'public',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',

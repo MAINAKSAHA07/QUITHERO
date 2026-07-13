@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
-import { pb, authHelpers, touchLastActive } from '../lib/pocketbase'
+import { pb, authHelpers, touchLastActive, mapAuthRecordToAppUser } from '../lib/pocketbase'
+import { preferenceToReminderTime } from '../utils/reminderTime'
+import { fetchDailyQuoteText } from '../utils/dailyQuote'
+import { NotificationService } from '../utils/notifications'
 import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
 import { sessionService } from '../services/session.service'
@@ -83,15 +86,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const currentUser = authHelpers.getCurrentUser()
     if (currentUser && authHelpers.isAuthenticated()) {
       setIsAuthenticated(true)
-      setUser({
-        id: currentUser.id,
-        email: currentUser.email,
-        name: currentUser.name || currentUser.email,
-        avatar: currentUser.avatar || '',
-      })
-      touchLastActive()
+      const mapped = mapAuthRecordToAppUser(currentUser as Record<string, unknown>)
+      if (mapped) setUser(mapped)
     }
   }, [])
+
+  // Heartbeat for backoffice active-user analytics (login + every 15 min while app open)
+  useEffect(() => {
+    if (!user?.id || !isAuthenticated) return
+    touchLastActive()
+    const interval = window.setInterval(touchLastActive, 15 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user?.id, isAuthenticated])
 
   const fetchUserProfile = useCallback(async () => {
     if (!user?.id) return
@@ -230,14 +236,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
   }, [user?.id, isAuthenticated, fetchUserProfile, fetchCurrentSession, refreshProgress])
 
-  // Server Web Push — reminders fire from EC2 even when app is closed (Pestyfi pattern)
+  // Server Web Push (works when app closed) + local morning quote when app is open
   useEffect(() => {
-    if (!user?.id || !userProfile?.enable_reminders || !userProfile?.daily_reminder_time) return
-    import('../utils/pushNotifications').then(({ setupRemindersForUser, syncPushSubscriptionIfGranted }) => {
-      setupRemindersForUser(userProfile).catch(() => {})
-      syncPushSubscriptionIfGranted().catch(() => {})
-    })
-  }, [user?.id, userProfile?.enable_reminders, userProfile?.daily_reminder_time, userProfile?.timezone])
+    if (!user?.id) return
+
+    const remindersOn = userProfile?.enable_reminders !== false
+    const reminderTime =
+      userProfile?.daily_reminder_time ||
+      preferenceToReminderTime(userProfile?.checkin_time_preference)
+
+    let cancelled = false
+    ;(async () => {
+      const { ensureServerPushRegistered, enablePushNotifications } = await import(
+        '../utils/pushNotifications'
+      )
+
+      if (remindersOn) {
+        if (Notification.permission === 'granted') {
+          await ensureServerPushRegistered(user.id).catch(() => {})
+        } else if (Notification.permission === 'default' && userProfile?.enable_reminders) {
+          await enablePushNotifications().catch(() => {})
+        }
+      }
+
+      if (cancelled || !userProfile?.enable_reminders) return
+
+      const quote = await fetchDailyQuoteText(userProfile.language || 'en')
+      if (cancelled || !NotificationService.isSupported()) return
+      NotificationService.checkDueReminder()
+      NotificationService.scheduleDailyReminder(reminderTime, quote)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    user?.id,
+    userProfile?.enable_reminders,
+    userProfile?.daily_reminder_time,
+    userProfile?.checkin_time_preference,
+    userProfile?.language,
+    userProfile?.timezone,
+  ])
 
   return (
     <AppContext.Provider

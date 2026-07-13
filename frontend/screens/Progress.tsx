@@ -229,8 +229,9 @@ export default function Progress() {
   }, [user?.id, timeFilter, refreshProgressData, checkAndUnlock, fetchUserAchievements])
 
   const healthMilestones = useMemo(() => {
-    const daysSmokeFree =
+    const daysSmokeFree = Math.floor(
       calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    )
     return HEALTH_MILESTONES.map((milestone) => ({
       ...milestone,
       completed: milestone.completed(daysSmokeFree),
@@ -238,8 +239,10 @@ export default function Progress() {
   }, [stats?.days_smoke_free, calculation?.days_smoke_free, progressStats?.days_smoke_free])
 
   const overallStats = useMemo(() => {
-    const daysSmokeFree =
+    const rawDays =
       calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const daysSmokeFree = Math.floor(rawDays)
+    const currentStreakDays = Math.floor(calculation?.current_streak_days ?? 0)
     const cigarettesNotSmoked =
       calculation?.cigarettes_not_smoked ?? progressStats?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
     const nicotinePerCig = getCountryConfig(userCountry).nicotinePerCigarette
@@ -248,6 +251,7 @@ export default function Progress() {
 
     return {
       daysSmokeFree,
+      currentStreakDays,
       moneySaved: calculation?.money_saved ?? progressStats?.money_saved ?? stats?.money_saved ?? 0,
       cigarettesNotSmoked,
       nicotineAvoided: Math.round(nicotineAvoided * 10) / 10,
@@ -357,7 +361,16 @@ export default function Progress() {
             <HeroHeader
               value={overallStats.daysSmokeFree}
               label="Days smoke-free"
-              sub={overallStats.daysSmokeFree > 0 ? 'Keep the streak going' : 'Your journey starts here'}
+              sub={
+                overallStats.daysSmokeFree > 0
+                  ? overallStats.currentStreakDays > 0 &&
+                    overallStats.currentStreakDays < overallStats.daysSmokeFree
+                    ? `${overallStats.currentStreakDays} day current streak · ${overallStats.daysSmokeFree} days total earned`
+                    : overallStats.currentStreakDays > 0
+                      ? `${overallStats.currentStreakDays} day streak — keep going`
+                      : 'Total earned from check-ins — a slip never erases this'
+                  : 'Answer check-ins to build your progress'
+              }
             />
             <StatGrid
               items={[

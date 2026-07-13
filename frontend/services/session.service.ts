@@ -2,7 +2,7 @@ import { BaseService } from './base.service'
 import { UserSession, SessionProgress, StepResponse } from '../types/models'
 import { ApiResponse } from '../types/api'
 import { SessionStatus } from '../types/enums'
-import { pb } from '../lib/pocketbase'
+import { pb, touchLastActive } from '../lib/pocketbase'
 import { programService } from './program.service'
 
 export class SessionService extends BaseService {
@@ -125,6 +125,7 @@ export class SessionService extends BaseService {
           user: userId,
           program_day: programDayId,
         })
+        touchLastActive()
         return { success: true, data: updated as any }
       } else {
         // Create new
@@ -135,6 +136,7 @@ export class SessionService extends BaseService {
           status: data.status || 'not_started',
           last_step_index: data.last_step_index || 0,
         })
+        touchLastActive()
         return { success: true, data: created as any }
       }
     } catch (error: any) {

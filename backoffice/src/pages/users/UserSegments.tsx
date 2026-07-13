@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
+import {
+  daysSinceLastActive,
+  indexActivityByUser,
+  isUserActiveWithinDays,
+} from '../../lib/userActivity'
 import { Plus, TrendingUp, TrendingDown, Eye, Edit, Trash2, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -78,6 +83,13 @@ export const UserSegments = () => {
     queryFn: () => adminCollectionHelpers.getFullList('cravings'),
   })
 
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  })
+
+  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
+
   const calculateSegmentCount = (segmentId: string, periodDays?: number): number => {
     if (!usersData?.data) return 0
     const users = usersData.data
@@ -88,17 +100,12 @@ export const UserSegments = () => {
 
     switch (segmentId) {
       case 'active':
-        const daysAgo = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
-        return users.filter((u: any) => {
-          if (!u.lastActive) return false
-          return new Date(u.lastActive) > daysAgo
-        }).length
+        return users.filter((u: any) => isUserActiveWithinDays(u, activityByUser, period)).length
 
       case 'inactive':
-        const daysAgoInactive = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
-          if (!u.lastActive) return true
-          return new Date(u.lastActive) < daysAgoInactive
+          const daysSince = daysSinceLastActive(u, activityByUser)
+          return daysSince === null || daysSince >= period
         }).length
 
       case 'high-risk':
@@ -127,10 +134,9 @@ export const UserSegments = () => {
         }).length
 
       case 'churned':
-        const daysAgoChurned = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
         return users.filter((u: any) => {
-          if (!u.lastActive) return true
-          return new Date(u.lastActive) < daysAgoChurned
+          const daysSince = daysSinceLastActive(u, activityByUser)
+          return daysSince === null || daysSince >= period
         }).length
 
       default:

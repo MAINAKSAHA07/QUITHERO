@@ -16,6 +16,7 @@ import {
 } from './push.js'
 import { getAuthUser } from './pb-admin.js'
 import { startReminderScheduler } from './reminder-scheduler.js'
+import { startSmokeCheckScheduler } from './smoke-check-scheduler.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -82,6 +83,14 @@ async function handlePush(req, res, pathname) {
     return json(res, 200, { ok: true, publicKey })
   }
 
+  if (pathname === '/api/push/health' && req.method === 'GET') {
+    return json(res, 200, {
+      ok: true,
+      push: isPushReady(),
+      hasVapid: Boolean(getVapidPublicKey()),
+    })
+  }
+
   if (pathname === '/api/push/subscribe' && req.method === 'POST') {
     if (!isPushReady()) return json(res, 503, { error: 'Push not configured' })
     let body
@@ -93,15 +102,14 @@ async function handlePush(req, res, pathname) {
     const { subscription } = body
     if (!subscription?.endpoint) return json(res, 400, { error: 'subscription required' })
 
-    let userId = ''
     const auth = req.headers.authorization
-    if (auth) {
-      const user = await getAuthUser(auth)
-      if (user?.id) userId = user.id
-    }
+    if (!auth) return json(res, 401, { error: 'Login required' })
+
+    const user = await getAuthUser(auth)
+    if (!user?.id) return json(res, 401, { error: 'Invalid or expired session' })
 
     try {
-      const record = await savePushSubscription({ subscription, userId })
+      const record = await savePushSubscription({ subscription, userId: user.id })
       return json(res, 200, { ok: true, record })
     } catch (err) {
       console.error('[push/subscribe]', err.message)
@@ -145,6 +153,7 @@ const server = http.createServer(async (req, res) => {
 
 initWebPush()
 startReminderScheduler()
+startSmokeCheckScheduler()
 
 server.listen(PORT, '127.0.0.1', () => {
   const hasAi = Boolean(process.env.ANTHROPIC_API_KEY)

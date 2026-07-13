@@ -49,7 +49,7 @@ export default function MilestoneModal({ isOpen, days, onClose }: MilestoneModal
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="relative glass p-8 rounded-3xl text-center max-w-sm w-full overflow-hidden"
+            className="relative bg-white border border-gray-100 shadow-2xl p-8 rounded-3xl text-center max-w-sm w-full overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Confetti particles */}
@@ -97,6 +97,7 @@ export default function MilestoneModal({ isOpen, days, onClose }: MilestoneModal
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
+              className="flex justify-center"
             >
               <GlassButton onClick={onClose} className="px-8 py-3">
                 Keep Going!

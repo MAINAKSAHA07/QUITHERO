@@ -74,8 +74,7 @@ export const adminAuthHelpers = {
       if (msg.includes('Failed to authenticate')) {
         return {
           success: false,
-          error:
-            'Invalid email or password. Backoffice uses admin_users accounts — not your PocketBase superuser login. Try mainaksaha0807@gmail.com or admin@backoffice.com with your full admin password.',
+          error: 'Invalid email or password. Please check your credentials and try again.',
         }
       }
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {

@@ -41,6 +41,7 @@ const configs = [
   { name: 'personalization_logs', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'user_behavior_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'notification_events', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'smoke_check_ins', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'belief_assessments', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
 
   // public-readable (mobile app), admin-writable

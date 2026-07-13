@@ -4,11 +4,8 @@ import { UserProfile } from '../types/models'
 export function isKycComplete(profile: UserProfile | null | undefined): boolean {
   if (!profile) return false
   if (profile.onboarding_completed_at) return true
-  // New flow stamps archetype at the end
-  if (profile.quit_archetype && profile.daily_consumption) return true
-  // Legacy: older KYC / addiction setup saved consumption + quit_date without archetype
-  if (profile.daily_consumption && profile.quit_date) return true
-  if (profile.onboarding_name?.trim() && profile.daily_consumption) return true
+  // ponytail: fallback for fully completed legacy profiles
+  if (profile.quit_archetype && profile.daily_consumption && profile.quit_date) return true
   return false
 }
 

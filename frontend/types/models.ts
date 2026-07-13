@@ -310,6 +310,22 @@ export interface ProgressCalculation {
   life_regained_hours: number
   nicotine_not_consumed: number
   cigarettes_smoked: number
+  smoke_free_periods?: number
+  /** Consecutive confirmed smoke-free time since last slip — resets on slip, total does not */
+  current_streak_days?: number
+}
+
+export interface SmokeCheckIn {
+  id?: string
+  user: string
+  smoked: boolean
+  periods_credited?: number
+  period_start?: string
+  period_end?: string
+  responded_at?: string
+  source?: 'in_app' | 'push' | 'scheduler'
+  created?: string
+  updated?: string
 }
 
 // Support Ticket

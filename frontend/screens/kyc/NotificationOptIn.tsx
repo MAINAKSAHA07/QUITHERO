@@ -11,8 +11,8 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
   const benefits = [
     {
       icon: Sparkles,
-      title: 'Daily program reminders',
-      desc: 'Short, daily check-ins to build consistency.',
+      title: 'Smoke check-ins every 6 hours',
+      desc: 'Quick prompts to confirm you stayed smoke-free and keep your stats accurate.',
     },
     {
       icon: ShieldAlert,

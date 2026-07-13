@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
+import {
+  countActiveUsers,
+  getUserLastActive,
+  indexActivityByUser,
+  indexDailyActivity,
+} from '../../lib/userActivity'
 import { Users, TrendingUp, Calendar } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
@@ -19,30 +25,21 @@ export const UserAnalytics = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions'),
   })
 
+  const { data: sessionProgressData } = useQuery({
+    queryKey: ['session_progress', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  })
+
   const users = usersData?.data || []
   const sessions = sessionsData?.data || []
+  const sessionProgress = sessionProgressData?.data || []
+  const activityByUser = indexActivityByUser(sessionProgress as any[])
+  const dailyActivity = indexDailyActivity(users, sessionProgress as any[])
 
   // Calculate metrics
-  const dau = users.filter((u: any) => {
-    if (!u.lastActive) return false
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    return new Date(u.lastActive) > yesterday
-  }).length
-
-  const wau = users.filter((u: any) => {
-    if (!u.lastActive) return false
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    return new Date(u.lastActive) > weekAgo
-  }).length
-
-  const mau = users.filter((u: any) => {
-    if (!u.lastActive) return false
-    const monthAgo = new Date()
-    monthAgo.setMonth(monthAgo.getMonth() - 1)
-    return new Date(u.lastActive) > monthAgo
-  }).length
+  const dau = countActiveUsers(users, activityByUser, 1)
+  const wau = countActiveUsers(users, activityByUser, 7)
+  const mau = countActiveUsers(users, activityByUser, 30)
 
   const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0
 
@@ -63,11 +60,7 @@ export const UserAnalytics = () => {
         return created === dateStr
       }).length
 
-      const activeUsers = users.filter((u: any) => {
-        if (!u.lastActive) return false
-        const lastActive = new Date(u.lastActive).toISOString().split('T')[0]
-        return lastActive === dateStr
-      }).length
+      const activeUsers = dailyActivity.get(dateStr)?.size ?? 0
 
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -101,19 +94,19 @@ export const UserAnalytics = () => {
       })
 
       const week1 = cohortUsers.filter((u: any) => {
-        if (!u.lastActive) return false
-        const lastActive = new Date(u.lastActive)
-        const weekAfter = new Date(month)
+        const last = getUserLastActive(u, activityByUser.get(u.id))
+        if (!last || !u.created) return false
+        const weekAfter = new Date(u.created)
         weekAfter.setDate(weekAfter.getDate() + 7)
-        return lastActive > weekAfter
+        return last >= weekAfter
       }).length
 
       const week2 = cohortUsers.filter((u: any) => {
-        if (!u.lastActive) return false
-        const lastActive = new Date(u.lastActive)
-        const twoWeeksAfter = new Date(month)
+        const last = getUserLastActive(u, activityByUser.get(u.id))
+        if (!last || !u.created) return false
+        const twoWeeksAfter = new Date(u.created)
         twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14)
-        return lastActive > twoWeeksAfter
+        return last >= twoWeeksAfter
       }).length
 
       cohorts.push({

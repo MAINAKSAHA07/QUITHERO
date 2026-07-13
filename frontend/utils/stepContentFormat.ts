@@ -48,6 +48,187 @@ function parseMinRows(text: string): number | null {
   return null
 }
 
+function hasBlankMarker(text: string): boolean {
+  return (
+    /(?:^|\n)\s*[•\-]?\s*[^:\n]+:\s*(?:£\/\$\s*)?_{2,}/m.test(text) ||
+    /\s→\s*_{2,}/.test(text) ||
+    /Time free:\s*_{2,}/i.test(text)
+  )
+}
+
+function blankFieldLabel(text: string): string {
+  return text
+    .replace(/^[•\-\*\d.)]+\s*/, '')
+    .replace(/:\s*£\/\$\s*_{2,}.*$/, '')
+    .replace(/:\s*_{2,}.*$/, '')
+    .replace(/\s*→\s*_{2,}/g, ' →')
+    .replace(/_{2,}/g, '')
+    .replace(/:\s*$/, '')
+    .trim()
+}
+
+function isWritePromptPart(part: string): boolean {
+  if (hasBlankMarker(part)) return false
+  if (/^[•-]\s/.test(part)) return false
+  if (/^\d+\.?$/.test(part)) return false
+  if (/^Then do the money maths/i.test(part)) return false
+  return (
+    (/\(write|write each/i.test(part) && part.length < 200) ||
+    (/^What .+/i.test(part) && part.includes('(')) ||
+    (/^Finish with/i.test(part) && /sentence/i.test(part)) ||
+    /Complete:\s*"/i.test(part) ||
+    /^Write a short letter/i.test(part)
+  )
+}
+
+function isBulletWritePart(part: string): boolean {
+  if (!/^[•-]\s/.test(part)) return false
+  const text = part.replace(/^[•-]\s*/, '')
+  if (/rate your stress|smoke as you normally|ten minutes later|right after, rate/i.test(text)) return false
+  return /write (?:down|each|a |your |it down|three)|compare the two|notice the evidence|acknowledg|credit for|identity statement/i.test(
+    text
+  )
+}
+
+function isValuesGridHeader(lines: string[]): boolean {
+  if (lines.length !== 3) return false
+  const normalized = lines.map((l) => l.toLowerCase().trim())
+  return (
+    normalized[0] === 'my value' &&
+    normalized[1].includes('smoking') &&
+    normalized[2].includes('freedom')
+  )
+}
+
+/** Find stress/grid tables embedded before closing paragraphs. */
+function detectEmbeddedWorksheet(instructions: string): {
+  format: WorksheetFormat
+  body: string
+} | null {
+  const parts = instructions.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+
+  for (let start = 0; start < parts.length; start++) {
+    for (let end = parts.length; end > start; end--) {
+      const candidateLines = parts
+        .slice(start, end)
+        .flatMap((p) => p.split('\n').map((l) => l.trim()).filter(Boolean))
+      if (candidateLines.length < 4) {
+        if (isValuesGridHeader(candidateLines)) {
+          return {
+            format: {
+              kind: 'repeat',
+              rows: 4,
+              fields: candidateLines.map((label) => ({ label })),
+            },
+            body: [...parts.slice(0, start), ...parts.slice(end)].join('\n\n'),
+          }
+        }
+        continue
+      }
+      if (candidateLines.some(hasBlankMarker)) continue
+      const format = detectWorksheetFormat(candidateLines)
+      if (format?.kind === 'grid') {
+        if (format.headers.some((h) => /list at least|^[•-]/.test(h) || h.length > 72)) continue
+        if (format.rowLabels.every((l) => /^\d+\.?$/.test(l))) continue
+      }
+      if (format?.kind === 'grid' || format?.kind === 'stress') {
+        return {
+          format,
+          body: [...parts.slice(0, start), ...parts.slice(end)].join('\n\n'),
+        }
+      }
+    }
+  }
+  return null
+}
+
+/** Blanks and write-prompts can appear mid-instruction; suffix-only detection misses them. */
+function detectScatteredWorksheet(instructions: string): {
+  format: WorksheetFormat
+  body: string
+} | null {
+  const parts = instructions.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+  const fields: { label: string; hint?: string }[] = []
+  const keepParts: string[] = []
+  let foundAny = false
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+
+    if (/list (?:at least )?\w+|list two or three/i.test(part)) {
+      const run: string[] = []
+      let j = i + 1
+      while (j < parts.length && /^\d+\.?$/.test(parts[j])) {
+        run.push(parts[j])
+        j++
+      }
+      if (run.length >= 2) {
+        const heading = part.replace(/\n/g, ' ').slice(0, 72)
+        run.forEach((_, idx) => {
+          fields.push({ label: `${heading} — ${idx + 1}` })
+        })
+        foundAny = true
+        i = j - 1
+        continue
+      }
+    }
+
+    if (/^\d+\.?$/.test(part)) {
+      continue
+    }
+
+    const lines = part.split('\n').map((l) => l.trim()).filter(Boolean)
+    const blankLines = lines.filter(hasBlankMarker)
+    if (blankLines.length) {
+      blankLines.forEach((line) => {
+        fields.push({ label: blankFieldLabel(line) || 'Your answer' })
+      })
+      const intro = lines.filter((l) => !hasBlankMarker(l)).join('\n')
+      if (intro && !/^Then /i.test(intro)) keepParts.push(intro)
+      foundAny = true
+      continue
+    }
+
+    if (isWritePromptPart(part)) {
+      fields.push({
+        label: shortenBulletLabel(part),
+        hint: part.length > shortenBulletLabel(part).length + 8 ? part : undefined,
+      })
+      foundAny = true
+      continue
+    }
+
+    if (isBulletWritePart(part)) {
+      const text = part.replace(/^[•-]\s*/, '')
+      if (/for each, write one line/i.test(text)) {
+        keepParts.push(part)
+        continue
+      }
+      fields.push({
+        label: shortenBulletLabel(text),
+        hint: text.length > shortenBulletLabel(text).length + 8 ? text : undefined,
+      })
+      foundAny = true
+      continue
+    }
+
+    if (/write down .+ and beside it/i.test(part)) {
+      fields.push({ label: 'Harshest thing your inner critic says' })
+      fields.push({ label: 'Accurate, compassionate version' })
+      foundAny = true
+      continue
+    }
+
+    keepParts.push(part)
+  }
+
+  if (!foundAny || !fields.length) return null
+  return {
+    format: { kind: 'fields', fields },
+    body: keepParts.join('\n\n'),
+  }
+}
+
 /** Bullet lists after "write down two things" / "note three quick things" → repeatable row form */
 function detectRepeatFromBullets(instructions: string): {
   format: WorksheetFormat
@@ -81,9 +262,11 @@ function detectRepeatFromBullets(instructions: string): {
 }
 
 function isWorksheetLine(line: string): boolean {
-  if (!line || line.startsWith('•') || line.startsWith('- ')) return false
-  if (line.length > 130) return false
-  if (/^(Then |The pattern |Most people |At the end )/i.test(line) && line.includes('. ')) return false
+  if (!line) return false
+  const cleanLine = line.replace(/^[•\-\*\s]+/, '').trim()
+  if (!cleanLine) return false
+  if (cleanLine.length > 130) return false
+  if (/^(Then |The pattern |Most people |At the end )/i.test(cleanLine) && cleanLine.includes('. ')) return false
   return true
 }
 
@@ -137,7 +320,7 @@ export function detectWorksheetFormat(lines: string[]): WorksheetFormat | null {
   return {
     kind: 'lines',
     fields: trimmed.map((l) => ({
-      label: l.replace(/:\s*_{2,}$/, '').replace(/:\s*___+$/, '').trim(),
+      label: l.replace(/^[•\-\*\s]+/, '').replace(/:\s*_{2,}$/, '').replace(/:\s*___+$/, '').trim(),
     })),
   }
 }
@@ -164,10 +347,31 @@ export function splitExerciseInstructions(instructions: string): {
     else break
   }
 
-  const body = parts.slice(0, suffixStart).join('\n\n')
+  const bodyFromSuffix = parts.slice(0, suffixStart).join('\n\n')
   const suffixLines = parts.slice(suffixStart)
-  const worksheet = suffixLines.length ? detectWorksheetFormat(suffixLines) : null
-  return { body, suffixLines, worksheet }
+  const suffixWorksheet = suffixLines.length ? detectWorksheetFormat(suffixLines) : null
+  if (suffixWorksheet) {
+    return { body: bodyFromSuffix, suffixLines, worksheet: suffixWorksheet }
+  }
+
+  if (hasBlankMarker(instructions)) {
+    const blankWorksheet = detectScatteredWorksheet(instructions)
+    if (blankWorksheet) {
+      return { body: blankWorksheet.body, suffixLines: [], worksheet: blankWorksheet.format }
+    }
+  }
+
+  const embedded = detectEmbeddedWorksheet(instructions)
+  if (embedded) {
+    return { body: embedded.body, suffixLines: [], worksheet: embedded.format }
+  }
+
+  const scattered = detectScatteredWorksheet(instructions)
+  if (scattered) {
+    return { body: scattered.body, suffixLines: [], worksheet: scattered.format }
+  }
+
+  return { body: bodyFromSuffix, suffixLines, worksheet: null }
 }
 
 export function formatInstructionBullets(text: string): string[] {

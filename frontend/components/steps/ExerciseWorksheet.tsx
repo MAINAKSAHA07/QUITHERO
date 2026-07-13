@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { WorksheetFormat, WorksheetPayload } from '../../utils/stepContentFormat'
 
 interface ExerciseWorksheetProps {
@@ -67,6 +67,22 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
   const emitFields = (data: Record<string, string>, kind: 'fields' | 'lines') => {
     onChange({ kind, values: data })
   }
+
+  useEffect(() => {
+    if (format.kind === 'fields') {
+      emitFields(fieldData, 'fields')
+    } else if (format.kind === 'lines') {
+      emitFields(fieldData, 'lines')
+    } else if (format.kind === 'stress') {
+      emitStress(stressRows)
+    } else if (format.kind === 'grid') {
+      emitGrid(gridData)
+    } else if (format.kind === 'repeat') {
+      emitRepeat(repeatData)
+    }
+    // ponytail: mount-only seed so Mark Complete persists empty worksheet shape
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const emitRepeat = (rows: Record<string, string>[]) => {
     onChange({ kind: 'repeat', rows: rows.map((values) => ({ values })) })

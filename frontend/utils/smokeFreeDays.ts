@@ -27,13 +27,13 @@ export function localDateISO(d = new Date()): string {
   return `${y}-${mo}-${day}`
 }
 
-function parseLocalDate(raw: string): Date | null {
+export function parseLocalDate(raw: string): Date | null {
   const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (!m) return null
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
 }
 
-function startOfLocalDay(d: Date): Date {
+export function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 

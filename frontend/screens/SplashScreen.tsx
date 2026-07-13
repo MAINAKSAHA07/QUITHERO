@@ -66,32 +66,20 @@ export default function SplashScreen() {
         >
           Your Journey to Freedom
         </motion.p>
-      </motion.div>
-
-      {/* Loading indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="absolute bottom-12"
-      >
-        <div className="flex gap-2">
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              className="w-2 h-2 bg-brand-primary rounded-full"
-              animate={{
-                y: [0, -10, 0],
-                opacity: [0.5, 1, 0.5],
-              }}
-              transition={{
-                duration: 0.8,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-            />
-          ))}
-        </div>
+        
+        {/* Animated spinner loader */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="flex justify-center mt-8"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+            className="w-10 h-10 border-4 border-brand-primary/20 border-t-brand-primary rounded-full shadow-glow"
+          />
+        </motion.div>
       </motion.div>
 
       {/* Version */}

@@ -127,7 +127,7 @@ export default function Home() {
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const days = calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const days = Math.floor(calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0)
     if (days > 0) {
       const shownKey = `milestone_shown_${days}`
       if (!sessionStorage.getItem(shownKey) && MILESTONE_DAYS.includes(days)) {
@@ -159,14 +159,18 @@ export default function Home() {
   }, [user?.id])
 
   const displayStats = useMemo(() => {
-    const daysSmokeFree = calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const rawDays = calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
+    const daysSmokeFree = Math.floor(rawDays)
+    const rawStreak = calculation?.current_streak_days ?? 0
+    const currentStreakDays = Math.floor(rawStreak)
+    const checkIns = calculation?.smoke_free_periods ?? 0
     const cigarettesNotSmoked = calculation?.cigarettes_not_smoked ?? progressStats?.cigarettes_not_smoked ?? stats?.cigarettes_not_smoked ?? 0
     const moneySaved = calculation?.money_saved ?? progressStats?.money_saved ?? stats?.money_saved ?? 0
     const nicotinePerCig = getCountryConfig(userProfile?.country).nicotinePerCigarette
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? cigarettesNotSmoked * nicotinePerCig
     const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
     const currencySymbol = getCountryConfig(userProfile?.country).symbol
-    return { daysSmokeFree, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed, cigarettesNotSmoked }
+    return { daysSmokeFree, currentStreakDays, rawDays, checkIns, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed, cigarettesNotSmoked }
   }, [stats, calculation, progressStats, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
@@ -293,9 +297,13 @@ export default function Home() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-[#FFF1E6] text-[#C46A2E] border border-[#F6B884]/40"
               >
                 <Flame className="w-3.5 h-3.5" />
-                {displayStats.daysSmokeFree > 0
-                  ? `${displayStats.daysSmokeFree} day streak`
-                  : `Day ${currentDay}`}
+                {displayStats.currentStreakDays > 0
+                  ? `${displayStats.currentStreakDays} day streak`
+                  : displayStats.daysSmokeFree > 0
+                    ? `${displayStats.daysSmokeFree} days earned`
+                    : displayStats.checkIns > 0
+                      ? `${displayStats.checkIns} check-ins`
+                      : `Day ${currentDay}`}
                 <ChevronRight className="w-3.5 h-3.5 opacity-60" />
               </button>
             </div>
@@ -333,6 +341,9 @@ export default function Home() {
               icon={Calendar}
               label="Smoke-free"
               value={displayStats.daysSmokeFree > 0 ? `${displayStats.daysSmokeFree}d` : `Day ${currentDay}`}
+              sub={displayStats.daysSmokeFree > 0 && displayStats.currentStreakDays < displayStats.daysSmokeFree
+                ? `${displayStats.currentStreakDays}d current streak`
+                : undefined}
               tint="bg-[#E8F4FC] text-[#3F8DD2]"
             />
             <GlanceCard
@@ -459,12 +470,14 @@ function GlanceCard({
   iconText,
   label,
   value,
+  sub,
   tint,
 }: {
   icon?: typeof Calendar
   iconText?: string
   label: string
   value: string
+  sub?: string
   tint: string
 }) {
   return (
@@ -476,6 +489,7 @@ function GlanceCard({
       </div>
       <p className="text-[11px] font-medium text-[#0E2538]/45 mb-0.5">{label}</p>
       <p className="text-base font-bold text-[#0E2538] truncate">{value}</p>
+      {sub && <p className="text-[10px] font-medium text-[#0E2538]/40 mt-0.5">{sub}</p>}
     </div>
   )
 }

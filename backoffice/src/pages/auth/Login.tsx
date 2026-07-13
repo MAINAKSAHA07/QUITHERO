@@ -36,8 +36,7 @@ export const Login = () => {
             <LogIn className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-neutral-dark">smono Admin</h1>
-          <p className="text-neutral-500 mt-2">Sign in with your admin_users account</p>
-          <p className="text-neutral-400 text-xs mt-1">Not the PocketBase superuser (_/ admin UI)</p>
+          <p className="text-neutral-500 mt-2">Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

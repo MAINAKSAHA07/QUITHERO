@@ -18,6 +18,7 @@ import { assignDetailedQuitArchetype, getArchetypeInfo } from '../../utils/arche
 import { isKycComplete } from '../../utils/kyc'
 import { localDateISO } from '../../utils/smokeFreeDays'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
+import { LANGUAGE_BY_KYC_LABEL } from '../../constants/languages'
 
 export default function KYCFlow() {
   const [currentStep, setCurrentStep] = useState<
@@ -89,19 +90,8 @@ export default function KYCFlow() {
 
     // Language mapping
     let mappedLang = Language.EN
-    const langMap: Record<string, Language> = {
-      'English': Language.EN,
-      'Hindi': Language.HI,
-      'Marathi': Language.MR,
-      'Gujarati': Language.GU,
-      'Español': Language.ES,
-      'Français': Language.FR,
-      'Deutsch': Language.DE,
-      'Italiano': Language.IT,
-      '中文': Language.ZH,
-    }
-    if (rawAnswers.language && langMap[rawAnswers.language]) {
-      mappedLang = langMap[rawAnswers.language]
+    if (rawAnswers.language && LANGUAGE_BY_KYC_LABEL[rawAnswers.language]) {
+      mappedLang = LANGUAGE_BY_KYC_LABEL[rawAnswers.language]
     }
 
     // Nicotine Forms mapping
@@ -307,7 +297,8 @@ export default function KYCFlow() {
 
   if (currentStep === 'checking' || !profileChecked) {
     return (
-      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex items-center justify-center bg-background">
+      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col items-center justify-center bg-background gap-4">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-primary/20 border-t-brand-primary"></div>
         <p className="text-sm text-text-primary/60">Loading…</p>
       </div>
     )

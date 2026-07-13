@@ -1,0 +1,47 @@
+import { useLandingInteractions } from './hooks/useLandingInteractions'
+import { Header } from './sections/Header'
+import { Hero } from './sections/Hero'
+import { Problem } from './sections/Problem'
+import { Journey } from './sections/Journey'
+import { HowItFails } from './sections/HowItFails'
+import { AppPreview } from './sections/AppPreview'
+import { Showcase } from './sections/Showcase'
+import { Imagine } from './sections/Imagine'
+import { DesignedBy } from './sections/DesignedBy'
+import { Testimonials } from './sections/Testimonials'
+import { Science } from './sections/Science'
+import { WhySmono } from './sections/WhySmono'
+import { WhoFor } from './sections/WhoFor'
+import { Comparison } from './sections/Comparison'
+import { Quote } from './sections/Quote'
+import { Pricing } from './sections/Pricing'
+import { Faq } from './sections/Faq'
+import { FinalCta } from './sections/FinalCta'
+import { Footer } from './sections/Footer'
+
+export function LandingPage() {
+  useLandingInteractions()
+  return (
+    <>
+      <Header />
+      <Hero />
+      <Problem />
+      <Journey />
+      <HowItFails />
+      <AppPreview />
+      <Showcase />
+      <Imagine />
+      <DesignedBy />
+      <Testimonials />
+      <Science />
+      <WhySmono />
+      <WhoFor />
+      <Comparison />
+      <Quote />
+      <Pricing />
+      <Faq />
+      <FinalCta />
+      <Footer />
+    </>
+  )
+}

@@ -293,22 +293,52 @@ This adds the new fields without affecting existing data.
 
 ### Supported Languages
 
-The app supports 6 languages with automatic translation:
-- 🇺🇸 English (en)
-- 🇮🇳 हिंदी / Hindi (hi)
-- 🇪🇸 Español / Spanish (es)
-- 🇫🇷 Français / French (fr)
-- 🇩🇪 Deutsch / German (de)
-- 🇨🇳 中文 / Chinese (zh)
+The app supports **9 languages** with automatic translation (single source of truth: [`frontend/constants/languages.ts`](frontend/constants/languages.ts)):
+
+| Code | Language | KYC label |
+|------|----------|-----------|
+| `en` | English | English |
+| `hi` | हिंदी (Hindi) | Hindi |
+| `mr` | मराठी (Marathi) | Marathi |
+| `gu` | ગુજરાતી (Gujarati) | Gujarati |
+| `es` | Español | Español |
+| `fr` | Français | Français |
+| `de` | Deutsch | Deutsch |
+| `it` | Italiano | Italiano |
+| `zh` | 中文 (Chinese) | 中文 |
 
 ### How Translation Works
 
-The app uses **Google Translate API** for real-time translation:
+The app uses **Google Translate's public web API** for real-time translation (no API key):
 
-1. **Language Context**: Global language state managed by `AppContext`
+1. **Language Context**: Global language state in `AppContext` (`app_language` in localStorage)
 2. **Translation Service**: Automatic translation with caching ([`translation.service.ts`](frontend/services/translation.service.ts))
 3. **TranslatedText Component**: Wrap any text to auto-translate ([`TranslatedText.tsx`](frontend/components/TranslatedText.tsx))
-4. **Language Modal**: Popup for language selection on login/signup ([`LanguageModal.tsx`](frontend/components/LanguageModal.tsx))
+4. **Language pickers**: [`LanguageModal.tsx`](frontend/components/LanguageModal.tsx) (signup) and [`LanguageSelection.tsx`](frontend/screens/LanguageSelection.tsx) (route `/language`)
+
+### Wiring Checklist
+
+Use this to verify multilingual is connected end-to-end:
+
+| Step | Where | What happens |
+|------|-------|--------------|
+| 1 | `constants/languages.ts` | All 9 languages defined once; dev assert ensures list matches `Language` enum |
+| 2 | Sign up | `SignUp.tsx` opens `LanguageModal` → `setLanguage` + saves to `user_profiles.language` |
+| 3 | KYC onboarding | Language question options come from `KYC_LANGUAGE_OPTIONS`; `KYCFlow` maps selection via `LANGUAGE_BY_KYC_LABEL` |
+| 4 | Profile sync | `AppContext` syncs `userProfile.language` → app language on load; backfills profile if missing |
+| 5 | Change language | Profile row or sidebar → `/language?from=…` → same save path as modal |
+| 6 | UI translation | `TranslatedText` / `useTranslation` call `translation.service` with current language from context |
+| 7 | Cache reset | Language change clears translation cache (modal, `/language` screen) |
+
+**Manual smoke test:**
+1. Sign up → pick Hindi in modal → confirm UI strings translate
+2. Complete KYC → choose Marathi → finish → confirm profile shows मराठी and UI updates
+3. Profile → Language → pick Gujarati → confirm persistence after refresh
+4. DevTools → Application → localStorage `app_language` matches profile
+
+**Known gaps:**
+- Login does **not** show the language modal (signup only); returning users rely on profile/localStorage
+- Translation requires outbound access to `translate.googleapis.com` from the browser
 
 ### Implementation Guide
 
@@ -360,17 +390,21 @@ const translated = await translateBatch(texts, 'en')
 
 ### Language Selection Flow
 
-**On Login/Signup:**
-1. User logs in or signs up
-2. **Language modal automatically appears** (if not already set)
-3. User selects preferred language
-4. Language saved to user profile and localStorage
-5. All app content translates automatically
+**On signup:**
+1. User completes signup
+2. **Language modal appears** (`SignUp.tsx` → `LanguageModal`)
+3. User selects preferred language (all 9 from `APP_LANGUAGES`)
+4. Language saved to `localStorage` (`app_language`) and `user_profiles.language`
+5. App content translates via `TranslatedText` / `useTranslation`
 
-**Changing Language:**
-- Go to Profile → Language selector
-- Or navigate to `/language-selection`
-- Changes apply immediately across entire app
+**During KYC:**
+- Onboarding asks language preference using the same 9 options
+- Selection is mapped to profile `language` code on completion
+
+**Changing language later:**
+- Profile → Language row → `/language?from=/profile`
+- Sidebar → Language → `/language?from=<current path>`
+- Changes apply immediately; translation cache is cleared
 
 ### Translation Features
 
@@ -382,43 +416,26 @@ const translated = await translateBatch(texts, 'en')
 
 ### Adding New Languages
 
-1. Add language to `frontend/types/enums.ts`:
-```typescript
-export enum Language {
-  EN = 'en',
-  HI = 'hi',
-  ES = 'es',
-  FR = 'fr',
-  DE = 'de',
-  ZH = 'zh',
-  // Add new language
-  AR = 'ar', // Arabic
-}
-```
-
-2. Add to language options in `LanguageModal.tsx` and `LanguageSelection.tsx`:
-```typescript
-const languages = [
-  // ...existing languages
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-]
-```
-
-3. Update database schema to include new language in `user_profiles.language` field
+1. Add code to `Language` enum in `frontend/types/enums.ts`
+2. Add one entry to `APP_LANGUAGES` in `frontend/constants/languages.ts` (include `kycLabel`)
+3. Dev assert in `languages.ts` will fail if enum and picker list drift — fix until it passes
+4. Ensure PocketBase `user_profiles.language` field accepts the new code (text/select values)
 
 ### Files Reference
 
 **Core Translation Files:**
+- [`/frontend/constants/languages.ts`](frontend/constants/languages.ts) - Single source of truth for all language pickers + KYC
 - [`/frontend/services/translation.service.ts`](frontend/services/translation.service.ts) - Translation API service
 - [`/frontend/hooks/useTranslation.ts`](frontend/hooks/useTranslation.ts) - Translation React hook
 - [`/frontend/components/TranslatedText.tsx`](frontend/components/TranslatedText.tsx) - Auto-translate component
-- [`/frontend/components/LanguageModal.tsx`](frontend/components/LanguageModal.tsx) - Language selection popup
-- [`/frontend/screens/LanguageSelection.tsx`](frontend/screens/LanguageSelection.tsx) - Full-screen language selector
-- [`/frontend/context/AppContext.tsx`](frontend/context/AppContext.tsx#L36-L72) - Language state management
+- [`/frontend/components/LanguageModal.tsx`](frontend/components/LanguageModal.tsx) - Language selection popup (signup)
+- [`/frontend/screens/LanguageSelection.tsx`](frontend/screens/LanguageSelection.tsx) - Full-screen selector at `/language`
+- [`/frontend/context/AppContext.tsx`](frontend/context/AppContext.tsx#L36-L72) - Language state + profile sync
 
-**Updated Auth Screens:**
-- [`/frontend/screens/auth/Login.tsx`](frontend/screens/auth/Login.tsx) - Shows language modal on login
-- [`/frontend/screens/auth/SignUp.tsx`](frontend/screens/auth/SignUp.tsx) - Shows language modal on signup
+**Auth & onboarding:**
+- [`/frontend/screens/auth/SignUp.tsx`](frontend/screens/auth/SignUp.tsx) - Shows language modal after signup
+- [`/frontend/screens/kyc/kycQuestions.ts`](frontend/screens/kyc/kycQuestions.ts) - KYC language question (uses `KYC_LANGUAGE_OPTIONS`)
+- [`/frontend/screens/kyc/KYCFlow.tsx`](frontend/screens/kyc/KYCFlow.tsx) - Maps KYC answer → profile language code
 
 ### Best Practices
 
