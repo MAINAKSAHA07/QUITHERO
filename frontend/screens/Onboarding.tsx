@@ -30,7 +30,7 @@ const slides = [
   {
     icon: Brain,
     title: 'Quit without fighting yourself.',
-    description: 'QUITHERO helps you reduce dependence on willpower by understanding what actually drives the habit.',
+    description: 'Smono helps you reduce dependence on willpower by understanding what actually drives the habit.',
     gradient: 'from-brand-primary/20 to-brand-accent/20',
   },
   {
@@ -54,13 +54,13 @@ const slides = [
   {
     icon: Smile,
     title: 'No guilt. No shame. Just support.',
-    description: 'Slips do not erase progress. QUITHERO helps you learn from them and keep moving.',
+    description: 'Slips do not erase progress. Smono helps you learn from them and keep moving.',
     gradient: 'from-success/25 to-brand-accent/15',
   },
   {
     icon: Heart,
     title: 'Ready to build your quit plan?',
-    description: 'Answer a few questions so QUITHERO can personalize your journey.',
+    description: 'Answer a few questions so Smono can personalize your journey.',
     gradient: 'from-brand-primary/35 to-brand-accent/35',
   },
 ]

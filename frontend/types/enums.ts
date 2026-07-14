@@ -1,4 +1,4 @@
-// Enums for Quit Hero application
+// Enums for smono application
 
 export enum Gender {
   MALE = 'male',

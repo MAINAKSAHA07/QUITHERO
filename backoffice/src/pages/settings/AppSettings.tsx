@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { DEFAULT_APP_SETTINGS, loadAppSettings, saveAppSettings, type AppSettingsState } from '../../lib/appSettings'
 import { Save, Globe, Users, FileText, Bell, Shield, Plug, Database } from 'lucide-react'
 
 export const AppSettings = () => {
@@ -18,76 +19,22 @@ export const AppSettings = () => {
     { id: 'data_privacy', label: 'Data & Privacy', icon: Database },
   ]
 
-  // Note: Settings would typically be stored in a 'settings' collection or as environment variables
-  // For now, we'll use local state
-  const [settings, setSettings] = useState({
-    general: {
-      appName: 'smono',
-      tagline: 'Your Journey to Freedom',
-      defaultLanguage: 'en',
-      supportedLanguages: ['en', 'es', 'fr', 'hi'],
-      timeZone: 'UTC',
-      dateFormat: 'MM/DD/YYYY',
-      currency: 'USD',
-    },
-    userDefaults: {
-      defaultProgram: '',
-      defaultReminderTime: '09:00',
-      emailVerificationRequired: true,
-      phoneVerificationRequired: false,
-      minimumAge: 18,
-    },
-    content: {
-      articleOfTheDayEnabled: true,
-      randomQuoteEnabled: true,
-      quoteRotationFrequency: 'daily',
-      contentApprovalRequired: false,
-    },
-    notifications: {
-      emailNotificationsEnabled: true,
-      smsNotificationsEnabled: false,
-      pushNotificationsEnabled: true,
-      dailyReminderDefault: true,
-      achievementNotifications: true,
-    },
-    security: {
-      sessionTimeout: 30,
-      passwordMinLength: 8,
-      passwordRequireUppercase: true,
-      passwordRequireNumber: true,
-      passwordRequireSpecialChar: true,
-      passwordExpiry: 0,
-      twoFactorAuth: false,
-      ipWhitelist: '',
-    },
-    integrations: {
-      emailProvider: 'sendgrid',
-      emailApiKey: '',
-      emailFrom: 'noreply@smono.com',
-      emailFromName: 'smono',
-      smsProvider: 'twilio',
-      smsApiKey: '',
-      smsFromNumber: '',
-      googleAnalyticsId: '',
-      facebookPixelId: '',
-    },
-    dataPrivacy: {
-      dataRetentionDays: 365,
-      anonymizeAfterDays: 730,
-      gdprCompliance: true,
-      termsOfServiceUrl: '',
-      privacyPolicyUrl: '',
-      cookiePolicyUrl: '',
-      dataExportFormat: 'json',
-    },
+  // Loaded from PocketBase app_settings (admin-only; integrations may contain secrets)
+  const [settings, setSettings] = useState<AppSettingsState>(DEFAULT_APP_SETTINGS)
+
+  const { data: loadedSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['app_settings'],
+    queryFn: loadAppSettings,
   })
+
+  useEffect(() => {
+    if (loadedSettings) setSettings(loadedSettings)
+  }, [loadedSettings])
 
   const handleSave = async (tabId: string) => {
     setIsSaving(true)
     try {
-      // In a real implementation, you'd save to PocketBase settings collection
-      // For now, we'll just simulate a save
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await saveAppSettings(settings)
       alert(`${tabs.find(t => t.id === tabId)?.label} settings saved successfully!`)
     } catch (error) {
       console.error('Failed to save settings:', error)
@@ -95,6 +42,12 @@ export const AppSettings = () => {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  if (settingsLoading) {
+    return (
+      <div className="p-8 text-center text-neutral-500">Loading settings…</div>
+    )
   }
 
   const renderTabContent = () => {

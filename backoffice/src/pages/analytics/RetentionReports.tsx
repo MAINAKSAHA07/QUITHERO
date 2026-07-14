@@ -4,8 +4,8 @@ import { adminCollectionHelpers } from '../../lib/pocketbase'
 import {
   daysSinceLastActive,
   getUserLastActive,
-  indexActivityByUser,
 } from '../../lib/userActivity'
+import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import { TrendingDown, Users, Download, AlertCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
@@ -24,14 +24,27 @@ export const RetentionReports = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions'),
   })
 
-  const { data: sessionProgressData } = useQuery({
-    queryKey: ['session_progress', 'all'],
-    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  const { data: activityByUser = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    staleTime: 60_000,
   })
+
+  const { data: programDaysData } = useQuery({
+    queryKey: ['program_days', 'max'],
+    queryFn: () => adminCollectionHelpers.getFullList('program_days', {
+      fields: 'day_number',
+      sort: 'day_number',
+    }),
+  })
+
+  const maxProgramDay = Math.max(
+    1,
+    ...(programDaysData?.data || []).map((d: any) => d.day_number || 0)
+  )
 
   const users = usersData?.data || []
   const sessions = sessionsData?.data || []
-  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
 
   // Retention Curve Data
   const generateRetentionData = () => {
@@ -320,7 +333,7 @@ export const RetentionReports = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm">Day {user.programProgress}/10</span>
+                    <span className="text-sm">Day {user.programProgress}/{maxProgramDay}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-neutral-600">{user.suggestedAction}</span>

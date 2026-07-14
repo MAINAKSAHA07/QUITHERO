@@ -3,6 +3,7 @@ import { Step } from '../../types/models'
 import { VideoStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import { Play } from 'lucide-react'
+import { isEmbedVideoUrl } from '../../utils/mediaUrl'
 
 interface VideoPlayerComponentProps {
   step: Step
@@ -25,13 +26,23 @@ export default function VideoPlayerComponent({ step, onNext }: VideoPlayerCompon
       )}
       <div className="aspect-video glass rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
         {content.video_url ? (
-          <iframe
-            src={content.video_url}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={() => setWatched(true)}
-          />
+          isEmbedVideoUrl(content.video_url) ? (
+            <iframe
+              src={content.video_url}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              onLoad={() => setWatched(true)}
+            />
+          ) : (
+            <video
+              src={content.video_url}
+              className="w-full h-full object-contain bg-black"
+              controls
+              playsInline
+              onLoadedData={() => setWatched(true)}
+            />
+          )
         ) : (
           <div className="flex flex-col items-center justify-center">
             <Play className="w-16 h-16 text-brand-primary mb-2" />

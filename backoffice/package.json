@@ -1,7 +1,7 @@
 {
   "name": "quit-hero-backoffice",
   "version": "1.0.0",
-  "description": "Quit Hero Admin Dashboard",
+  "description": "Smono Admin Dashboard",
   "private": true,
   "type": "module",
   "scripts": {

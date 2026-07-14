@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { fmt, recordTypeColor, JsonBlock, TimeAgo, KYC_FIELDS } from '../../components/users/userDetailHelpers'
+import { fmt, recordTypeColor, JsonBlock, TimeAgo, KYC_FIELDS, buildRecentActivityEvents } from '../../components/users/userDetailHelpers'
+import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
+import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 
 type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity' | 'ai_insights'
 
@@ -34,6 +36,7 @@ export const UserDetail = () => {
     queryKey: ['user_sessions', id],
     queryFn: () => adminCollectionHelpers.getFullList('user_sessions', {
       filter: `user = "${id}"`,
+      sort: recentSort('user_sessions'),
     }),
     enabled: !!id,
   })
@@ -44,16 +47,16 @@ export const UserDetail = () => {
       filter: `user = "${id}"`,
       sort: recentSort('cravings'),
     }),
-    enabled: !!id && activeTab === 'cravings',
+    enabled: !!id,
   })
 
   const { data: journalData } = useQuery({
     queryKey: ['user_journal', id],
     queryFn: () => adminCollectionHelpers.getFullList('journal_entries', {
       filter: `user = "${id}"`,
-      sort: '-date',
+      sort: '-date,-created',
     }),
-    enabled: !!id && activeTab === 'journal',
+    enabled: !!id,
   })
 
   const { data: achievementsData } = useQuery({
@@ -61,9 +64,9 @@ export const UserDetail = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_achievements', {
       filter: `user = "${id}"`,
       expand: 'achievement',
-      sort: '-unlocked_at',
+      sort: '-unlocked_at,-created',
     }),
-    enabled: !!id && activeTab === 'achievements',
+    enabled: !!id,
   })
 
   const { data: progressData } = useQuery({
@@ -123,9 +126,9 @@ export const UserDetail = () => {
     queryFn: () => adminCollectionHelpers.getFullList('session_progress', {
       filter: `user = "${id}"`,
       expand: 'program_day',
-      sort: '-id',
+      sort: '-completed_at,-updated,-created',
     }),
-    enabled: !!id && activeTab === 'program',
+    enabled: !!id,
   })
 
   const { data: stepResponsesData } = useQuery({
@@ -136,6 +139,12 @@ export const UserDetail = () => {
       sort: '-id',
     }),
     enabled: !!id && activeTab === 'program',
+  })
+
+  const { data: activityByUserAll = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    staleTime: 60_000,
   })
 
   const { data: analyticsEventsData } = useQuery({
@@ -158,6 +167,23 @@ export const UserDetail = () => {
   const journalEntries = journalData?.data || []
   const achievements = achievementsData?.data || []
   const progress = progressData?.data?.[0]
+  const sessionProgressRows = sessionProgressData?.data || []
+  const recentActivity = buildRecentActivityEvents({
+    sessions,
+    sessionProgress: sessionProgressRows,
+    cravings,
+    journalEntries,
+    achievements,
+  })
+  const sessionsCompleted = sessionProgressRows.filter((row: any) => row.status === 'completed').length
+  const activityUser = user as { id: string; lastActive?: string } | undefined
+  const userIsActive = activityUser
+    ? isUserActiveWithinDays(activityUser, activityByUserAll, 7)
+    : false
+  const lastActiveDate = activityUser
+    ? getUserLastActive(activityUser, activityByUserAll.get(activityUser.id))
+    : null
+  const daysSince = activityUser ? daysSinceLastActive(activityUser, activityByUserAll) : null
 
   const tabs: { id: TabType; label: string; icon: typeof User }[] = [
     { id: 'overview', label: 'Overview', icon: User },
@@ -219,7 +245,20 @@ export const UserDetail = () => {
           <h1 className="text-3xl font-bold text-neutral-dark">{user.name || user.email}</h1>
           <p className="text-neutral-500 mt-1 font-mono text-sm">ID: {user.id}</p>
           <div className="flex items-center gap-2 mt-2">
-            <span className="px-2 py-1 text-xs bg-success/10 text-success rounded">Active</span>
+            <span
+              className={`px-2 py-1 text-xs rounded ${
+                userIsActive ? 'bg-success/10 text-success' : 'bg-neutral-200 text-neutral-600'
+              }`}
+            >
+              {userIsActive ? 'Active (7d)' : 'Inactive'}
+            </span>
+            {lastActiveDate ? (
+              <span className="text-xs text-neutral-500">
+                Last active {daysSince === 0 ? 'today' : daysSince === 1 ? 'yesterday' : `${daysSince} days ago`}
+              </span>
+            ) : (
+              <span className="text-xs text-neutral-500">No app activity recorded</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -486,7 +525,7 @@ export const UserDetail = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-500">Sessions Completed</span>
                     <span className="font-semibold">
-                      {currentSession?.current_day || 0}/10
+                      {sessionsCompleted}
                     </span>
               </div>
               <div className="flex items-center justify-between">
@@ -542,44 +581,37 @@ export const UserDetail = () => {
               <div className="bg-white rounded-lg shadow-card p-6">
                 <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
                 <div className="space-y-3 text-sm">
-                  {sessions.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-success mt-0.5" />
-                      <div>
-                        <p>Completed Day {currentSession?.current_day}</p>
-                        <p className="text-xs text-neutral-500">2 days ago</p>
-                      </div>
-                    </div>
-                  )}
-                  {cravings.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <TrendingUp className="w-4 h-4 text-warning mt-0.5" />
-                      <div>
-                        <p>Logged craving - {cravings[0]?.trigger}</p>
-                        <p className="text-xs text-neutral-500">3 days ago</p>
-                      </div>
-                    </div>
-                  )}
-                  {journalEntries.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <FileText className="w-4 h-4 text-secondary mt-0.5" />
-                      <div>
-                        <p>Created journal entry</p>
-                        <p className="text-xs text-neutral-500">5 days ago</p>
-                      </div>
-                    </div>
-                  )}
-                  {achievements.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <Award className="w-4 h-4 text-warning mt-0.5" />
-                      <div>
-                        <p>Unlocked achievement</p>
-                        <p className="text-xs text-neutral-500">7 days ago</p>
-                      </div>
-                    </div>
+                  {recentActivity.length === 0 ? (
+                    <p className="text-neutral-500">No activity recorded yet.</p>
+                  ) : (
+                    recentActivity.map((event) => {
+                      const Icon =
+                        event.icon === 'session'
+                          ? CheckCircle
+                          : event.icon === 'craving'
+                            ? TrendingUp
+                            : event.icon === 'journal'
+                              ? FileText
+                              : Award
+                      return (
+                        <div key={event.id} className="flex items-start gap-2">
+                          <Icon className="w-4 h-4 text-success mt-0.5" />
+                          <div>
+                            <p>{event.message}</p>
+                            <p className="text-xs text-neutral-500">
+                              <TimeAgo date={event.date} />
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })
                   )}
                 </div>
-                <button className="mt-4 text-sm text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('activity')}
+                  className="mt-4 text-sm text-primary hover:underline"
+                >
                   View all activity →
                 </button>
               </div>
@@ -607,8 +639,17 @@ export const UserDetail = () => {
                   <div>
                     <label className="text-sm text-neutral-500">Started</label>
                     <p className="font-medium">
-                      {currentSession.started_at ? new Date(currentSession.started_at).toLocaleDateString() : '-'}
+                      {currentSession.started_at
+                        ? new Date(currentSession.started_at).toLocaleString()
+                        : currentSession.created
+                          ? new Date(currentSession.created).toLocaleString()
+                          : '-'}
                     </p>
+                    {(currentSession.started_at || currentSession.created) && (
+                      <p className="text-xs text-neutral-500 mt-1">
+                        <TimeAgo date={currentSession.started_at || currentSession.created} />
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-neutral-500">Last Activity</label>

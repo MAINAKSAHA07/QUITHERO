@@ -28,23 +28,22 @@ const run = async () => {
   }
 
   const progress = await pb.collection('session_progress').getFullList({
-    filter: 'status = "completed"',
-    fields: 'user,completed_at',
+    fields: 'user,completed_at,updated,created',
   })
 
   const latestByUser = new Map()
   for (const row of progress) {
-    if (!row.completed_at) continue
-    const t = new Date(row.completed_at).getTime()
+    const raw = row.completed_at
+    if (!raw) continue
+    const t = new Date(raw).getTime()
     const prev = latestByUser.get(row.user) ?? 0
-    if (t > prev) latestByUser.set(row.user, row.completed_at)
+    if (t > prev) latestByUser.set(row.user, raw)
   }
 
-  const users = await pb.collection('users').getFullList({ fields: 'id,lastActive,updated' })
+  const users = await pb.collection('users').getFullList({ fields: 'id,lastActive' })
   let updated = 0
   for (const user of users) {
-    const fromProgress = latestByUser.get(user.id)
-    const candidate = fromProgress || user.updated
+    const candidate = latestByUser.get(user.id)
     if (!candidate) continue
     if (user.lastActive && new Date(user.lastActive) >= new Date(candidate)) continue
     await pb.collection('users').update(user.id, { lastActive: candidate })

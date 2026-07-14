@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import { ArrowLeft, Plus, Edit, Trash2, GripVertical, FileText, HelpCircle, CheckCircle, Play, Video, Music } from 'lucide-react'
+import { MediaUrlField } from '../../components/MediaUrlField'
 
 type StepType = 'text' | 'question_mcq' | 'question_open' | 'exercise' | 'video' | 'audio'
 
@@ -376,34 +377,34 @@ const AddEditStepModal: React.FC<AddEditStepModalProps> = ({ dayId, step, onClos
                 placeholder="Enter text content..."
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Image URL (optional)</label>
-              <input
-                type="url"
-                value={formData.content_json?.image_url || ''}
-                onChange={(e) => setFormData({
+            <MediaUrlField
+              label="Image (optional)"
+              value={formData.content_json?.image_url || ''}
+              onChange={(image_url) =>
+                setFormData({
                   ...formData,
-                  content_json: { ...formData.content_json, image_url: e.target.value }
-                })}
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="https://example.com/image.jpg"
-              />
-              <p className="text-xs text-neutral-500 mt-1">Supports: JPG, PNG, GIF, WebP</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">Video URL (optional)</label>
-              <input
-                type="url"
-                value={formData.content_json?.video_url || ''}
-                onChange={(e) => setFormData({
+                  content_json: { ...formData.content_json, image_url },
+                })
+              }
+              mediaType="image"
+              folder="sessions"
+              placeholder="https://example.com/image.jpg or upload"
+              hint="Supports: JPG, PNG, GIF, WebP"
+            />
+            <MediaUrlField
+              label="Video (optional)"
+              value={formData.content_json?.video_url || ''}
+              onChange={(video_url) =>
+                setFormData({
                   ...formData,
-                  content_json: { ...formData.content_json, video_url: e.target.value }
-                })}
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="https://www.youtube.com/embed/VIDEO_ID or https://example.com/video.mp4"
-              />
-              <p className="text-xs text-neutral-500 mt-1">Supports: YouTube embed URLs, MP4, WebM, OGG</p>
-            </div>
+                  content_json: { ...formData.content_json, video_url },
+                })
+              }
+              mediaType="video"
+              folder="sessions"
+              placeholder="YouTube embed URL or upload MP4/WebM"
+              hint="YouTube embed URLs or uploaded video files"
+            />
           </div>
         )
 
@@ -660,23 +661,21 @@ const AddEditStepModal: React.FC<AddEditStepModalProps> = ({ dayId, step, onClos
       case 'video':
         return (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Video URL <span className="text-danger">*</span>
-              </label>
-              <input
-                type="url"
-                value={formData.content_json?.video_url || ''}
-                onChange={(e) => setFormData({
+            <MediaUrlField
+              label="Video"
+              value={formData.content_json?.video_url || ''}
+              onChange={(video_url) =>
+                setFormData({
                   ...formData,
-                  content_json: { ...formData.content_json, video_url: e.target.value }
-                })}
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                required
-                placeholder="https://www.youtube.com/embed/VIDEO_ID or https://example.com/video.mp4"
-              />
-              <p className="text-xs text-neutral-500 mt-1">For YouTube: Use embed URL format (https://www.youtube.com/embed/VIDEO_ID)</p>
-            </div>
+                  content_json: { ...formData.content_json, video_url },
+                })
+              }
+              mediaType="video"
+              folder="sessions"
+              required
+              placeholder="YouTube embed URL or upload MP4/WebM"
+              hint="For YouTube use embed format: https://www.youtube.com/embed/VIDEO_ID"
+            />
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Title (optional)</label>
               <input
@@ -725,22 +724,20 @@ const AddEditStepModal: React.FC<AddEditStepModalProps> = ({ dayId, step, onClos
                 placeholder="Audio title"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Audio URL <span className="text-danger">*</span>
-              </label>
-              <input
-                type="url"
-                value={formData.content_json?.audio_url || ''}
-                onChange={(e) => setFormData({
+            <MediaUrlField
+              label="Audio"
+              value={formData.content_json?.audio_url || ''}
+              onChange={(audio_url) =>
+                setFormData({
                   ...formData,
-                  content_json: { ...formData.content_json, audio_url: e.target.value }
-                })}
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                required
-                placeholder="https://example.com/audio.mp3"
-              />
-            </div>
+                  content_json: { ...formData.content_json, audio_url },
+                })
+              }
+              mediaType="audio"
+              folder="sessions"
+              required
+              placeholder="https://example.com/audio.mp3 or upload"
+            />
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
               <textarea

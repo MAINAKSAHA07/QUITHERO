@@ -22,7 +22,7 @@ import { Footer } from './sections/Footer'
 export function LandingPage() {
   useLandingInteractions()
   return (
-    <>
+    <main id="main-content">
       <Header />
       <Hero />
       <Problem />
@@ -42,6 +42,6 @@ export function LandingPage() {
       <Faq />
       <FinalCta />
       <Footer />
-    </>
+    </main>
   )
 }

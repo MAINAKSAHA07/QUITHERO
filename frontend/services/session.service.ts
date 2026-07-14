@@ -2,7 +2,7 @@ import { BaseService } from './base.service'
 import { UserSession, SessionProgress, StepResponse } from '../types/models'
 import { ApiResponse } from '../types/api'
 import { SessionStatus } from '../types/enums'
-import { pb, touchLastActive } from '../lib/pocketbase'
+import { pb } from '../lib/pocketbase'
 import { programService } from './program.service'
 
 export class SessionService extends BaseService {
@@ -107,6 +107,19 @@ export class SessionService extends BaseService {
     }
   }
 
+  /** Set program start timestamp once — when user actually opens Day 1. */
+  async markProgramStarted(userId: string): Promise<void> {
+    const userSession = await this.getCurrentSession(userId)
+    if (!userSession.success || !userSession.data?.id) return
+    const session = userSession.data
+    if (session.started_at && session.status !== SessionStatus.NOT_STARTED) return
+
+    await pb.collection('user_sessions').update(session.id!, {
+      started_at: session.started_at || new Date().toISOString(),
+      status: SessionStatus.IN_PROGRESS,
+    })
+  }
+
   /**
    * Create or update session progress
    */
@@ -125,7 +138,6 @@ export class SessionService extends BaseService {
           user: userId,
           program_day: programDayId,
         })
-        touchLastActive()
         return { success: true, data: updated as any }
       } else {
         // Create new
@@ -136,7 +148,6 @@ export class SessionService extends BaseService {
           status: data.status || 'not_started',
           last_step_index: data.last_step_index || 0,
         })
-        touchLastActive()
         return { success: true, data: created as any }
       }
     } catch (error: any) {

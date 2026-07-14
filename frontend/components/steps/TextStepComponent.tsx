@@ -2,6 +2,7 @@ import { Step } from '../../types/models'
 import { TextStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import { sanitizeStepText } from '../../utils/stepContentFormat'
+import { isEmbedVideoUrl } from '../../utils/mediaUrl'
 
 interface TextStepComponentProps {
   step: Step
@@ -80,12 +81,21 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
       )}
       {content.video_url && (
         <div className="aspect-video glass rounded-xl overflow-hidden">
-          <iframe
-            src={content.video_url}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+          {isEmbedVideoUrl(content.video_url) ? (
+            <iframe
+              src={content.video_url}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video
+              src={content.video_url}
+              className="w-full h-full object-contain bg-black"
+              controls
+              playsInline
+            />
+          )}
         </div>
       )}
       <div className="space-y-3 sm:space-y-4">

@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { useAdminAuth } from '../../context/AdminAuthContext'
-import { countActiveUsers, getUserLastActive, indexActivityByUser } from '../../lib/userActivity'
+import { countActiveUsers, getUserLastActive } from '../../lib/userActivity'
+import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import { Users, Activity, Trophy, MessageSquare, UserPlus } from 'lucide-react'
 import { MetricCard } from '../../components/common/MetricCard'
 import { UserGrowthChart } from '../../components/charts/UserGrowthChart'
@@ -48,6 +49,13 @@ export const Dashboard = () => {
     enabled: queryEnabled,
   })
 
+  const { data: activityByUser = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    enabled: queryEnabled,
+    staleTime: 60_000,
+  })
+
   const { data: supportTicketsData } = useQuery({
     queryKey: ['support_tickets', 'pending'],
     queryFn: async () => {
@@ -83,6 +91,20 @@ export const Dashboard = () => {
     }),
     enabled: queryEnabled,
   })
+
+  const { data: programDaysMeta } = useQuery({
+    queryKey: ['program_days', 'meta'],
+    queryFn: () => adminCollectionHelpers.getFullList('program_days', {
+      fields: 'day_number',
+      sort: 'day_number',
+    }),
+    enabled: queryEnabled,
+  })
+
+  const maxProgramDay = Math.max(
+    1,
+    ...(programDaysMeta?.data || []).map((d: any) => d.day_number || 0)
+  )
 
   const fetchFailed = usersData?.success === false
 
@@ -141,9 +163,8 @@ export const Dashboard = () => {
   }, [recentUsers, sessionsData, recentAchievements])
 
   const totalUsers = usersData?.data?.length || 0
-  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
 
-  // Active = last session completion, lastActive heartbeat, or profile update in last 7 days
+  // Active = real app usage in last 7 calendar days
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
   const activeUsers = countActiveUsers(usersData?.data || [], activityByUser, 7)
@@ -225,48 +246,47 @@ export const Dashboard = () => {
   const calculateProgramProgressData = () => {
     const allSessions = allSessionsData?.data || []
     const users = usersData?.data || []
-    
-    // Users who haven't started
+    const third = Math.max(1, Math.floor(maxProgramDay / 3))
+    const twoThird = Math.max(2, Math.floor((maxProgramDay * 2) / 3))
+
     const notStarted = users.filter((u: any) => {
       return !allSessions.some((s: any) => s.user === u.id)
     }).length
-    
-    // Users by day progress
-    const days1to3 = allSessions.filter((s: any) => {
+
+    const early = allSessions.filter((s: any) => {
       const day = s.current_day || 0
-      return day >= 1 && day <= 3 && s.status !== 'completed'
+      return day >= 1 && day <= third && s.status !== 'completed'
     }).length
-    
-    const days4to7 = allSessions.filter((s: any) => {
+
+    const mid = allSessions.filter((s: any) => {
       const day = s.current_day || 0
-      return day >= 4 && day <= 7 && s.status !== 'completed'
+      return day > third && day <= twoThird && s.status !== 'completed'
     }).length
-    
-    const days8to10 = allSessions.filter((s: any) => {
+
+    const late = allSessions.filter((s: any) => {
       const day = s.current_day || 0
-      return day >= 8 && day <= 10 && s.status !== 'completed'
+      return day > twoThird && day <= maxProgramDay && s.status !== 'completed'
     }).length
-    
-    // Completed programs
+
     const completed = allSessions.filter((s: any) => s.status === 'completed').length
-    
-    const total = notStarted + days1to3 + days4to7 + days8to10 + completed
-    
+
+    const total = notStarted + early + mid + late + completed
+
     if (total === 0) {
       return [
         { name: 'Not Started', value: 0, color: '#9ca3af' },
-        { name: 'Days 1-3', value: 0, color: '#FFD08A' },
-        { name: 'Days 4-7', value: 0, color: '#F58634' },
-        { name: 'Days 8-10', value: 0, color: '#D45A1C' },
+        { name: `Days 1-${third}`, value: 0, color: '#FFD08A' },
+        { name: `Days ${third + 1}-${twoThird}`, value: 0, color: '#F58634' },
+        { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: 0, color: '#D45A1C' },
         { name: 'Completed', value: 0, color: '#4CAF50' },
       ]
     }
-    
+
     return [
       { name: 'Not Started', value: notStarted, color: '#9ca3af' },
-      { name: 'Days 1-3', value: days1to3, color: '#FFD08A' },
-      { name: 'Days 4-7', value: days4to7, color: '#F58634' },
-      { name: 'Days 8-10', value: days8to10, color: '#D45A1C' },
+      { name: `Days 1-${third}`, value: early, color: '#FFD08A' },
+      { name: `Days ${third + 1}-${twoThird}`, value: mid, color: '#F58634' },
+      { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: late, color: '#D45A1C' },
       { name: 'Completed', value: completed, color: '#4CAF50' },
     ]
   }
@@ -308,7 +328,7 @@ export const Dashboard = () => {
         <MetricCard
           title="Sessions Completed"
           value={completedDailySessions}
-          subtitle={`${programGraduates} finished 30-day program`}
+          subtitle={`${programGraduates} completed full program`}
           icon={Trophy}
           gradient="from-white to-success/20"
         />

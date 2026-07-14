@@ -40,8 +40,11 @@ import {
   getTriggerExerciseHint,
 } from '../utils/sessionPersonalization'
 import {
-  getSessionDuration,
-  sessionTimerKey,
+  clearSessionTimer,
+  getSessionElapsedSeconds,
+  elapsedToStorageMinutes,
+  pauseSessionSegment,
+  startSessionSegment,
 } from '../utils/sessionDuration'
 import KycRequiredModal from '../components/KycRequiredModal'
 import { useKycGate } from '../hooks/useKycGate'
@@ -56,12 +59,11 @@ export default function Session() {
   const routeDayKey = dayIdParam || dayNumParam
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
-  const [, setSessionProgress] = useState<SessionProgress | null>(null)
+  const [sessionProgress, setSessionProgress] = useState<SessionProgress | null>(null)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [completedDurationSeconds, setCompletedDurationSeconds] = useState(0)
   const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
   const [showBeliefAssessment, setShowBeliefAssessment] = useState(false)
@@ -85,13 +87,36 @@ export default function Session() {
   }, [currentStepIndex, showTriggerCheck, showComprehensionCheck])
 
   const beginSessionTimer = () => {
-    if (sessionStartTime) return
-    const now = new Date()
-    setSessionStartTime(now)
-    if (dayId) {
-      sessionStorage.setItem(sessionTimerKey(dayId), String(now.getTime()))
-    }
+    if (!dayId) return
+    startSessionSegment(dayId)
   }
+
+  useEffect(() => {
+    if (!dayId || isLoading || steps.length === 0) return
+    startSessionSegment(dayId)
+  }, [dayId, isLoading, steps.length])
+
+  useEffect(() => {
+    if (!dayId) return
+
+    const onHide = () => pauseSessionSegment(dayId)
+    const onShow = () => startSessionSegment(dayId)
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHide()
+      else onShow()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onHide)
+    window.addEventListener('pageshow', onShow)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onHide)
+      window.removeEventListener('pageshow', onShow)
+      onHide()
+    }
+  }, [dayId])
 
   const dayNumber = programDay?.day_number || 1
 
@@ -322,14 +347,11 @@ export default function Session() {
               setSessionProgress(updateResult.data)
             }
             analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
+            sessionService.markProgramStarted(user.id).catch(() => {})
           }
 
-          if (progress.status === SessionStatus.IN_PROGRESS && dayId) {
-            const stored = sessionStorage.getItem(sessionTimerKey(dayId))
-            if (stored) {
-              const resumed = new Date(Number(stored))
-              if (!Number.isNaN(resumed.getTime())) setSessionStartTime(resumed)
-            }
+          if (dayId && (progress.status === SessionStatus.IN_PROGRESS || (progress.last_step_index ?? 0) > 0)) {
+            startSessionSegment(dayId)
           }
         } else {
           const newProgressResult = await sessionService.upsertSessionProgress(user.id, dayId, {
@@ -340,6 +362,7 @@ export default function Session() {
             setSessionProgress(newProgressResult.data)
           }
           analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
+          sessionService.markProgramStarted(user.id).catch(() => {})
         }
       } else {
         console.error('Failed to fetch session progress:', progressResult.error)
@@ -370,8 +393,8 @@ export default function Session() {
   const advanceFromStep = async (stepResponse?: unknown): Promise<boolean> => {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return false
 
-    if (!sessionStartTime) {
-      beginSessionTimer()
+    beginSessionTimer()
+    if (sessionProgress?.status !== SessionStatus.IN_PROGRESS) {
       try {
         await sessionService.upsertSessionProgress(user.id, dayId, {
           status: SessionStatus.IN_PROGRESS,
@@ -515,11 +538,11 @@ export default function Session() {
 
     setIsSaving(true)
     try {
-      const endTime = new Date()
-      const startTime = sessionStartTime ?? endTime
-      const { totalSeconds, minutesForStorage } = getSessionDuration(startTime, endTime)
+      if (dayId) pauseSessionSegment(dayId)
+      const totalSeconds = dayId ? getSessionElapsedSeconds(dayId) : 0
+      const minutesForStorage = elapsedToStorageMinutes(totalSeconds)
       setCompletedDurationSeconds(totalSeconds)
-      if (dayId) sessionStorage.removeItem(sessionTimerKey(dayId))
+      if (dayId) clearSessionTimer(dayId)
 
       const result = await sessionService.completeSession(user.id, dayId, minutesForStorage)
 

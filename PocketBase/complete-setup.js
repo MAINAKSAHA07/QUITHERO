@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * QUIT HERO - Complete Database Setup Script
+ * Smono - Complete Database Setup Script
  * ============================================
  *
  * This script provides a complete database setup for new developers.

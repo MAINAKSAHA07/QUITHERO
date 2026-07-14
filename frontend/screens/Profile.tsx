@@ -39,6 +39,10 @@ import { daysSinceQuitDate } from '../utils/smokeFreeDays'
 import { useProgress } from '../hooks/useProgress'
 
 import { getLanguageDisplayName } from '../constants/languages'
+import {
+  getPendingDeletionRequest,
+  submitDeletionRequest,
+} from '../services/account-deletion.service'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -56,8 +60,8 @@ export default function Profile() {
   const [savingPhone, setSavingPhone] = useState(false)
   const [notifications, setNotifications] = useState({
     daily: userProfile?.enable_reminders ?? true,
-    craving: true,
-    achievements: true,
+    craving: userProfile?.enable_craving_alerts ?? true,
+    achievements: userProfile?.enable_achievement_notifications ?? true,
     community: false,
   })
   const [reminderTime, setReminderTime] = useState(userProfile?.daily_reminder_time || '09:00')
@@ -71,12 +75,17 @@ export default function Profile() {
     confirmPassword: '',
   })
   const [changingPassword, setChangingPassword] = useState(false)
+  const [pendingDeletionRequest, setPendingDeletionRequest] = useState(false)
+  const [submittingDeletion, setSubmittingDeletion] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
       fetchUserProfile()
       refreshProgress()
       analyticsService.trackPageView('profile', user.id)
+      getPendingDeletionRequest(user.id).then((result) => {
+        setPendingDeletionRequest(!!result.data)
+      })
     }
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -84,8 +93,8 @@ export default function Profile() {
     if (userProfile) {
       setNotifications({
         daily: userProfile.enable_reminders ?? true,
-        craving: true,
-        achievements: true,
+        craving: userProfile.enable_craving_alerts ?? true,
+        achievements: userProfile.enable_achievement_notifications ?? true,
         community: false,
       })
       setReminderTime(userProfile.daily_reminder_time || '09:00')
@@ -124,11 +133,15 @@ export default function Profile() {
   const handleSaveSettings = async (overrides?: {
     daily?: boolean
     reminderTime?: string
+    craving?: boolean
+    achievements?: boolean
   }) => {
     if (!user?.id) return
 
     const daily = overrides?.daily ?? notifications.daily
     const time = overrides?.reminderTime ?? reminderTime
+    const craving = overrides?.craving ?? notifications.craving
+    const achievements = overrides?.achievements ?? notifications.achievements
 
     setSaving(true)
     setError('')
@@ -139,6 +152,8 @@ export default function Profile() {
         enable_reminders: daily,
         daily_reminder_time: daily ? time : undefined,
         timezone: getUserTimezone(),
+        enable_craving_alerts: craving,
+        enable_achievement_notifications: achievements,
       })
       setSuccess('Settings saved successfully!')
       await analyticsService.trackEvent('profile_settings_updated', { settings: 'notifications' }, user.id)
@@ -696,14 +711,20 @@ export default function Profile() {
             <ToggleRow
               title="Craving alerts"
               on={notifications.craving}
-              onToggle={() => setNotifications({ ...notifications, craving: !notifications.craving })}
+              onToggle={() => {
+                const next = !notifications.craving
+                setNotifications({ ...notifications, craving: next })
+                handleSaveSettings({ craving: next })
+              }}
             />
             <ToggleRow
               title="Achievement notifications"
               on={notifications.achievements}
-              onToggle={() =>
-                setNotifications({ ...notifications, achievements: !notifications.achievements })
-              }
+              onToggle={() => {
+                const next = !notifications.achievements
+                setNotifications({ ...notifications, achievements: next })
+                handleSaveSettings({ achievements: next })
+              }}
             />
           </div>
         </motion.section>
@@ -839,22 +860,37 @@ export default function Profile() {
         </button>
         <button
           type="button"
+          disabled={pendingDeletionRequest || submittingDeletion}
           onClick={async () => {
-            if (!user?.id) return
+            if (!user?.id || pendingDeletionRequest) return
             const confirmed = window.confirm(
-              'Are you sure you want to delete your account? This action is permanent and cannot be undone.'
+              'Request permanent account deletion? Our team will review and process your request. You can keep using the app until deletion is completed.'
             )
             if (!confirmed) return
+            setSubmittingDeletion(true)
             try {
-              await pb.collection('users').delete(user.id)
-              handleLogout()
+              const result = await submitDeletionRequest(user.id)
+              if (!result.success) {
+                alert(result.error || 'Failed to submit deletion request. Please contact support.')
+                return
+              }
+              setPendingDeletionRequest(true)
+              alert(
+                'Your deletion request has been submitted. Our team will process it shortly. You will be logged out once your account is deleted.'
+              )
             } catch {
-              alert('Failed to delete account. Please contact support.')
+              alert('Failed to submit deletion request. Please contact support.')
+            } finally {
+              setSubmittingDeletion(false)
             }
           }}
-          className="w-full py-3 text-sm text-[#0E2538]/40 hover:text-red-500 transition-colors mb-2"
+          className="w-full py-3 text-sm text-[#0E2538]/40 hover:text-red-500 transition-colors mb-2 disabled:opacity-50 disabled:hover:text-[#0E2538]/40"
         >
-          Delete Account
+          {pendingDeletionRequest
+            ? 'Account deletion requested'
+            : submittingDeletion
+              ? 'Submitting request…'
+              : 'Request account deletion'}
         </button>
       </div>
 

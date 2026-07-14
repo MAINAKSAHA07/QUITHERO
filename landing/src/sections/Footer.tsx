@@ -15,6 +15,7 @@ export function Footer() {
         <div className="footer-links">
           <a href="#science">Our Method</a>
           <a href="#why-smono">About Smono</a>
+          <a href="/blog">Blog</a>
           <a href="#" data-app-link="/privacy">Privacy Policy</a>
           <a href="#" data-app-link="/terms">Terms of Use</a>
           <a href="mailto:support@smono.app">Contact</a>

@@ -12,6 +12,13 @@ export default defineConfig({
   server: {
     port: 5177,
     host: true,
+    proxy: {
+      '/api/pocketbase': {
+        target: process.env.VITE_POCKETBASE_URL || 'http://localhost:8096',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/pocketbase/, ''),
+      },
+    },
   },
   preview: {
     port: 5177,

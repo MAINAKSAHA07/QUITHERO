@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
-import { pb, authHelpers, touchLastActive, mapAuthRecordToAppUser } from '../lib/pocketbase'
+import { pb, authHelpers, mapAuthRecordToAppUser } from '../lib/pocketbase'
 import { preferenceToReminderTime } from '../utils/reminderTime'
 import { fetchDailyQuoteText } from '../utils/dailyQuote'
 import { NotificationService } from '../utils/notifications'
@@ -91,13 +91,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Heartbeat for backoffice active-user analytics (login + every 15 min while app open)
-  useEffect(() => {
-    if (!user?.id || !isAuthenticated) return
-    touchLastActive()
-    const interval = window.setInterval(touchLastActive, 15 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [user?.id, isAuthenticated])
+  // lastActive heartbeat is written on real app actions only (not passive tab open)
 
   const fetchUserProfile = useCallback(async () => {
     if (!user?.id) return

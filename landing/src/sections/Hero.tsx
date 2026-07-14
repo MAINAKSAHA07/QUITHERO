@@ -9,8 +9,11 @@ export function Hero() {
     <div className="container hero-content">
       <div className="hero-text">
         <span className="hero-pill">🌿 10-Day Quit · 20-Day Support</span>
-        <h1 className="hero-headline">Quit Smoking in 10 Days Without Feeling Like You're Giving Up Your Life</h1>
+        <h1 className="hero-headline">Quit Smoking in 10 Days Without Feeling Like You&apos;re Giving Up Your Life</h1>
         <p className="hero-sub">Remove the desire to smoke — not just the cigarette. A guided psychological program that fits real life, without guilt, patches, or willpower wars.</p>
+        <p className="hero-about" id="about-smono">
+          <strong>What is Smono?</strong> Smono is a quit smoking app that uses cognitive behavioural therapy (CBT), mindfulness, and relapse prevention to help you stop smoking without willpower battles. The program is a {`10-day quit path with 20 days of smoke-free support`} (30 days total), available on web and mobile.
+        </p>
         <div className="hero-ctas">
           <button className="btn-primary js-start-app">Start My 10-Day Quit Program <span>→</span></button>
           <button className="btn-ghost">▷ See How Smono Works</button>

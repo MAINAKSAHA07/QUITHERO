@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Quit Hero — AWS EC2 deployment script
+# Smono — AWS EC2 deployment script
 #
 # Usage (on EC2, from project root):
 #   chmod +x deploy.sh
@@ -456,12 +456,68 @@ run_smoke_check_setup() {
   node PocketBase/setup-smoke-check.js || warn "setup-smoke-check.js failed — smoke check push may not work"
 }
 
+run_account_deletion_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-account-deletion.js" ]] || return
+
+  log "Ensuring account_deletion_requests collection exists"
+  cd "$APP_DIR"
+  node PocketBase/setup-account-deletion.js || warn "setup-account-deletion.js failed — deletion requests may not work"
+}
+
+run_blog_fields_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-blog-fields.js" ]] || return
+
+  log "Ensuring content_items blog fields exist"
+  cd "$APP_DIR"
+  node PocketBase/setup-blog-fields.js || warn "setup-blog-fields.js failed — landing blog may not work"
+}
+
+run_media_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-media.js" ]] || return
+
+  log "Ensuring media collection exists"
+  cd "$APP_DIR"
+  node PocketBase/setup-media.js || warn "setup-media.js failed — file uploads may not work"
+}
+
+run_app_settings_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-app-settings.js" ]] || return
+
+  log "Ensuring app_settings collection exists"
+  cd "$APP_DIR"
+  node PocketBase/setup-app-settings.js || warn "setup-app-settings.js failed — App Settings may not persist"
+}
+
+run_notification_prefs_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-notification-prefs.js" ]] || return
+
+  log "Ensuring user_profiles notification fields exist"
+  cd "$APP_DIR"
+  node PocketBase/setup-notification-prefs.js || warn "setup-notification-prefs.js failed — profile notification toggles may not save"
+}
+
+run_pb_rules() {
+  [[ -f "$APP_DIR/PocketBase/set-rules.js" ]] || return
+
+  log "Applying PocketBase collection rules (admin + user access)"
+  cd "$APP_DIR"
+  node PocketBase/set-rules.js || warn "set-rules.js failed — backoffice may not list all users"
+}
+
 run_last_active_setup() {
   [[ -f "$APP_DIR/PocketBase/add-last-active.js" ]] || return
 
   log "Ensuring users.lastActive field exists"
   cd "$APP_DIR"
   node PocketBase/add-last-active.js || warn "add-last-active.js failed — dashboard active-user counts may be stale"
+}
+
+run_fix_last_active() {
+  [[ -f "$APP_DIR/PocketBase/fix-last-active.js" ]] || return
+
+  log "Clearing bogus users.lastActive heartbeats"
+  cd "$APP_DIR"
+  node PocketBase/fix-last-active.js || warn "fix-last-active.js failed — active status may be inflated"
 }
 
 run_timezone_setup() {
@@ -526,7 +582,7 @@ setup_ai_proxy() {
   service_file="/etc/systemd/system/quithero-ai-proxy.service"
   sudo tee "$service_file" >/dev/null <<EOF
 [Unit]
-Description=Quit Hero API server (AI personalization + Web Push)
+Description=Smono API server (AI personalization + Web Push)
 After=network.target
 
 [Service]
@@ -766,6 +822,19 @@ server {
 
     location = /favicon.ico { try_files /mascot.png =404; }
 
+    location /api/pocketbase/ {
+        proxy_pass http://127.0.0.1:${PB_PORT}/;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -933,7 +1002,7 @@ deploy_all() {
     cd "$APP_DIR"
   fi
 
-  log "Deploying Quit Hero to $APP_DIR"
+  log "Deploying Smono to $APP_DIR"
   log "Public URL base: $PUBLIC_URL"
 
   sync_project_on_server
@@ -941,7 +1010,14 @@ deploy_all() {
   run_pb_setup
   run_push_setup
   run_smoke_check_setup
+  run_account_deletion_setup
+  run_blog_fields_setup
+  run_media_setup
+  run_app_settings_setup
+  run_notification_prefs_setup
+  run_pb_rules
   run_last_active_setup
+  run_fix_last_active
   run_timezone_setup
   run_oauth_setup
   build_frontend
@@ -956,7 +1032,7 @@ deploy_all() {
 
 usage() {
   cat <<'USAGE'
-Quit Hero EC2 deploy
+Smono EC2 deploy
 
 Commands:
   ./deploy.sh              Deploy on this machine (EC2)

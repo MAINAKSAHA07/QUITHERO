@@ -201,7 +201,7 @@ export default function InsightSequence({
             </div>
           </div>
           <div className="p-4 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-center text-xs text-text-primary/80">
-            ✨ QUITHERO helps you lock in these gains day by day.
+            ✨ Smono helps you lock in these gains day by day.
           </div>
         </div>
       ),

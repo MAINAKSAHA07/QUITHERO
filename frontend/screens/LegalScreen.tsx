@@ -158,8 +158,10 @@ export default function LegalScreen({ initialType = 'terms' }: LegalScreenProps)
                   <h2 className="text-base font-bold text-text-primary">4. Data Deletion Right</h2>
                 </div>
                 <p className="text-sm text-text-primary/80">
-                  You retain absolute control over your personal data. 
-                  You can permanently delete your user profile and purge all trigger history, journals, and progress records at any time by using the "Delete Account" button located in your profile settings. This action is immediate and non-reversible.
+                  You retain absolute control over your personal data.
+                  You can request permanent deletion of your profile and all associated data at any time using the
+                  &quot;Request account deletion&quot; option in your profile settings. Your request is sent to our
+                  team for review and processing; deletion is not immediate.
                 </p>
               </section>
             </div>

@@ -3,15 +3,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { MediaUrlField } from '../../components/MediaUrlField'
 
 interface Article {
   id: string
   title: string
+  slug?: string
+  excerpt?: string
   content?: string
   type?: string
   language?: string
   status?: string
   image_url?: string
+  published_at?: string
   is_active?: boolean
   created?: string
   updated?: string
@@ -19,6 +23,15 @@ interface Article {
 }
 
 const ARTICLE_TYPES = ['article', 'blog', 'guide'] as const
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 export const Articles = () => {
   const queryClient = useQueryClient()
@@ -33,7 +46,7 @@ export const Articles = () => {
   const buildFilter = () => {
     const filters: string[] = [`(type = "article" || type = "blog" || type = "guide")`]
     if (searchQuery) {
-      filters.push(`(title ~ "${searchQuery}" || content ~ "${searchQuery}")`)
+      filters.push(`(title ~ "${searchQuery}" || content ~ "${searchQuery}" || excerpt ~ "${searchQuery}")`)
     }
     if (typeFilter !== 'all') {
       filters.push(`type = "${typeFilter}"`)
@@ -94,7 +107,7 @@ export const Articles = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-neutral-dark">Articles</h1>
+        <h1 className="text-3xl font-bold text-neutral-dark">Articles &amp; Blog</h1>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-primary flex items-center gap-2"
@@ -193,10 +206,8 @@ export const Articles = () => {
                   <td className="px-6 py-4">
                     <div>
                       <p className="font-medium text-neutral-dark">{article.title}</p>
-                      {article.content && (
-                        <p className="text-sm text-neutral-500 mt-1 line-clamp-1">
-                          {article.content.substring(0, 100)}...
-                        </p>
+                      {article.slug && article.status === 'published' && (
+                        <p className="text-xs text-primary mt-1 font-mono">/blog/{article.slug}</p>
                       )}
                     </div>
                   </td>
@@ -302,16 +313,27 @@ interface ArticleModalProps {
 }
 
 const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
+  const [slugTouched, setSlugTouched] = useState(!!article?.slug)
   const [formData, setFormData] = useState({
     title: article?.title || '',
+    slug: article?.slug || '',
+    excerpt: article?.excerpt || '',
     content: article?.content || '',
-    type: article?.type || 'article',
+    type: article?.type || 'blog',
     language: article?.language || 'en',
     status: article?.status || 'draft',
     image_url: article?.image_url || '',
     is_active: article?.is_active !== undefined ? article.is_active : true,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleTitleChange = (title: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      title,
+      slug: slugTouched ? prev.slug : slugify(title),
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -324,16 +346,30 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
       return
     }
 
+    const slug = (formData.slug || slugify(formData.title)).trim()
+    if (!slug) {
+      alert('URL slug is required')
+      return
+    }
+
     setIsSubmitting(true)
     try {
+      const publishedAt =
+        formData.status === 'published'
+          ? article?.published_at || new Date().toISOString()
+          : undefined
+
       const payload = {
         title: formData.title.trim(),
+        slug,
+        excerpt: formData.excerpt.trim() || undefined,
         content: formData.content.trim(),
         type: formData.type,
         language: formData.language,
         status: formData.status,
         image_url: formData.image_url.trim() || undefined,
         is_active: formData.is_active,
+        ...(publishedAt ? { published_at: publishedAt } : {}),
       }
 
       const result = article
@@ -372,9 +408,37 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => handleTitleChange(e.target.value)}
               className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              URL slug <span className="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.slug}
+              onChange={(e) => {
+                setSlugTouched(true)
+                setFormData({ ...formData, slug: slugify(e.target.value) })
+              }}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+              placeholder="my-quit-story"
+              required
+            />
+            <p className="text-xs text-neutral-500 mt-1">Landing URL: /blog/{formData.slug || 'your-slug'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Excerpt</label>
+            <textarea
+              value={formData.excerpt}
+              onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+              rows={2}
+              maxLength={300}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Short summary for blog cards (max 300 chars)"
             />
           </div>
           <div>
@@ -382,10 +446,11 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
             <textarea
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              rows={8}
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Article body..."
+              rows={15}
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+              placeholder="Write your blog content in HTML..."
             />
+            <p className="text-xs text-neutral-500 mt-1">Supports HTML formatting (headings, lists, links, images).</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -426,16 +491,15 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Image URL (optional)</label>
-            <input
-              type="url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="https://..."
-            />
-          </div>
+          <MediaUrlField
+            label="Cover image (optional)"
+            value={formData.image_url}
+            onChange={(image_url) => setFormData({ ...formData, image_url })}
+            mediaType="image"
+            folder="blog"
+            placeholder="https://... or upload below"
+            hint="Upload a cover image or paste an external URL. HTML blog content can also include inline images."
+          />
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -445,7 +509,7 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
               className="rounded border-neutral-300"
             />
             <label htmlFor="is_active" className="text-sm text-neutral-700">
-              Active (visible in app when published)
+              Active (visible on landing blog when published)
             </label>
           </div>
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
@@ -462,7 +526,9 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
   )
 }
 
-const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () => void }) => (
+const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () => void }) => {
+  const isHtml = /<[a-z][\s\S]*>/i.test(article.content || '')
+  return (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
     <div
       className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -483,10 +549,18 @@ const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () 
         {article.image_url && (
           <img src={article.image_url} alt="" className="rounded-lg max-h-48 object-cover w-full" />
         )}
-        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-neutral-700">
-          {article.content || <span className="text-neutral-400">No content</span>}
-        </div>
+        {isHtml ? (
+          <div
+            className="prose prose-sm max-w-none text-neutral-700"
+            dangerouslySetInnerHTML={{ __html: article.content || '' }}
+          />
+        ) : (
+          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-neutral-700">
+            {article.content || <span className="text-neutral-400">No content</span>}
+          </div>
+        )}
       </div>
     </div>
   </div>
-)
+  )
+}

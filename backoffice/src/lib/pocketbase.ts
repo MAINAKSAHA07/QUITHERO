@@ -30,6 +30,21 @@ function assertAuthed() {
   }
 }
 
+function pbErrorMessage(error: unknown): string {
+  const err = error as { message?: string; response?: { data?: Record<string, unknown> }; data?: Record<string, unknown> }
+  const data = err?.response?.data ?? err?.data
+  if (data && typeof data === 'object') {
+    const parts = Object.entries(data).map(([key, val]) => {
+      if (val && typeof val === 'object' && 'message' in val) {
+        return `${key}: ${(val as { message: string }).message}`
+      }
+      return `${key}: ${String(val)}`
+    })
+    if (parts.length) return parts.join('; ')
+  }
+  return err?.message || 'Request failed'
+}
+
 async function fetchFullList(
   collectionName: string,
   options?: { filter?: string; sort?: string; expand?: string; fields?: string }
@@ -40,6 +55,7 @@ async function fetchFullList(
     sort: options?.sort,
     expand: options?.expand,
     fields: options?.fields,
+    batch: 200,
   })
   return { success: true as const, data: records }
 }
@@ -56,6 +72,7 @@ async function fetchList(
     sort: options?.sort,
     expand: options?.expand,
     fields: options?.fields,
+    skipTotal: false,
   })
   return { success: true as const, data: result }
 }
@@ -154,12 +171,16 @@ export const adminCollectionHelpers = {
   /**
    * Create a new record
    */
-  async create(collectionName: string, data: any) {
+  async create(collectionName: string, data: Record<string, unknown> | FormData) {
     try {
+      assertAuthed()
       const record = await pb.collection(collectionName).create(data)
       return { success: true, data: record }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      if ((error as { status?: number })?.status === 401 || (error as { status?: number })?.status === 403) {
+        pb.authStore.clear()
+      }
+      return { success: false, error: pbErrorMessage(error) }
     }
   },
 

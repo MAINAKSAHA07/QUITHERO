@@ -6,13 +6,37 @@
     <title>Smono — Quit Smoking in 10 Days Without Willpower</title>
     <meta
       name="description"
-      content="A personalised app-based quit smoking program. Remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention."
+      content="Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention — no patches or willpower wars."
     />
+    <link rel="canonical" href="https://smono.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#F4FBFF" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://smono.app/" />
+    <meta property="og:site_name" content="Smono" />
+    <meta property="og:title" content="Smono — Quit Smoking in 10 Days Without Willpower" />
+    <meta
+      property="og:description"
+      content="Remove the desire to smoke in 10 days, with 20 days of smoke-free support. A CBT-based quit smoking app — no patches, no willpower wars."
+    />
+    <meta property="og:image" content="https://smono.app/smonologo.webp" />
+    <meta property="og:image:alt" content="Smono — quit smoking app logo" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Smono — Quit Smoking in 10 Days Without Willpower" />
+    <meta
+      name="twitter:description"
+      content="Remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention."
+    />
+    <meta name="twitter:image" content="https://smono.app/smonologo.webp" />
     <link rel="icon" type="image/png" href="/mascot.png" />
     <link rel="apple-touch-icon" href="/mascot.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+    />
     <link
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
@@ -58,8 +82,25 @@
           transform: translateY(-8px);
         }
       }
+      .boot-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2.5px solid rgba(14, 37, 56, 0.12);
+        border-top-color: #3F8DD2;
+        border-radius: 50%;
+        margin-inline: auto;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         .boot-loader img {
+          animation: none;
+        }
+        .boot-spinner {
           animation: none;
         }
       }
@@ -67,7 +108,8 @@
   </head>
   <body>
     <div id="boot-loader" class="boot-loader" aria-busy="true" aria-live="polite">
-      <img src="/mascot.png" alt="" width="88" height="88" />
+      <img src="/mascot.png" alt="Smono phoenix mascot loading" width="88" height="88" />
+      <div class="boot-spinner"></div>
       <span>Smono</span>
     </div>
     <div id="root"></div>

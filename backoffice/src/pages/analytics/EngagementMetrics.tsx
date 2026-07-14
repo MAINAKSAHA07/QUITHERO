@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
+import { activitySinceDate, recordInRange } from '../../lib/analyticsHelpers'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
@@ -30,29 +31,51 @@ export const EngagementMetrics = () => {
     }),
   })
 
-  const sessions = sessionsData?.data || []
-  const cravings = cravingsData?.data || []
-  const journalEntries = journalData?.data || []
-  const achievements = achievementsData?.data || []
-
-  // Feature Usage Data - calculate real percentages
   const { data: progressData } = useQuery({
     queryKey: ['session_progress', 'all'],
     queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
   })
 
-  const progressViews = progressData?.data?.length || 0
+  const { data: daysData } = useQuery({
+    queryKey: ['program_days', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('program_days', {
+      fields: 'id,day_number',
+      sort: 'day_number',
+    }),
+  })
+
+  const since = activitySinceDate(dateRange)
+  const inRange = (raw?: string) => recordInRange(raw, since)
+
+  const sessions = (sessionsData?.data || []).filter((s: any) =>
+    inRange(s.completed_at || s.updated || s.created)
+  )
+  const cravings = (cravingsData?.data || []).filter((c: any) => inRange(c.created))
+  const journalEntries = (journalData?.data || []).filter((e: any) =>
+    inRange(e.date || e.created)
+  )
+  const achievements = (achievementsData?.data || []).filter((a: any) =>
+    inRange(a.unlocked_at || a.created)
+  )
+  const progressViews = (progressData?.data || []).filter((p: any) =>
+    inRange(p.completed_at || p.updated || p.created)
+  ).length
+
+  const maxProgramDay = Math.max(
+    1,
+    ...(daysData?.data || []).map((d: any) => d.day_number || 0)
+  )
   const totalFeatureUsage = sessions.length + cravings.length + journalEntries.length + progressViews
   
   const featureUsageData = [
     { name: 'Sessions/Program', value: sessions.length, percentage: totalFeatureUsage > 0 ? Math.round((sessions.length / totalFeatureUsage) * 100) : 0 },
     { name: 'Craving Logs', value: cravings.length, percentage: totalFeatureUsage > 0 ? Math.round((cravings.length / totalFeatureUsage) * 100) : 0 },
     { name: 'Journal Entries', value: journalEntries.length, percentage: totalFeatureUsage > 0 ? Math.round((journalEntries.length / totalFeatureUsage) * 100) : 0 },
-    { name: 'Progress View', value: progressViews, percentage: totalFeatureUsage > 0 ? Math.round((progressViews / totalFeatureUsage) * 100) : 0 },
+    { name: 'Day Progress', value: progressViews, percentage: totalFeatureUsage > 0 ? Math.round((progressViews / totalFeatureUsage) * 100) : 0 },
   ].filter(item => item.value > 0) // Only show features with actual usage
 
   // Session Completion by Day - calculate real completion rates
-  const sessionCompletionData = Array.from({ length: 10 }, (_, i) => {
+  const sessionCompletionData = Array.from({ length: maxProgramDay }, (_, i) => {
     const dayNumber = i + 1
     const daySessions = sessions.filter((s: any) => {
       const currentDay = s.current_day || 0

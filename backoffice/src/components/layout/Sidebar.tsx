@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
     path: '/content',
     children: [
       { icon: FileText, label: 'Programs', path: '/content/programs' },
-      { icon: FileText, label: 'Articles', path: '/content/articles' },
+      { icon: FileText, label: 'Blog & Articles', path: '/content/articles' },
       { icon: FileText, label: 'Quotes & Tips', path: '/content/quotes' },
       { icon: FileText, label: 'Media Library', path: '/content/media' },
     ],
@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
     path: '/support',
     children: [
       { icon: MessageSquare, label: 'Support Tickets', path: '/support/tickets' },
+      { icon: MessageSquare, label: 'Account Deletions', path: '/support/account-deletions' },
       { icon: MessageSquare, label: 'Flagged Cravings', path: '/support/flagged-cravings' },
       { icon: MessageSquare, label: 'Flagged Journals', path: '/support/flagged-journals' },
     ],

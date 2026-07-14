@@ -1,7 +1,7 @@
 {
   "name": "quit-hero",
   "version": "1.0.0",
-  "description": "Quit Hero - Addiction Recovery App",
+  "description": "Smono - Quit smoking recovery app",
   "private": true,
   "type": "module",
   "scripts": {
@@ -29,6 +29,7 @@
     "pb:verify-backoffice": "node PocketBase/verify-backoffice.js",
     "pb:reset-backoffice-admin": "node PocketBase/reset-backoffice-admin.js",
     "pb:add-last-active": "node PocketBase/add-last-active.js",
+    "pb:fix-last-active": "node PocketBase/fix-last-active.js",
     "pb:add-timezone": "node PocketBase/add-timezone-field.js",
     "pb:add-phone": "node PocketBase/add-phone-field.js",
     "pb:seed-sample": "node PocketBase/seed-sample.js",
@@ -39,7 +40,12 @@
     "api-server": "node scripts/api-server.js",
     "generate-vapid": "node scripts/generate-vapid-keys.js",
     "pb:setup-push": "node PocketBase/setup-push-collections.js",
-    "pb:setup-smoke-check": "node PocketBase/setup-smoke-check.js"
+    "pb:setup-smoke-check": "node PocketBase/setup-smoke-check.js",
+    "pb:setup-account-deletion": "node PocketBase/setup-account-deletion.js",
+    "pb:setup-blog-fields": "node PocketBase/setup-blog-fields.js",
+    "pb:setup-media": "node PocketBase/setup-media.js",
+    "pb:setup-app-settings": "node PocketBase/setup-app-settings.js",
+    "pb:setup-notification-prefs": "node PocketBase/setup-notification-prefs.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

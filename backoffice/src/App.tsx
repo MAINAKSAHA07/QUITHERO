@@ -14,6 +14,7 @@ import { Articles } from './pages/content/Articles'
 import { Quotes } from './pages/content/Quotes'
 import { MediaLibrary } from './pages/content/MediaLibrary'
 import { SupportTickets } from './pages/support/SupportTickets'
+import { AccountDeletionRequests } from './pages/support/AccountDeletionRequests'
 import { FlaggedCravings } from './pages/support/FlaggedCravings'
 import { FlaggedJournals } from './pages/support/FlaggedJournals'
 import { UserAnalytics } from './pages/analytics/UserAnalytics'
@@ -66,6 +67,7 @@ function App() {
                     
                     {/* Support & Engagement */}
                     <Route path="/support/tickets" element={<SupportTickets />} />
+                    <Route path="/support/account-deletions" element={<AccountDeletionRequests />} />
                     <Route path="/support/flagged-cravings" element={<FlaggedCravings />} />
                     <Route path="/support/flagged-journals" element={<FlaggedJournals />} />
                     
@@ -87,6 +89,7 @@ function App() {
                     <Route path="/settings/roles" element={<RolesPermissions />} />
                     <Route path="/settings/audit" element={<AuditLogs />} />
                     <Route path="/settings/api" element={<ApiKeys />} />
+                    <Route path="/settings/profile" element={<Navigate to="/settings/admins" replace />} />
                     
                     {/* Help */}
                     <Route path="/help" element={<Help />} />

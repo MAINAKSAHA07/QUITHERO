@@ -16,7 +16,7 @@ timestamp: 2026-07-03T00:00:00Z
 | B — Belief/Thought | The automatic thought that fires | "I always smoke with coffee" |
 | C — Consequence | The feeling + behavior that follows | Feeling: craving (6/10) → Behavior: resisted |
 
-## How It Maps to QuitHero Data
+## How It Maps to Smono Data
 
 - **Antecedent**: `Craving.trigger` + `JournalEntry.antecedent` (CBT mode)
 - **Belief/Thought**: `Craving.automatic_thought` + `JournalEntry.automatic_thought`

@@ -28,7 +28,7 @@ export const AuditLogs = () => {
 
   // Note: Audit logs would be in an 'audit_logs' collection
   const { data: logsData, isLoading } = useQuery({
-    queryKey: ['audit_logs', actionTypeFilter, adminFilter, dateRange],
+    queryKey: ['audit_logs', actionTypeFilter, adminFilter, dateRange, searchQuery],
     queryFn: async () => {
       try {
         return await adminCollectionHelpers.getFullList('audit_logs', {

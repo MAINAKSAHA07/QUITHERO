@@ -42,6 +42,7 @@ const configs = [
   { name: 'user_behavior_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'notification_events', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'smoke_check_ins', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'account_deletion_requests', list: adminOrOwner('user'), view: adminOrOwner('user'), create: '@request.auth.id = user', update: adminRule, delete: adminRule },
   { name: 'belief_assessments', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
 
   // public-readable (mobile app), admin-writable
@@ -50,9 +51,11 @@ const configs = [
   { name: 'steps', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'achievements', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'content_items', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
+  { name: 'app_settings', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'content_chunks', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'quotes', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },
-  { name: 'media', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
+  // Files served via pb.files.getUrl need public view; list stays admin-only
+  { name: 'media', list: adminRule, view: '', create: adminRule, update: adminRule, delete: adminRule },
   { name: 'api_keys', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'webhooks', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
   { name: 'notification_templates', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
@@ -60,7 +63,7 @@ const configs = [
   { name: 'admin_users', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
 ]
 
-const applyRule = async (name, {list, view, create, update, del, rule}) => {
+const applyRule = async (name, { list, view, create, update, delete: del, rule }) => {
   const col = await pb.collections.getOne(name)
   const payload = {
     listRule: list ?? rule,
@@ -74,7 +77,11 @@ const applyRule = async (name, {list, view, create, update, del, rule}) => {
 }
 
 const run = async () => {
-  await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD)
+  try {
+    await pb.collection('_superusers').authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD)
+  } catch {
+    await pb.admins.authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD)
+  }
   for (const cfg of configs) {
     try {
       await applyRule(cfg.name, cfg)

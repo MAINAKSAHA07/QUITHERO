@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import {
   countActiveUsers,
-  getUserLastActive,
-  indexActivityByUser,
   indexDailyActivity,
 } from '../../lib/userActivity'
+import { cohortRetentionPct } from '../../lib/analyticsHelpers'
+import { fetchActivityByUser, fetchActivityRecords } from '../../lib/fetchActivityByUser'
 import { Users, TrendingUp, Calendar } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
@@ -27,14 +27,35 @@ export const UserAnalytics = () => {
 
   const { data: sessionProgressData } = useQuery({
     queryKey: ['session_progress', 'all'],
-    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+    queryFn: () => adminCollectionHelpers.getFullList('session_progress', {
+      expand: 'program_day',
+    }),
+  })
+
+  const { data: profilesData } = useQuery({
+    queryKey: ['user_profiles', 'all'],
+    queryFn: () => adminCollectionHelpers.getFullList('user_profiles', {
+      fields: 'id,user,onboarding_completed_at',
+    }),
+  })
+
+  const { data: activityByUser = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    staleTime: 60_000,
+  })
+
+  const { data: activityRecords = [] } = useQuery({
+    queryKey: ['activity-records'],
+    queryFn: fetchActivityRecords,
+    staleTime: 60_000,
   })
 
   const users = usersData?.data || []
   const sessions = sessionsData?.data || []
   const sessionProgress = sessionProgressData?.data || []
-  const activityByUser = indexActivityByUser(sessionProgress as any[])
-  const dailyActivity = indexDailyActivity(users, sessionProgress as any[])
+  const profiles = profilesData?.data || []
+  const dailyActivity = indexDailyActivity(activityRecords)
 
   // Calculate metrics
   const dau = countActiveUsers(users, activityByUser, 1)
@@ -93,28 +114,12 @@ export const UserAnalytics = () => {
         return created.getMonth() === month.getMonth() && created.getFullYear() === month.getFullYear()
       })
 
-      const week1 = cohortUsers.filter((u: any) => {
-        const last = getUserLastActive(u, activityByUser.get(u.id))
-        if (!last || !u.created) return false
-        const weekAfter = new Date(u.created)
-        weekAfter.setDate(weekAfter.getDate() + 7)
-        return last >= weekAfter
-      }).length
-
-      const week2 = cohortUsers.filter((u: any) => {
-        const last = getUserLastActive(u, activityByUser.get(u.id))
-        if (!last || !u.created) return false
-        const twoWeeksAfter = new Date(u.created)
-        twoWeeksAfter.setDate(twoWeeksAfter.getDate() + 14)
-        return last >= twoWeeksAfter
-      }).length
-
       cohorts.push({
         cohort: monthStr,
-        week1: cohortUsers.length > 0 ? Math.round((week1 / cohortUsers.length) * 100) : 0,
-        week2: cohortUsers.length > 0 ? Math.round((week2 / cohortUsers.length) * 100) : 0,
-        week3: 0,
-        week4: 0,
+        week1: cohortRetentionPct(cohortUsers, activityByUser, 7),
+        week2: cohortRetentionPct(cohortUsers, activityByUser, 14),
+        week3: cohortRetentionPct(cohortUsers, activityByUser, 21),
+        week4: cohortRetentionPct(cohortUsers, activityByUser, 28),
       })
     }
     return cohorts
@@ -122,13 +127,40 @@ export const UserAnalytics = () => {
 
   const cohortData = generateCohortData()
 
+  const kycCompleted = profiles.filter((p: any) => p.onboarding_completed_at).length
+  const startedProgram = sessions.filter(
+    (s: any) => s.started_at || (s.status && s.status !== 'not_started')
+  ).length
+  const completedDay1 = sessionProgress.filter(
+    (sp: any) =>
+      sp.status === 'completed' && sp.expand?.program_day?.day_number === 1
+  ).length
+  const completedProgram = sessions.filter((s: any) => s.status === 'completed').length
+  const totalUsers = users.length || 1
+
   // User funnel
   const funnelData = [
     { stage: 'Registered', value: users.length, percentage: 100 },
-    { stage: 'Completed KYC', value: Math.round(users.length * 0.85), percentage: 85 },
-    { stage: 'Started Program', value: sessions.length, percentage: Math.round((sessions.length / users.length) * 100) },
-    { stage: 'Completed Day 1', value: Math.round(sessions.length * 0.9), percentage: Math.round((sessions.length * 0.9 / users.length) * 100) },
-    { stage: 'Completed Program', value: sessions.filter((s: any) => s.status === 'completed').length, percentage: Math.round((sessions.filter((s: any) => s.status === 'completed').length / users.length) * 100) },
+    {
+      stage: 'Completed KYC',
+      value: kycCompleted,
+      percentage: Math.round((kycCompleted / totalUsers) * 100),
+    },
+    {
+      stage: 'Started Program',
+      value: startedProgram,
+      percentage: Math.round((startedProgram / totalUsers) * 100),
+    },
+    {
+      stage: 'Completed Day 1',
+      value: completedDay1,
+      percentage: Math.round((completedDay1 / totalUsers) * 100),
+    },
+    {
+      stage: 'Completed Program',
+      value: completedProgram,
+      percentage: Math.round((completedProgram / totalUsers) * 100),
+    },
   ]
 
   return (

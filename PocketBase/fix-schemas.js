@@ -165,7 +165,7 @@ const desired = {
   ],
   content_items: [
     { name: 'title', type: 'text', required: true },
-    { name: 'content', type: 'text' },
+    { name: 'content', type: 'text', max: 200000 },
     { name: 'type', type: 'select', values: ['article', 'blog', 'guide', 'quote', 'tip'] },
     { name: 'language', type: 'select', values: ['en', 'es', 'fr', 'hi'] },
     { name: 'status', type: 'select', values: ['draft', 'published', 'archived'] },

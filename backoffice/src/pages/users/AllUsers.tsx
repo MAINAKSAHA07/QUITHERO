@@ -1,19 +1,22 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
-import { getUserLastActive, indexActivityByUser, isUserActiveWithinDays } from '../../lib/userActivity'
+import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
+import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import { Plus, Download, Search, Eye, Edit, Trash2, Mail, UserCheck, UserX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
   flexRender,
   ColumnDef,
   RowSelectionState,
 } from '@tanstack/react-table'
+
+function escapeFilterValue(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
 
 interface User {
   id: string
@@ -37,24 +40,22 @@ export const AllUsers = () => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [showBulkActions, setShowBulkActions] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['users', page, perPage, statusFilter, searchQuery],
     queryFn: () => adminCollectionHelpers.getList('users', page, perPage, {
-      filter: searchQuery ? `email ~ "${searchQuery}" || name ~ "${searchQuery}"` : undefined,
+      filter: searchQuery
+        ? `email ~ "${escapeFilterValue(searchQuery)}" || name ~ "${escapeFilterValue(searchQuery)}"`
+        : undefined,
       sort: recentSort('users'),
       fields: 'id,email,name,created,updated,lastActive',
     }),
   })
 
-  const { data: sessionProgressData } = useQuery({
-    queryKey: ['session_progress', 'all'],
-    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  const { data: activityByUser = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    staleTime: 60_000,
   })
-
-  const activityByUser = useMemo(
-    () => indexActivityByUser((sessionProgressData?.data || []) as any[]),
-    [sessionProgressData?.data]
-  )
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -65,9 +66,18 @@ export const AllUsers = () => {
     },
   })
 
-  const users = (data?.data && 'items' in data.data ? (data.data as any).items : []) || []
+  const usersRaw = (data?.data && 'items' in data.data ? (data.data as any).items : []) || []
+  const users = useMemo(() => {
+    if (statusFilter === 'all' || statusFilter === 'banned') return usersRaw
+    return usersRaw.filter((user: User) => {
+      const isActive = isUserActiveWithinDays(user, activityByUser, 7)
+      return statusFilter === 'active' ? isActive : !isActive
+    })
+  }, [usersRaw, statusFilter, activityByUser])
   const totalPages = (data?.data && 'totalPages' in data.data ? (data.data as any).totalPages : 1) || 1
   const totalItems = (data?.data && 'totalItems' in data.data ? (data.data as any).totalItems : 0) || 0
+  const fetchError =
+    data?.success === false ? data.error : isError ? (error as Error)?.message : null
 
   const selectedUsers = useMemo(() => {
     return Object.keys(rowSelection)
@@ -104,14 +114,18 @@ export const AllUsers = () => {
   const handleExportCSV = () => {
     // Generate CSV
     const headers = ['Name', 'Email', 'User ID', 'Registered', 'Last Active', 'Status']
-    const rows = users.map((user: User) => [
-      user.name || '',
-      user.email,
-      user.id,
-      user.created ? new Date(user.created).toLocaleDateString() : '',
-      user.lastActive ? new Date(user.lastActive).toLocaleDateString() : '',
-      'Active',
-    ])
+    const rows = users.map((user: User) => {
+      const isActive = isUserActiveWithinDays(user, activityByUser, 7)
+      const last = getUserLastActive(user, activityByUser.get(user.id))
+      return [
+        user.name || '',
+        user.email,
+        user.id,
+        user.created ? new Date(user.created).toLocaleDateString() : '',
+        last ? last.toLocaleDateString() : 'Never',
+        isActive ? 'Active' : 'Inactive',
+      ]
+    })
 
     const csvContent = [
       headers.join(','),
@@ -204,11 +218,10 @@ export const AllUsers = () => {
         cell: ({ row }) => {
           const last = getUserLastActive(row.original, activityByUser.get(row.original.id))
           if (!last) return <span className="text-neutral-400">Never</span>
-          const now = new Date()
-          const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24))
+          const diffDays = daysSinceLastActive(row.original, activityByUser)
           if (diffDays === 0) return <span className="text-success">Today</span>
           if (diffDays === 1) return <span className="text-success">Yesterday</span>
-          if (diffDays < 7) return <span>{diffDays} days ago</span>
+          if (diffDays != null && diffDays < 7) return <span>{diffDays} days ago</span>
           return <span className="text-neutral-500">{last.toLocaleDateString()}</span>
         },
       },
@@ -270,13 +283,13 @@ export const AllUsers = () => {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
     state: {
       rowSelection,
     },
     enableRowSelection: true,
+    manualPagination: true,
+    pageCount: totalPages,
   })
 
   useEffect(() => {
@@ -308,6 +321,12 @@ export const AllUsers = () => {
           </button>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="bg-danger/10 border border-danger/20 text-danger rounded-lg px-4 py-3 text-sm">
+          Could not load users: {fetchError}. Sign out and sign in again if this persists.
+        </div>
+      )}
 
       {/* Bulk Actions Bar */}
       {showBulkActions && (

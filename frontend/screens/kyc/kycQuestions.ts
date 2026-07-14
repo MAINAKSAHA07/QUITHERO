@@ -57,7 +57,7 @@ export const kycQuestions: KYCQuestion[] = [
     id: 'age',
     group: 'A',
     question: 'What is your age?',
-    support: 'QUITHERO is calibrated for adults aged 18 to 75.',
+    support: 'Smono is calibrated for adults aged 18 to 75.',
     type: 'slider',
     min: 18,
     max: 75,

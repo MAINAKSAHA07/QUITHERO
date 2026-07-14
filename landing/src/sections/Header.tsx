@@ -31,6 +31,7 @@ export function Header() {
               <a href="#app-preview">Program Features</a>
               <a href="#testimonials">Success Stories</a>
               <a href="#faq">FAQ</a>
+              <a href="/blog">Blog</a>
             </div>
             <div className="nav-actions">
               <button type="button" className="nav-coach">
@@ -71,6 +72,9 @@ export function Header() {
           </a>
           <a href="#faq" role="menuitem">
             FAQ
+          </a>
+          <a href="/blog" role="menuitem">
+            Blog
           </a>
           <button type="button" className="nav-coach mobile-menu-btn">
             Talk to a Quit Coach

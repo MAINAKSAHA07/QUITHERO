@@ -3,9 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import {
   daysSinceLastActive,
-  indexActivityByUser,
+  getUserLastActive,
   isUserActiveWithinDays,
 } from '../../lib/userActivity'
+import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import { Plus, TrendingUp, TrendingDown, Eye, Edit, Trash2, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -83,12 +84,11 @@ export const UserSegments = () => {
     queryFn: () => adminCollectionHelpers.getFullList('cravings'),
   })
 
-  const { data: sessionProgressData } = useQuery({
-    queryKey: ['session_progress', 'all'],
-    queryFn: () => adminCollectionHelpers.getFullList('session_progress'),
+  const { data: activityByUser = new Map<string, number>() } = useQuery({
+    queryKey: ['activity-by-user'],
+    queryFn: fetchActivityByUser,
+    staleTime: 60_000,
   })
-
-  const activityByUser = indexActivityByUser((sessionProgressData?.data || []) as any[])
 
   const calculateSegmentCount = (segmentId: string, periodDays?: number): number => {
     if (!usersData?.data) return 0
@@ -158,15 +158,13 @@ export const UserSegments = () => {
       
       let previousCount = 0
       if (segmentId === 'active' || segmentId === 'inactive') {
-        // For active/inactive, count users active in previous period
         previousCount = usersData?.data?.filter((u: any) => {
-          if (!u.lastActive) return segmentId === 'inactive'
-          const lastActive = new Date(u.lastActive)
+          const last = getUserLastActive(u, activityByUser.get(u.id))
+          if (!last) return segmentId === 'inactive'
           if (segmentId === 'active') {
-            return lastActive > previousPeriodEnd && lastActive <= previousPeriodStart
-          } else {
-            return lastActive < previousPeriodEnd && lastActive >= previousPeriodStart
+            return last > previousPeriodEnd && last <= previousPeriodStart
           }
+          return last < previousPeriodEnd && last >= previousPeriodStart
         }).length || 0
       } else if (segmentId === 'new-users') {
         previousCount = usersData?.data?.filter((u: any) => {
@@ -176,9 +174,9 @@ export const UserSegments = () => {
         }).length || 0
       } else if (segmentId === 'churned') {
         previousCount = usersData?.data?.filter((u: any) => {
-          if (!u.lastActive) return true
-          const lastActive = new Date(u.lastActive)
-          return lastActive < previousPeriodEnd && lastActive >= previousPeriodStart
+          const last = getUserLastActive(u, activityByUser.get(u.id))
+          if (!last) return true
+          return last < previousPeriodEnd && last >= previousPeriodStart
         }).length || 0
       }
       

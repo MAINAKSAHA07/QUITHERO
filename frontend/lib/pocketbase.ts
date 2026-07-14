@@ -195,22 +195,7 @@ export const authHelpers = {
   },
 }
 
-let lastActiveTouch = 0
-
-/** Throttled heartbeat — updates users.lastActive for backoffice analytics */
-export async function touchLastActive() {
-  if (!pb.authStore.isValid) return
-  const now = Date.now()
-  if (now - lastActiveTouch < 15 * 60 * 1000) return
-  lastActiveTouch = now
-  const id = pb.authStore.record?.id
-  if (!id) return
-  try {
-    await pb.collection('users').update(id, { lastActive: new Date().toISOString() })
-  } catch {
-    // ponytail: no-op if field missing on unmigrated server
-  }
-}
+// ponytail: users.lastActive removed — backoffice uses indexed app events only
 
 export default pb
 

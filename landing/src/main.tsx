@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import './styles/landing.css'
 import './styles/responsive.css'
+import './styles/blog.css'
 
 function dismissBootLoader() {
   const el = document.getElementById('boot-loader')

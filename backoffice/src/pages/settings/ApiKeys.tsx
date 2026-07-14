@@ -372,18 +372,18 @@ const CreateApiKeyModal: React.FC<CreateApiKeyModalProps> = ({ onClose, onSucces
     setIsSubmitting(true)
     try {
       const newKey = generateKey()
-      // In a real implementation, save to PocketBase
-      const apiKey: ApiKey = {
-        id: Date.now().toString(),
-        name: formData.name,
+      const result = await adminCollectionHelpers.create('api_keys', {
+        name: formData.name.trim(),
         key: newKey,
-        permissions: formData.permissions,
-        created: new Date().toISOString(),
+        permissions: Object.fromEntries(formData.permissions.map((p) => [p, true])),
         status: 'active',
-        expires_at: formData.expires_at || undefined,
+        ...(formData.expires_at ? { expires_at: formData.expires_at } : {}),
+      })
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to create API key')
       }
       setGeneratedKey(newKey)
-      onSuccess(apiKey)
+      onSuccess(result.data as unknown as ApiKey)
     } catch (error: any) {
       console.error('Failed to create API key:', error)
       alert('Failed to create API key')

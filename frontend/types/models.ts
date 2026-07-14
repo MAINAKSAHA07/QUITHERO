@@ -1,4 +1,4 @@
-// Type definitions for Quit Hero data models
+// Type definitions for smono data models
 
 import {
   Gender,
@@ -36,6 +36,8 @@ export interface UserProfile {
   consumption_unit?: ConsumptionUnit
   motivations?: string[] // JSON array
   enable_reminders?: boolean
+  enable_craving_alerts?: boolean
+  enable_achievement_notifications?: boolean
   // New onboarding fields
   smoking_triggers?: CravingTrigger[] // Multi-select triggers
   emotional_states?: EmotionalState[] // Emotional states linked to smoking
