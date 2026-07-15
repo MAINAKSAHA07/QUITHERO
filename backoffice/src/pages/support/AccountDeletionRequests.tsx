@@ -11,10 +11,17 @@ type DeletionRequest = {
   reason?: string
   admin_notes?: string
   processed_at?: string
-  created: string
+  created?: string
   expand?: {
     user?: { id: string; email?: string; name?: string }
   }
+}
+
+function safeRelativeTime(value?: string): string {
+  if (!value?.trim()) return 'recently'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return 'recently'
+  return formatDistanceToNow(d, { addSuffix: true })
 }
 
 export const AccountDeletionRequests = () => {
@@ -158,7 +165,7 @@ export const AccountDeletionRequests = () => {
 
                     <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
                       <Calendar className="w-3 h-3" />
-                      Requested {formatDistanceToNow(new Date(request.created), { addSuffix: true })}
+                      Requested {safeRelativeTime(request.created)}
                     </div>
 
                     {request.reason && (

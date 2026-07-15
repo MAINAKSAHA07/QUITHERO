@@ -54,8 +54,8 @@ function App() {
                     
                     {/* User Management */}
                     <Route path="/users" element={<AllUsers />} />
-                    <Route path="/users/:id" element={<UserDetail />} />
                     <Route path="/users/segments" element={<UserSegments />} />
+                    <Route path="/users/:id" element={<UserDetail />} />
                     
                     {/* Content Management */}
                     <Route path="/content/programs" element={<Programs />} />

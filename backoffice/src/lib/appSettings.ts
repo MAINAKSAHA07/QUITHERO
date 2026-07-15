@@ -45,7 +45,7 @@ export const DEFAULT_APP_SETTINGS = {
   integrations: {
     emailProvider: 'sendgrid',
     emailApiKey: '',
-    emailFrom: 'noreply@smono.com',
+    emailFrom: 'noreply@smono.app',
     emailFromName: 'smono',
     smsProvider: 'twilio',
     smsApiKey: '',

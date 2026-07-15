@@ -23,4 +23,4 @@ Each day's session has a canonical script (static). The AI generates **insertion
 2. Tone must match archetype profile (see individual tone docs)
 3. Never mention the archetype name or system internals to the user
 4. If user has logged a slip in last 24h, override tone to compassionate regardless of archetype
-5. All insertions must be second-person, present tense
+5. All insertions must be second-person ("you"), present tense — never ask the user as "I" (e.g. not "When did I…"; use "When did you…"). First-person only for optional fill-in stems the user completes ("I used to believe…")

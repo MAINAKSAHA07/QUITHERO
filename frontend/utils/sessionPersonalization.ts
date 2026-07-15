@@ -97,7 +97,7 @@ export function getSessionStatCard(
         emoji: '⏱️',
         label: 'Your daily nicotine time',
         value: `${dailyMinutes} min/day`,
-        subtext: `That's ${Math.round((dailyMinutes * 365) / 60)} hours per year on cigarettes — time you can reclaim.`,
+        subtext: `That's ${Math.round((dailyMinutes * 365) / 60)} hours per year on cigarettes, and that's time you can reclaim.`,
       }
     case 5:
       return {

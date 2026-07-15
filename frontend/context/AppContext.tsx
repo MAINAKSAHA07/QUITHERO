@@ -9,6 +9,10 @@ import { sessionService } from '../services/session.service'
 import { programService } from '../services/program.service'
 import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
+import { behaviorTracker } from '../services/behavior-tracker.service'
+import {
+  aiNotificationScheduler,
+} from '../services/ai-notification.service'
 import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
 import { syncQuitDateWithSessions } from '../services/quitDateSync.service'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
@@ -51,6 +55,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null)
   const [currentSession, setCurrentSession] = useState<UserSession | null>(null)
+  // Avoid putting currentSession in fetchCurrentSession deps — that blocked resync after day completes
+  const currentSessionRef = useRef<UserSession | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [progressLoading, setProgressLoading] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(false)
@@ -137,7 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fetchCurrentSession = useCallback(async () => {
     if (!user?.id) return
-    const silent = currentSession !== null
+    const silent = currentSessionRef.current !== null
     if (!silent) setSessionLoading(true)
     try {
       const result = await sessionService.getOrCreateCurrentSession(user.id)
@@ -165,6 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         }
         setCurrentSession(session)
+        currentSessionRef.current = session
         // Align quit_date with session pace when user fell behind
         syncQuitDateWithSessions(user.id).then((nextQuit) => {
           if (nextQuit) fetchUserProfile()
@@ -172,14 +179,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else {
         console.error('[AppContext] Failed to load program session:', result.error)
         setCurrentSession(null)
+        currentSessionRef.current = null
       }
     } catch (error) {
       console.error('Failed to fetch current session:', error)
       setCurrentSession(null)
+      currentSessionRef.current = null
     } finally {
       if (!silent) setSessionLoading(false)
     }
-  }, [user?.id, currentSession, fetchUserProfile])
+  }, [user?.id, fetchUserProfile])
 
   const refreshProgress = useCallback(async () => {
     if (!user?.id) return
@@ -204,9 +213,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user?.id, fetchUserProfile])
 
   const clearUserData = useCallback(() => {
+    behaviorTracker.destroy()
+    aiNotificationScheduler.destroy()
     setUserProfile(null)
     setProgressStats(null)
     setCurrentSession(null)
+    currentSessionRef.current = null
     setUser(null)
     setIsAuthenticated(false)
     languageBackfillDone.current = false
@@ -228,9 +240,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshProgress()
     achievementService.checkAndUnlock(user.id).catch(console.error)
     behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
+    behaviorTracker.init(user.id)
   }, [user?.id, isAuthenticated, fetchUserProfile, fetchCurrentSession, refreshProgress])
 
-  // Server Web Push (works when app closed) + local morning quote when app is open
+  // Listen for notification opens (learning feedback → best_notification_hour / open rate)
+  useEffect(() => {
+    if (!user?.id) return
+
+    const handleOpened = (eventId?: string, triggerType?: string) => {
+      if (!eventId) return
+      aiNotificationScheduler.markOpened(eventId, triggerType).catch(() => {})
+    }
+
+    const onSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'smono_notification_opened') {
+        handleOpened(event.data.eventId, event.data.triggerType)
+      }
+    }
+    const onWindowEvent = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {}
+      handleOpened(detail.eventId, detail.triggerType)
+    }
+
+    navigator.serviceWorker?.addEventListener('message', onSwMessage)
+    window.addEventListener('smono_notification_opened', onWindowEvent)
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage)
+      window.removeEventListener('smono_notification_opened', onWindowEvent)
+    }
+  }, [user?.id])
+
+  // Server Web Push (works when app closed) + local / AI-timed reminders when app is open
   useEffect(() => {
     if (!user?.id) return
 
@@ -238,6 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const reminderTime =
       userProfile?.daily_reminder_time ||
       preferenceToReminderTime(userProfile?.checkin_time_preference)
+    const dayNumber = currentSession?.current_day || 1
 
     let cancelled = false
     ;(async () => {
@@ -253,12 +294,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (cancelled) return
+
+      // Always keep intervention scheduler attached (craving/slip); scheduled daily when learning
+      const learning = await behaviorProfileService.isPersonalizationActive(user.id).catch(() => false)
+      if (cancelled) return
+
+      await aiNotificationScheduler
+        .init(user.id, dayNumber, {
+          enableScheduled: Boolean(remindersOn && learning),
+        })
+        .catch(() => {})
+
       if (cancelled || !userProfile?.enable_reminders) return
 
-      const quote = await fetchDailyQuoteText(userProfile.language || 'en')
-      if (cancelled || !NotificationService.isSupported()) return
-      NotificationService.checkDueReminder()
-      NotificationService.scheduleDailyReminder(reminderTime, quote)
+      // Flat morning quote while still in observing phase (learning owns timing once active)
+      if (!learning) {
+        const quote = await fetchDailyQuoteText(userProfile.language || 'en')
+        if (cancelled || !NotificationService.isSupported()) return
+        NotificationService.checkDueReminder()
+        NotificationService.scheduleDailyReminder(reminderTime, quote)
+      }
     })()
 
     return () => {
@@ -271,6 +327,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     userProfile?.checkin_time_preference,
     userProfile?.language,
     userProfile?.timezone,
+    currentSession?.current_day,
   ])
 
   return (

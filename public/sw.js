@@ -74,10 +74,17 @@ function absoluteUrl(path) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = absoluteUrl(event.notification.data?.url || '/')
+  const data = event.notification.data || {}
+  const targetUrl = absoluteUrl(data.url || '/')
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const payload = {
+        type: 'smono_notification_opened',
+        eventId: data.eventId,
+        triggerType: data.triggerType,
+      }
       for (const client of list) {
+        client.postMessage(payload)
         if ('focus' in client) {
           if ('navigate' in client) {
             return client.navigate(targetUrl).then(() => client.focus())

@@ -45,6 +45,7 @@ export default function BottomNavigation() {
                   to={item.path}
                   className="absolute left-1/2 -translate-x-1/2 -top-5"
                   aria-label={item.label}
+                  data-tour-id="craving"
                 >
                   <motion.div
                     className="w-14 h-14 rounded-full flex items-center justify-center"
@@ -62,6 +63,17 @@ export default function BottomNavigation() {
             )
           }
 
+          const tourId =
+            item.path === '/home'
+              ? 'home'
+              : item.path === '/sessions'
+                ? 'sessions'
+                : item.path === '/progress'
+                  ? 'progress'
+                  : item.path === '/profile'
+                    ? 'profile'
+                    : undefined
+
           return (
             <Link
               key={item.path}
@@ -69,6 +81,7 @@ export default function BottomNavigation() {
               className="flex flex-col items-center justify-center gap-0.5 h-12 touch-target"
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
+              data-tour-id={tourId}
             >
               <Icon
                 strokeWidth={active ? 2.5 : 1.75}

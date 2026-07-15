@@ -12,9 +12,10 @@ interface SupportTicketModalProps {
   isOpen: boolean
   onClose: () => void
   userId: string
+  onCreated?: () => void
 }
 
-export default function SupportTicketModal({ isOpen, onClose, userId }: SupportTicketModalProps) {
+export default function SupportTicketModal({ isOpen, onClose, userId, onCreated }: SupportTicketModalProps) {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [category, setCategory] = useState<SupportTicketCategory>(SupportTicketCategory.OTHER)
@@ -63,13 +64,12 @@ export default function SupportTicketModal({ isOpen, onClose, userId }: SupportT
 
       if (result.success) {
         setSuccess(true)
-        // Track analytics
         await analyticsService.trackEvent('support_ticket_created', {
           category,
           priority,
         }, userId)
+        onCreated?.()
 
-        // Reset form after 2 seconds and close
         setTimeout(() => {
           setSubject('')
           setMessage('')

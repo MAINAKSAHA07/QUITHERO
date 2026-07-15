@@ -98,7 +98,7 @@ export function mobileAppJsonLd() {
       '@type': 'Offer',
       price: '1999',
       priceCurrency: 'INR',
-      description: 'One-time program access; price varies by country in the app.',
+      description: 'Monthly program access; price varies by country in the app.',
     },
   }
 }

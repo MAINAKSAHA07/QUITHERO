@@ -4,15 +4,36 @@ import { adminCollectionHelpers } from '../../lib/pocketbase'
 import {
   daysSinceLastActive,
   getUserLastActive,
+  countActiveUsers,
 } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
-import { TrendingDown, Users, Download, AlertCircle } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import {
+  retentionCurvePoints,
+  signupMonthCohorts,
+} from '../../lib/analyticsHelpers'
+import { buildWinBackEmail, sendUserPushNotification } from '../../lib/sendPush'
+import { TrendingDown, Users, Download, AlertCircle, Bell, Mail } from 'lucide-react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
 
 const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
 
 export const RetentionReports = () => {
-  const [dateRange, setDateRange] = useState<'30' | '90' | '180' | '365'>('90')
+  // Horizon for curve + inactive / win-back threshold
+  const [inactiveDays, setInactiveDays] = useState<30 | 60 | 90 | 180>(30)
+  const [actionBusy, setActionBusy] = useState<string | null>(null)
+  const [actionMsg, setActionMsg] = useState<string | null>(null)
 
   const { data: usersData } = useQuery({
     queryKey: ['users', 'all'],
@@ -32,12 +53,35 @@ export const RetentionReports = () => {
 
   const { data: programDaysData } = useQuery({
     queryKey: ['program_days', 'max'],
-    queryFn: () => adminCollectionHelpers.getFullList('program_days', {
-      fields: 'day_number',
-      sort: 'day_number',
-    }),
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('program_days', {
+        fields: 'day_number',
+        sort: 'day_number',
+      }),
   })
 
+  const { data: deletionData } = useQuery({
+    queryKey: ['account_deletion_requests', 'reasons'],
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('account_deletion_requests', {
+        fields: 'id,reason,status',
+      }),
+    retry: false,
+  })
+
+  const { data: pushSubsData } = useQuery({
+    queryKey: ['push_subscriptions', 'active'],
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('push_subscriptions', {
+        filter: 'active=true',
+        fields: 'id,user,active',
+      }),
+    staleTime: 60_000,
+  })
+
+  const usersWithPush = new Set(
+    (pushSubsData?.data || []).map((s: any) => s.user).filter(Boolean)
+  )
   const maxProgramDay = Math.max(
     1,
     ...(programDaysData?.data || []).map((d: any) => d.day_number || 0)
@@ -46,312 +90,415 @@ export const RetentionReports = () => {
   const users = usersData?.data || []
   const sessions = sessionsData?.data || []
 
-  // Retention Curve Data
-  const generateRetentionData = () => {
-    const days = dateRange === '30' ? 30 : dateRange === '90' ? 90 : dateRange === '180' ? 180 : 365
-    const retentionData = []
-    
-    for (let i = 0; i <= days; i += Math.max(1, Math.floor(days / 20))) {
-      const activeUsers = users.filter((u: any) => {
-        const daysSince = daysSinceLastActive(u, activityByUser)
-        if (daysSince === null) return false
-        return daysSince <= i
-      }).length
-      
-      const retentionRate = users.length > 0 ? Math.round((activeUsers / users.length) * 100) : 0
-      retentionData.push({
-        days: i,
-        retention: retentionRate,
-      })
-    }
-    return retentionData
-  }
+  const curveMaxDays = Math.max(30, inactiveDays)
+  const retentionData = retentionCurvePoints(
+    users,
+    activityByUser,
+    curveMaxDays,
+    Math.max(1, Math.floor(curveMaxDays / 20))
+  )
 
-  const retentionData = generateRetentionData()
-
-  // Churn Analysis
-  const churnedUsers = users.filter((u: any) => {
+  // Align with isUserActiveWithinDays(days): active = daysSince < threshold
+  const neverActivated = users.filter(
+    (u: any) => daysSinceLastActive(u, activityByUser) === null
+  )
+  const activeCount = countActiveUsers(users, activityByUser, inactiveDays)
+  const inactiveUsers = users.filter((u: any) => {
     const daysSince = daysSinceLastActive(u, activityByUser)
-    return daysSince === null || daysSince > 30
+    return daysSince !== null && daysSince >= inactiveDays
   })
+  const activated = users.length - neverActivated.length
+  const inactiveRate =
+    activated > 0 ? Math.round((inactiveUsers.length / activated) * 100) : 0
 
-  const churnRate = users.length > 0 ? Math.round((churnedUsers.length / users.length) * 100) : 0
+  const monthCohorts = signupMonthCohorts(users, activityByUser, 6)
 
-  // Calculate churn rate by cohort
-  const calculateChurnByCohort = () => {
-    const now = new Date()
-    const cohorts = [
-      { label: 'Last 30 days', days: 30 },
-      { label: 'Last 60 days', days: 60 },
-      { label: 'Last 90 days', days: 90 },
-    ]
-    
-    return cohorts.map(({ label, days }) => {
-      const cohortStart = new Date(now)
-      cohortStart.setDate(cohortStart.getDate() - days)
-      
-      const cohortUsers = users.filter((u: any) => {
-        if (!u.created) return false
-        const created = new Date(u.created)
-        return created >= cohortStart
-      })
-      
-      const churnedInCohort = cohortUsers.filter((u: any) => {
-        const daysSince = daysSinceLastActive(u, activityByUser)
-        return daysSince === null || daysSince > 30
-      }).length
-      
-      const churnRate = cohortUsers.length > 0 
-        ? Math.round((churnedInCohort / cohortUsers.length) * 100)
-        : 0
-      
-      return { label, churnRate, total: cohortUsers.length }
-    })
-  }
-
-  const cohortChurnData = calculateChurnByCohort()
-
-  // Try to fetch churn reasons from exit surveys if collection exists
-  const { data: exitSurveysData } = useQuery({
-    queryKey: ['exit_surveys'],
-    queryFn: () => adminCollectionHelpers.getFullList('exit_surveys'),
-    retry: false,
-  })
-
-  // Calculate churn reasons from exit surveys if available
-  const calculateChurnReasons = () => {
-    if (!exitSurveysData?.data || exitSurveysData.data.length === 0) {
-      return null // No data available
-    }
-    
+  const deletionReasonsData = (() => {
+    const rows = (deletionData?.data || []) as any[]
+    if (!rows.length) return null
     const reasons: Record<string, number> = {}
-    exitSurveysData.data.forEach((survey: any) => {
-      const reason = survey.reason || survey.churn_reason || 'Other'
+    for (const row of rows) {
+      const reason = (row.reason || '').trim() || 'No reason given'
       reasons[reason] = (reasons[reason] || 0) + 1
+    }
+    return Object.entries(reasons)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  })()
+
+  const sessionsByUser = (() => {
+    const map = new Map<string, any[]>()
+    for (const s of sessions as any[]) {
+      if (!s.user) continue
+      if (!map.has(s.user)) map.set(s.user, [])
+      map.get(s.user)!.push(s)
+    }
+    return map
+  })()
+
+  const winBackUsers = inactiveUsers
+    .map((user: any) => {
+      const userSessions = sessionsByUser.get(user.id) || []
+      const day = userSessions.reduce(
+        (max: number, s: any) => Math.max(max, Number(s.current_day) || 0),
+        0
+      )
+      const last = getUserLastActive(user, activityByUser.get(user.id))
+      const daysSince = daysSinceLastActive(user, activityByUser)
+      const hasPush = usersWithPush.has(user.id)
+
+      return {
+        id: user.id,
+        name: user.name || user.email,
+        email: user.email,
+        lastActive: last,
+        daysSinceActive: daysSince,
+        programProgress: day,
+        hasPush,
+        suggestedAction: !hasPush
+          ? 'Email only (no app push enabled)'
+          : day < 3
+            ? 'Send push + email'
+            : 'Offer incentive + push',
+      }
     })
-    
-    const total = Object.values(reasons).reduce((sum, count) => sum + count, 0)
-    if (total === 0) return null
-    
-    return Object.entries(reasons).map(([name, count]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '),
-      value: Math.round((count / total) * 100),
-    })).sort((a, b) => b.value - a.value)
+    .sort((a, b) => (b.daysSinceActive ?? 0) - (a.daysSinceActive ?? 0))
+
+  const exportWinBackCsv = () => {
+    const header = 'id,name,email,days_inactive,program_day,last_active'
+    const lines = winBackUsers.map((u) =>
+      [
+        u.id,
+        JSON.stringify(u.name || ''),
+        u.email || '',
+        u.daysSinceActive ?? '',
+        u.programProgress,
+        u.lastActive ? u.lastActive.toISOString() : '',
+      ].join(',')
+    )
+    const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `winback-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
-  const churnReasonsData = calculateChurnReasons()
+  const sendEmail = (user: (typeof winBackUsers)[number]) => {
+    const { mailto } = buildWinBackEmail(user)
+    window.open(mailto, '_blank')
+  }
 
-  // Win-back Campaign List
-  const winBackUsers = churnedUsers.map((user: any) => {
-    const userSessions = sessions.filter((s: any) => s.user === user.id)
-    const lastSession = userSessions.sort((a: any, b: any) => 
-      new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime()
-    )[0]
-    const last = getUserLastActive(user, activityByUser.get(user.id))
-    
-    return {
-      id: user.id,
-      name: user.name || user.email,
-      email: user.email,
-      lastActive: last,
-      daysSinceActive: daysSinceLastActive(user, activityByUser),
-      programProgress: lastSession?.current_day || 0,
-      suggestedAction: lastSession?.current_day < 3 ? 'Send personalized email' : 'Offer incentive',
-    }
-  })
+  const sendPush = async (user: (typeof winBackUsers)[number]) => {
+    const day = user.programProgress || 1
+    const first = String(user.name || 'there').split(' ')[0]
+    setActionBusy(user.id)
+    setActionMsg(null)
+    const result = await sendUserPushNotification({
+      userId: user.id,
+      title: 'Your quit journey is waiting',
+      body: `Hi ${first} — Day ${day} is still here when you're ready. Open the app to continue.`,
+      url: '/home',
+      tag: 'winback',
+      dayNumber: day,
+    })
+    setActionBusy(null)
+    setActionMsg(
+      result.ok
+        ? `Push sent to ${user.email || user.name} (${result.sent} device${result.sent === 1 ? '' : 's'})`
+        : `Push failed: ${result.error}`
+    )
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-      <h1 className="text-3xl font-bold text-neutral-dark">Retention Reports</h1>
+        <h1 className="text-3xl font-bold text-neutral-dark">Retention Reports</h1>
         <div className="flex items-center gap-3">
           <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as any)}
+            value={inactiveDays}
+            onChange={(e) => setInactiveDays(Number(e.target.value) as 30 | 60 | 90 | 180)}
             className="px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            title="Inactive threshold for KPIs, win-back list, and curve horizon"
           >
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="180">Last 180 days</option>
-            <option value="365">Last 365 days</option>
+            <option value={30}>Inactive after 30 days</option>
+            <option value={60}>Inactive after 60 days</option>
+            <option value={90}>Inactive after 90 days</option>
+            <option value={180}>Inactive after 180 days</option>
           </select>
-          <button className="btn-secondary flex items-center gap-2">
+          <button
+            type="button"
+            onClick={exportWinBackCsv}
+            className="btn-secondary flex items-center gap-2"
+          >
             <Download className="w-4 h-4" />
-            Export Report
+            Export Win-Back CSV
           </button>
         </div>
       </div>
 
-      {/* Retention Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-card p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-neutral-500">Churn Rate</span>
+            <span className="text-sm text-neutral-500">Inactive rate</span>
             <TrendingDown className="w-5 h-5 text-danger" />
           </div>
-          <p className="text-3xl font-bold text-neutral-dark">{churnRate}%</p>
-          <p className="text-xs text-neutral-500 mt-1">{churnedUsers.length} churned users</p>
+          <p className="text-3xl font-bold text-neutral-dark">{inactiveRate}%</p>
+          <p className="text-xs text-neutral-500 mt-1">
+            {inactiveUsers.length} inactive {inactiveDays}+ days · {neverActivated.length} never
+            activated · of {activated} activated
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow-card p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-neutral-500">Active Users</span>
+            <span className="text-sm text-neutral-500">Active users</span>
             <Users className="w-5 h-5 text-success" />
           </div>
-          <p className="text-3xl font-bold text-neutral-dark">{users.length - churnedUsers.length}</p>
-          <p className="text-xs text-neutral-500 mt-1">Currently active</p>
+          <p className="text-3xl font-bold text-neutral-dark">{activeCount}</p>
+          <p className="text-xs text-neutral-500 mt-1">
+            Real activity within last {inactiveDays} days
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow-card p-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-neutral-500">Win-Back Candidates</span>
+            <span className="text-sm text-neutral-500">Win-back candidates</span>
             <AlertCircle className="w-5 h-5 text-warning" />
           </div>
           <p className="text-3xl font-bold text-neutral-dark">{winBackUsers.length}</p>
-          <p className="text-xs text-neutral-500 mt-1">Users to re-engage</p>
+          <p className="text-xs text-neutral-500 mt-1">
+            Activated users quiet for {inactiveDays}+ days
+          </p>
         </div>
       </div>
 
-      {/* Retention Curve */}
       <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Retention Curve</h2>
+        <h2 className="text-lg font-semibold mb-4">Retention curve</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Percentage of users still active over time (benchmark: 40% at day 30)
+          Of users old enough to reach day N, % whose latest activity is on or after day N since
+          signup. (Survivorship-style — not same-calendar-day industry D7.)
         </p>
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={retentionData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="days" label={{ value: 'Days Since Registration', position: 'insideBottom', offset: -5 }} />
-            <YAxis label={{ value: 'Retention %', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
+            <XAxis
+              dataKey="days"
+              label={{ value: 'Days since registration', position: 'insideBottom', offset: -5 }}
+            />
+            <YAxis
+              label={{ value: 'Retention %', angle: -90, position: 'insideLeft' }}
+              domain={[0, 100]}
+            />
+            <Tooltip
+              formatter={(value: number, name: string) =>
+                name === 'User Retention' ? [`${value}%`, name] : value
+              }
+              labelFormatter={(days) => `Day ${days}`}
+            />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="retention" 
-              stroke="#F58634" 
-              strokeWidth={2} 
+            <Line
+              type="monotone"
+              dataKey="retention"
+              stroke="#F58634"
+              strokeWidth={2}
               name="User Retention"
               dot={{ r: 4 }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey={() => 40} 
-              stroke="#E63946" 
-              strokeWidth={2} 
-              strokeDasharray="5 5"
-              name="Industry Benchmark"
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Churn Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Churn Reasons</h2>
-          {churnReasonsData ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={churnReasonsData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {churnReasonsData.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <h2 className="text-lg font-semibold mb-4">Account deletion reasons</h2>
+          <p className="text-sm text-neutral-500 mb-4">
+            Exit survey from deletion requests — not the same as inactive users above.
+          </p>
+          {deletionReasonsData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={deletionReasonsData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {deletionReasonsData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[300px] text-neutral-500">
-              <p className="text-sm">No exit survey data available. Churn reasons will appear here once users complete exit surveys.</p>
+              <p className="text-sm">No account deletion reasons yet.</p>
             </div>
           )}
         </div>
 
         <div className="bg-white rounded-lg shadow-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Churn Rate by Cohort</h2>
+          <h2 className="text-lg font-semibold mb-4">Retention by signup month</h2>
+          <p className="text-sm text-neutral-500 mb-4">
+            D7 / D30 = % of that month&apos;s signups with activity on or after day 7 / 30.
+          </p>
           <div className="space-y-3">
-            {cohortChurnData.map((cohort, index) => {
-              const colorClass = cohort.churnRate > 50 ? 'text-danger' : cohort.churnRate > 30 ? 'text-warning' : 'text-success'
-              const bgColor = cohort.churnRate > 50 ? 'bg-danger' : cohort.churnRate > 30 ? 'bg-warning' : 'bg-success'
-              return (
-                <div key={index} className="p-3 bg-neutral-50 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{cohort.label}</span>
-                    <span className={`text-sm font-medium ${colorClass}`}>{cohort.churnRate}%</span>
+            {monthCohorts.map((cohort) => (
+              <div key={cohort.label} className="p-3 bg-neutral-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">{cohort.label}</span>
+                  <span className="text-xs text-neutral-500">{cohort.total} signups</span>
+                </div>
+                {cohort.total === 0 ? (
+                  <p className="text-xs text-neutral-400">No signups</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-neutral-500">D7</span>
+                        <span className="font-medium">{cohort.d7}%</span>
+                      </div>
+                      <div className="bg-neutral-200 rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full"
+                          style={{ width: `${Math.min(100, cohort.d7)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-neutral-500">D30</span>
+                        <span className="font-medium">
+                          {cohort.matureEnoughForD30 ? `${cohort.d30}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="bg-neutral-200 rounded-full h-2">
+                        <div
+                          className="bg-secondary h-2 rounded-full"
+                          style={{
+                            width: cohort.matureEnoughForD30
+                              ? `${Math.min(100, cohort.d30)}%`
+                              : '0%',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex-1 bg-neutral-200 rounded-full h-2">
-                    <div className={`${bgColor} h-2 rounded-full`} style={{ width: `${cohort.churnRate}%` }} />
-              </div>
-                  <p className="text-xs text-neutral-500 mt-1">{cohort.total} users in cohort</p>
-            </div>
-              )
-            })}
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Win-Back Campaigns */}
       <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Win-Back Campaign Candidates</h2>
+        <h2 className="text-lg font-semibold mb-4">Win-back campaign candidates</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Users not active for 30+ days - suggested re-engagement actions
+          Users with prior activity who have been quiet for {inactiveDays}+ days. Email opens your
+          mail client; push uses their Web Push subscription.
         </p>
+        {actionMsg && (
+          <div className="mb-4 p-3 rounded-lg bg-neutral-50 text-sm text-neutral-700 border border-neutral-200">
+            {actionMsg}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Last Active</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Days Inactive</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Program Progress</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Suggested Action</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  Last Active
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  Days Inactive
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  Program Progress
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  Suggested Action
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {winBackUsers.slice(0, 20).map((user: any) => (
-                <tr key={user.id} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-medium text-neutral-dark">{user.name}</p>
-                      <p className="text-sm text-neutral-500">{user.email}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {user.lastActive ? user.lastActive.toLocaleDateString() : 'Never'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium">
-                      {user.daysSinceActive || 'N/A'} days
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm">Day {user.programProgress}/{maxProgramDay}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-neutral-600">{user.suggestedAction}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="btn-primary text-sm">
-                      Send Email
-                    </button>
+              {winBackUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-neutral-500">
+                    No win-back candidates at this threshold.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                winBackUsers.slice(0, 20).map((user) => (
+                  <tr key={user.id} className="hover:bg-neutral-50">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium text-neutral-dark">{user.name}</p>
+                        <p className="text-sm text-neutral-500">{user.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {user.lastActive ? user.lastActive.toLocaleDateString() : 'Never'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium">
+                        {user.daysSinceActive != null ? `${user.daysSinceActive} days` : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm">
+                        Day {user.programProgress}/{maxProgramDay}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-neutral-600">{user.suggestedAction}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => sendEmail(user)}
+                          disabled={!user.email}
+                          className="btn-secondary text-sm inline-flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Email
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendPush(user)}
+                          disabled={actionBusy === user.id || !user.hasPush}
+                          title={
+                            user.hasPush
+                              ? 'Send web push to their device'
+                              : 'User has not enabled app notifications'
+                          }
+                          className="btn-primary text-sm inline-flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Bell className="w-3.5 h-3.5" />
+                          {actionBusy === user.id ? 'Sending…' : user.hasPush ? 'Notify' : 'No push'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
         {winBackUsers.length > 20 && (
           <div className="mt-4 text-center">
             <p className="text-sm text-neutral-500">
-              Showing 20 of {winBackUsers.length} churned users
+              Showing 20 of {winBackUsers.length} candidates (export CSV for full list)
             </p>
           </div>
         )}

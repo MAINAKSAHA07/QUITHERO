@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Step } from '../../types/models'
 import { OpenStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
+import HandwrittenJournal from '../HandwrittenJournal'
 import { splitReflectionPrompts, sanitizeStepText } from '../../utils/stepContentFormat'
 
 export type ReflectionAnswer = { prompt: string; answer: string }
@@ -14,6 +15,9 @@ interface OpenQuestionComponentProps {
   step: Step
   onNext: (response: ReflectionResponse) => void | Promise<boolean | void>
   onSavePartial?: (response: ReflectionResponse) => void | Promise<boolean | void>
+  /** Completed day revisit — show saved text, do not edit */
+  readOnly?: boolean
+  initialResponse?: ReflectionResponse | null
 }
 
 const removeEmojis = (text: string): string => {
@@ -41,16 +45,43 @@ const removeEmojis = (text: string): string => {
     .trim()
 }
 
-export default function OpenQuestionComponent({ step, onNext, onSavePartial }: OpenQuestionComponentProps) {
+function reviewAnswersFrom(
+  initial: ReflectionResponse | null | undefined,
+  prompts: string[],
+  fallbackQuestion: string
+): ReflectionAnswer[] {
+  const fromSaved = initial?.answers?.filter((a) => a?.answer?.trim()) || []
+  if (fromSaved.length) return fromSaved
+  if (prompts.length) {
+    return prompts.map((prompt) => ({ prompt, answer: '' }))
+  }
+  return [{ prompt: fallbackQuestion, answer: '' }]
+}
+
+export default function OpenQuestionComponent({
+  step,
+  onNext,
+  onSavePartial,
+  readOnly = false,
+  initialResponse = null,
+}: OpenQuestionComponentProps) {
   const content = step.content_json as OpenStepContent
   const prompts = splitReflectionPrompts(sanitizeStepText(content.question || ''))
-  const total = Math.max(prompts.length, 1)
+  const totalLive = Math.max(prompts.length, 1)
+
+  const reviewList = reviewAnswersFrom(initialResponse, prompts, content.question || '')
   const [promptIndex, setPromptIndex] = useState(0)
   const [savedAnswers, setSavedAnswers] = useState<ReflectionAnswer[]>([])
-  const [answer, setAnswer] = useState('')
+  const [answer, setAnswer] = useState(() =>
+    readOnly ? reviewList[0]?.answer || '' : ''
+  )
   const [isSaving, setIsSaving] = useState(false)
 
-  const currentPrompt = prompts[promptIndex] || content.question || ''
+  const reviewTotal = Math.max(reviewList.length, 1)
+  const total = readOnly ? reviewTotal : totalLive
+  const currentPrompt = readOnly
+    ? reviewList[promptIndex]?.prompt || prompts[promptIndex] || content.question || ''
+    : prompts[promptIndex] || content.question || ''
   const isLastPrompt = promptIndex >= total - 1
 
   const stepPlaceholder = content.placeholder?.trim()
@@ -63,6 +94,17 @@ export default function OpenQuestionComponent({ step, onNext, onSavePartial }: O
   const targetMet = wordCount >= mindfulTarget
 
   const handleSubmit = async () => {
+    if (readOnly) {
+      if (isLastPrompt) {
+        await onNext({ answers: reviewList })
+        return
+      }
+      const next = promptIndex + 1
+      setPromptIndex(next)
+      setAnswer(reviewList[next]?.answer || '')
+      return
+    }
+
     const trimmed = answer.trim()
     if (!trimmed || isSaving) return
 
@@ -88,41 +130,57 @@ export default function OpenQuestionComponent({ step, onNext, onSavePartial }: O
 
   return (
     <div className="space-y-5">
-      <div className="space-y-3">
-        {total > 1 && (
-          <p className="text-xs font-semibold text-brand-primary uppercase tracking-wide">
-            Reflection {promptIndex + 1} of {total}
-          </p>
-        )}
-        <h3 className="text-lg font-bold text-text-primary leading-snug">{currentPrompt}</h3>
-      </div>
+      {readOnly && (
+        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">
+          Saved reflection · read only
+        </p>
+      )}
+      {total > 1 && (
+        <p className="text-xs font-semibold text-brand-primary uppercase tracking-wide">
+          Reflection {promptIndex + 1} of {total}
+        </p>
+      )}
 
-      <div className="relative">
-        <textarea
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder={cleanPlaceholder}
-          className="glass-input w-full min-h-[160px] p-4 pb-10 rounded-xl resize-none leading-relaxed text-sm sm:text-base focus:border-brand-primary/50 transition-colors"
-          rows={6}
-        />
-        <div className="absolute bottom-3 right-4 flex items-center gap-2">
-          <span
-            className={`text-[10px] font-bold tracking-wide uppercase ${
-              targetMet ? 'text-emerald-400' : 'text-text-primary/45'
-            }`}
-          >
-            {targetMet ? '✓ Mindful Entry Met' : `${wordCount}/${mindfulTarget} words`}
-          </span>
-        </div>
-      </div>
-      <div className="pt-2">
+      <HandwrittenJournal
+        value={answer}
+        onChange={readOnly ? () => {} : setAnswer}
+        prompt={currentPrompt}
+        placeholder={readOnly ? '' : cleanPlaceholder}
+        minRows={7}
+        textareaProps={readOnly ? { readOnly: true } : undefined}
+        footer={
+          readOnly ? (
+            <span className="text-[10px] font-bold tracking-wide uppercase text-emerald-600">
+              Saved
+            </span>
+          ) : (
+            <span
+              className={`text-[10px] font-bold tracking-wide uppercase ${
+                targetMet ? 'text-emerald-600' : 'text-text-primary/45'
+              }`}
+            >
+              {targetMet ? '✓ Mindful Entry Met' : `${wordCount}/${mindfulTarget} words`}
+            </span>
+          )
+        }
+      />
+
+      <div className="pt-1">
         <GlassButton
           onClick={() => void handleSubmit()}
-          disabled={!answer.trim() || isSaving}
+          disabled={(!readOnly && !answer.trim()) || isSaving}
           fullWidth
           className="py-3.5 sm:py-4 font-bold"
         >
-          {isSaving ? 'Saving…' : isLastPrompt ? 'Save & Continue' : 'Next Question'}
+          {isSaving
+            ? 'Saving…'
+            : readOnly
+              ? isLastPrompt
+                ? 'Continue'
+                : 'Next'
+              : isLastPrompt
+                ? 'Save & Continue'
+                : 'Next Question'}
         </GlassButton>
       </div>
     </div>

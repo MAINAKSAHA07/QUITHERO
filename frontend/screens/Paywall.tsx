@@ -68,8 +68,8 @@ export default function Paywall() {
 
         <div className="text-center">
           <p className="text-sm text-text-primary/40 line-through">{original}</p>
-          <p className="text-3xl font-bold text-emerald-600">{price}</p>
-          <p className="text-xs text-text-primary/60 mt-1">One-time payment · Lifetime access</p>
+          <p className="text-3xl font-bold text-emerald-600">{price}<span className="text-base font-medium text-text-primary/50">/month</span></p>
+          <p className="text-xs text-text-primary/60 mt-1">Billed monthly · Cancel anytime</p>
         </div>
 
         <button

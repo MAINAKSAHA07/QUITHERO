@@ -26,6 +26,14 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/api\/pocketbase/, ''),
         },
+        '/api/push': {
+          target: rootEnv.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/support': {
+          target: rootEnv.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
       },
     },
     preview: {

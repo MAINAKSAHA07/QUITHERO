@@ -11,27 +11,38 @@ export function indexActivityByUser(records: ActivityRecord[]): Map<string, numb
   const map = new Map<string, number>()
   for (const r of records) {
     if (!r.user) continue
-    const raw = r.completed_at || r.responded_at || r.date || r.created
+    const raw = r.completed_at || r.responded_at || r.date || r.updated || r.created
     if (!raw) continue
     const t = new Date(raw).getTime()
+    if (Number.isNaN(t)) continue
     const prev = map.get(r.user) ?? 0
     if (t > prev) map.set(r.user, t)
   }
   return map
 }
 
-/** Map YYYY-MM-DD → user ids with activity that calendar day (real events only). */
+/** Map local YYYY-MM-DD → user ids with activity that calendar day (real events only). */
 export function indexDailyActivity(records: ActivityRecord[]): Map<string, Set<string>> {
   const byDay = new Map<string, Set<string>>()
   for (const r of records) {
     if (!r.user) continue
-    const raw = r.completed_at || r.responded_at || r.date || r.created
+    const raw = r.completed_at || r.responded_at || r.date || r.updated || r.created
     if (!raw) continue
-    const day = raw.slice(0, 10)
+    const day = localDayKey(raw)
+    if (!day) continue
     if (!byDay.has(day)) byDay.set(day, new Set())
     byDay.get(day)!.add(r.user)
   }
   return byDay
+}
+
+function localDayKey(raw: string): string {
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 /** Last real app event only — ignores users.lastActive heartbeat. */

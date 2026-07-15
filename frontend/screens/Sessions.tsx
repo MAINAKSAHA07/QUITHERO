@@ -15,6 +15,7 @@ import {
   isDayUnlocked,
   dayStatus,
 } from '../utils/programProgress'
+import { formatDayTitle } from '../utils/formatDayTitle'
 import KycRequiredModal from '../components/KycRequiredModal'
 import { useKycGate } from '../hooks/useKycGate'
 
@@ -219,7 +220,7 @@ export default function Sessions() {
 
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-[#0E2538]/55' : 'text-[#0E2538]'}`}>
-                    {d.day.title}
+                    {formatDayTitle(d.day.title)}
                   </p>
                   <p className="text-xs text-[#0E2538]/45 mt-0.5">{subtitle}</p>
                 </div>

@@ -28,12 +28,10 @@ export function JsonBlock({ data }: { data: unknown }) {
 }
 
 export function TimeAgo({ date }: { date?: string }) {
-  if (!date) return <>—</>
-  try {
-    return <>{formatDistanceToNow(new Date(date), { addSuffix: true })}</>
-  } catch {
-    return <>{date}</>
-  }
+  if (!date?.trim()) return <>—</>
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return <>—</>
+  return <>{formatDistanceToNow(d, { addSuffix: true })}</>
 }
 
 export type RecentActivityIcon = 'session' | 'craving' | 'journal' | 'achievement'

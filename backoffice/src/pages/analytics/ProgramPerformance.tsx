@@ -34,21 +34,29 @@ export const ProgramPerformance = () => {
     const active = programSessions.filter((s: any) => s.status === 'in_progress').length
     const completed = programSessions.filter((s: any) => s.status === 'completed').length
     const completionRate = enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0
-    
-    // Calculate average days to complete
-    const completedSessions = programSessions.filter((s: any) => s.status === 'completed')
-    const avgDays = completedSessions.length > 0
-      ? Math.round(completedSessions.reduce((sum: number, s: any) => {
-          if (s.started_at && s.completed_at) {
-            const days = Math.floor((new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) / (1000 * 60 * 60 * 24))
-            return sum + days
-          }
-          return sum
-        }, 0) / completedSessions.length)
-      : 0
 
-    // Calculate dropout rate
-    const dropoutRate = enrolled > 0 ? Math.round(((enrolled - completed) / enrolled) * 100) : 0
+    const completedSessions = programSessions.filter((s: any) => s.status === 'completed')
+    const avgDays =
+      completedSessions.length > 0
+        ? Math.round(
+            completedSessions.reduce((sum: number, s: any) => {
+              if (s.started_at && s.completed_at) {
+                const days = Math.floor(
+                  (new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+                return sum + Math.max(0, days)
+              }
+              return sum
+            }, 0) / completedSessions.length
+          )
+        : 0
+
+    // Dropout = not completed and not currently active
+    const dropped = programSessions.filter(
+      (s: any) => s.status !== 'completed' && s.status !== 'in_progress'
+    ).length
+    const dropoutRate = enrolled > 0 ? Math.round((dropped / enrolled) * 100) : 0
 
     return { enrolled, active, completed, completionRate, avgDays, dropoutRate }
   }
@@ -65,48 +73,42 @@ export const ProgramPerformance = () => {
     }
   })
 
-  // Content Effectiveness - Day completion rates
   const { data: daysData } = useQuery({
     queryKey: ['program_days', 'all'],
-    queryFn: () => adminCollectionHelpers.getFullList('program_days'),
+    queryFn: () => adminCollectionHelpers.getFullList('program_days', {
+      sort: 'day_number',
+      expand: 'program',
+    }),
   })
 
-  const days = daysData?.data || []
+  const days = (daysData?.data || []).slice().sort(
+    (a: any, b: any) => (a.day_number || 0) - (b.day_number || 0)
+  )
   const dayCompletionData = days.map((day: any) => {
     const dayProgress = progress.filter((p: any) => p.program_day === day.id)
     const completed = dayProgress.filter((p: any) => p.status === 'completed').length
-    const completionRate = dayProgress.length > 0 ? Math.round((completed / dayProgress.length) * 100) : 0
-    
-    // Calculate average time spent from progress records
-    let avgTimeSpent = 0
-    if (dayProgress.length > 0) {
-      const timesWithData = dayProgress
-        .filter((p: any) => p.time_spent || (p.started_at && p.completed_at))
-        .map((p: any) => {
-          // If time_spent field exists, use it (in minutes)
-          if (p.time_spent) return p.time_spent
-          // Otherwise calculate from timestamps
-          if (p.started_at && p.completed_at) {
-            const diffMs = new Date(p.completed_at).getTime() - new Date(p.started_at).getTime()
-            return Math.round(diffMs / (1000 * 60)) // Convert to minutes
-          }
-          return 0
-        })
-        .filter((t: number) => t > 0)
-      
-      if (timesWithData.length > 0) {
-        avgTimeSpent = Math.round(timesWithData.reduce((sum: number, t: number) => sum + t, 0) / timesWithData.length)
-      }
-    }
-    
+    const completionRate =
+      dayProgress.length > 0 ? Math.round((completed / dayProgress.length) * 100) : 0
+
+    const times = dayProgress
+      .map((p: any) => Number(p.time_spent_minutes) || 0)
+      .filter((t: number) => t > 0)
+    const avgTimeSpent =
+      times.length > 0
+        ? Math.round(times.reduce((sum: number, t: number) => sum + t, 0) / times.length)
+        : 0
+
+    const programLabel = day.expand?.program?.title
+      ? ` · ${day.expand.program.title}`
+      : ''
+
     return {
-      day: `Day ${day.day_number}`,
+      day: `Day ${day.day_number}${programLabel}`,
       title: day.title,
       completionRate,
-      timeSpent: avgTimeSpent || 0,
+      timeSpent: avgTimeSpent,
     }
   })
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-neutral-dark">Program Performance</h1>

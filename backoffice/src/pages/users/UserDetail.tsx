@@ -64,7 +64,7 @@ export const UserDetail = () => {
     queryFn: () => adminCollectionHelpers.getFullList('user_achievements', {
       filter: `user = "${id}"`,
       expand: 'achievement',
-      sort: '-unlocked_at,-created',
+      sort: '-unlocked_at,-id',
     }),
     enabled: !!id,
   })
@@ -126,7 +126,7 @@ export const UserDetail = () => {
     queryFn: () => adminCollectionHelpers.getFullList('session_progress', {
       filter: `user = "${id}"`,
       expand: 'program_day',
-      sort: '-completed_at,-updated,-created',
+      sort: '-completed_at,-id',
     }),
     enabled: !!id,
   })
@@ -504,9 +504,17 @@ export const UserDetail = () => {
               </div>
               <div>
                     <label className="text-sm text-neutral-500">Notifications</label>
-                <p className="font-medium">
-                      {profile?.enable_reminders ? 'Enabled' : 'Disabled'}
-                </p>
+                <div className="mt-1 space-y-1 text-sm font-medium">
+                  <p>Daily reminders: {profile?.enable_reminders ? 'On' : 'Off'}</p>
+                  <p>
+                    Craving alerts:{' '}
+                    {profile?.enable_craving_alerts === false ? 'Off' : 'On'}
+                  </p>
+                  <p>
+                    Achievements:{' '}
+                    {profile?.enable_achievement_notifications === false ? 'Off' : 'On'}
+                  </p>
+                </div>
                   </div>
                   <div>
                     <label className="text-sm text-neutral-500">Daily Reminder Time</label>
@@ -703,12 +711,37 @@ export const UserDetail = () => {
                 <p className="text-neutral-500">No step responses yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {stepRows.map((row: any) => (
+                  {stepRows.map((row: any) => {
+                    const step = row.expand?.step
+                    const question = String(
+                      row.response_json?.question ||
+                        step?.content_json?.question ||
+                        step?.content_json?.prompt ||
+                        step?.plain_text ||
+                        ''
+                    )
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                    const label =
+                      row.response_json?.step_title ||
+                      step?.step_title ||
+                      step?.slug ||
+                      (typeof row.step === 'string' ? row.step : row.step?.id) ||
+                      'Unknown step'
+                    return (
                     <div key={row.id} className="border border-neutral-200 rounded-lg p-4">
-                      <div className="flex justify-between text-xs text-neutral-500 mb-2">
-                        <span>Step: {row.expand?.step?.title || row.step?.slice(0, 12)}</span>
-                        <span>{row.created ? new Date(row.created).toLocaleString() : ''}</span>
+                      <div className="flex justify-between gap-3 text-xs text-neutral-500 mb-2">
+                        <span className="min-w-0">
+                          <span className="font-medium text-neutral-700">{label}</span>
+                          {step?.type ? (
+                            <span className="ml-2 text-neutral-400">{step.type}</span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0">{row.created ? new Date(row.created).toLocaleString() : ''}</span>
                       </div>
+                      {question ? (
+                        <p className="text-sm text-neutral-600 mb-2 line-clamp-3">{question}</p>
+                      ) : null}
                       <JsonBlock data={row.response_json} />
                       {row.ai_analysis && (
                         <div className="mt-2">
@@ -717,7 +750,8 @@ export const UserDetail = () => {
                         </div>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -20,16 +20,26 @@ async function main() {
         { name: 'subscription', type: 'json', required: true },
         { name: 'active', type: 'bool' },
       ],
-      listRule: null,
-      viewRule: null,
-      createRule: null,
-      updateRule: null,
-      deleteRule: null,
+      listRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+      viewRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+      createRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+      updateRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+      deleteRule: '@request.auth.collectionName = "admin_users"',
     })
     console.log('✓ Created push_subscriptions')
   } catch (e) {
-    if (e.status === 400) console.log('⚠ push_subscriptions already exists')
-    else throw e
+    if (e.status === 400) {
+      console.log('⚠ push_subscriptions already exists — patching rules')
+      const col = await pb.collections.getOne('push_subscriptions')
+      await pb.collections.update(col.id, {
+        listRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+        viewRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+        createRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+        updateRule: '@request.auth.collectionName = "admin_users" || @request.auth.id = user',
+        deleteRule: '@request.auth.collectionName = "admin_users"',
+      })
+      console.log('✓ Patched push_subscriptions rules')
+    } else throw e
   }
 }
 

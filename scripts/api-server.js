@@ -1,6 +1,6 @@
 /**
  * EC2 API server — AI personalization + Web Push (nginx → localhost).
- * Routes: POST /api/ai/personalize, GET /api/push/vapid-public-key, POST /api/push/subscribe
+ * Routes: POST /api/ai/personalize, /api/push/*, /api/support/* (encrypted chat)
  */
 import http from 'http'
 import { readFileSync, existsSync } from 'fs'
@@ -13,10 +13,13 @@ import {
   isPushReady,
   savePushSubscription,
   removePushSubscription,
+  notifyUserPush,
 } from './push.js'
-import { getAuthUser } from './pb-admin.js'
+import { getAuthUser, getAuthAdmin, adminAuth, getPbUrl } from './pb-admin.js'
 import { startReminderScheduler } from './reminder-scheduler.js'
 import { startSmokeCheckScheduler } from './smoke-check-scheduler.js'
+import { handleSupportApi } from './support-api.js'
+import { isSupportCryptoReady } from './support-crypto.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -129,6 +132,73 @@ async function handlePush(req, res, pathname) {
     return json(res, 200, { ok: true })
   }
 
+  // Admin-only: send web push to a user (retention win-back, etc.)
+  if (pathname === '/api/push/notify' && req.method === 'POST') {
+    if (!isPushReady()) return json(res, 503, { error: 'Push not configured' })
+    const auth = req.headers.authorization
+    if (!auth) return json(res, 401, { error: 'Admin login required' })
+    const admin = await getAuthAdmin(auth)
+    if (!admin?.id) return json(res, 401, { error: 'Invalid or expired admin session' })
+
+    let body
+    try {
+      body = JSON.parse((await readBody(req)).toString() || '{}')
+    } catch {
+      return json(res, 400, { error: 'Invalid JSON' })
+    }
+
+    const userId = String(body.userId || '').trim()
+    const title = String(body.title || 'We miss you').trim().slice(0, 80)
+    const message = String(body.body || body.message || 'Come back and continue your quit journey.').trim().slice(0, 200)
+    const url = String(body.url || '/home').trim().slice(0, 120)
+    const tag = String(body.tag || 'winback').trim().slice(0, 40)
+
+    if (!userId) return json(res, 400, { error: 'userId required' })
+
+    try {
+      const result = await notifyUserPush(userId, { title, body: message, url, tag })
+      const sent = result.sent || 0
+
+      // Audit trail — best-effort
+      try {
+        const token = await adminAuth()
+        if (token) {
+          await fetch(`${getPbUrl()}/api/collections/notification_events/records`, {
+            method: 'POST',
+            headers: { Authorization: token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user: userId,
+              trigger_type: 'winback_push',
+              message_title: title,
+              message_body: message,
+              sent_at: new Date().toISOString(),
+              day_number: Number(body.dayNumber) || 0,
+            }),
+          }).catch(() => null)
+        }
+      } catch {
+        /* ignore audit failure */
+      }
+
+      if (sent === 0) {
+        const msg =
+          result.error === 'no_subscriptions'
+            ? 'No active push subscriptions for this user. They need to enable notifications in the app (Profile → Daily reminders).'
+            : `Push delivery failed (${result.error || 'unknown'}). Try again or ask the user to re-enable notifications.`
+        return json(res, 404, {
+          ok: false,
+          sent: 0,
+          attempted: result.attempted || 0,
+          error: msg,
+        })
+      }
+      return json(res, 200, { ok: true, sent, attempted: result.attempted })
+    } catch (err) {
+      console.error('[push/notify]', err.message)
+      return json(res, 500, { error: err.message || 'notify failed' })
+    }
+  }
+
   json(res, 404, { error: 'not_found' })
 }
 
@@ -142,6 +212,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/push/')) {
       await handlePush(req, res, url.pathname)
+      return
+    }
+    if (url.pathname.startsWith('/api/support/')) {
+      await handleSupportApi(req, res, url.pathname, url.searchParams, readBody, json)
       return
     }
     json(res, 404, { error: 'not_found' })
@@ -159,6 +233,6 @@ server.listen(PORT, '127.0.0.1', () => {
   const hasAi = Boolean(process.env.ANTHROPIC_API_KEY)
   const hasPush = isPushReady()
   console.error(
-    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'}`
+    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'} supportCrypto=${isSupportCryptoReady() ? 'on' : 'off'}`
   )
 })

@@ -12,8 +12,8 @@ export function Pricing() {
         </div>
         <h3 className="pricing-name">Smono Complete Program</h3>
         <div className="pricing-original" id="priceOriginal">₹3,999</div>
-        <div className="pricing-price" id="pricePromo">₹1,999</div>
-        <div className="pricing-caption">One-time payment. Lifetime access.</div>
+        <div className="pricing-price" id="pricePromo">₹1,999<span style={{fontSize: '1.1rem', fontWeight: 500, color: 'var(--muted)'}}>/month</span></div>
+        <div className="pricing-caption">Billed monthly. Cancel anytime.</div>
         
         {/* Comparison Block */}
         <div className="pricing-comparison">
@@ -23,7 +23,7 @@ export function Pricing() {
           </div>
           <div className="comparison-divider">vs</div>
           <div className="comparison-item good">
-            <span className="comp-title">Smono Lifetime Reset</span>
+            <span className="comp-title">Smono — 1 month</span>
             <span className="comp-cost" id="priceComparisonGood">₹1,999</span>
           </div>
         </div>

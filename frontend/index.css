@@ -172,3 +172,139 @@ html {
   }
 }
 
+/* Lined paper — journal / CBT reflection */
+.journal-paper {
+  --paper-line: rgba(63, 141, 210, 0.18);
+  --paper-bg: #fffdf8;
+  --paper-margin: rgba(230, 57, 70, 0.28);
+  --paper-line-gap: 1.75rem;
+  position: relative;
+  border-radius: 1rem;
+  background-color: var(--paper-bg);
+  background-image:
+    linear-gradient(90deg, transparent 0, transparent 1.65rem, var(--paper-margin) 1.65rem, var(--paper-margin) calc(1.65rem + 1px), transparent calc(1.65rem + 1px)),
+    repeating-linear-gradient(
+      transparent,
+      transparent calc(var(--paper-line-gap) - 1px),
+      var(--paper-line) calc(var(--paper-line-gap) - 1px),
+      var(--paper-line) var(--paper-line-gap)
+    );
+  background-attachment: local;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 10px 28px rgba(14, 37, 56, 0.08);
+  border: 1px solid rgba(14, 37, 56, 0.06);
+  overflow: hidden;
+}
+
+.journal-paper::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.journal-paper__prompt {
+  position: relative;
+  z-index: 1;
+  padding: 1rem 1rem 0.35rem 2.1rem;
+  font-size: 1.05rem;
+  line-height: var(--paper-line-gap);
+  color: rgba(14, 37, 56, 0.72);
+}
+
+.journal-paper__input {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  min-height: calc(var(--paper-line-gap) * 6);
+  padding: 0.15rem 1rem 2.25rem 2.1rem;
+  margin: 0;
+  border: 0;
+  resize: none;
+  background: transparent;
+  color: #0e2538;
+  font-size: 1.125rem;
+  line-height: var(--paper-line-gap);
+  caret-color: #3f8dd2;
+  outline: none;
+}
+
+.journal-paper__input::placeholder {
+  color: rgba(14, 37, 56, 0.35);
+}
+
+.journal-paper__input:focus-visible {
+  outline: none;
+}
+
+.journal-paper:focus-within {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 0 0 2px rgba(63, 141, 210, 0.28),
+    0 12px 32px rgba(14, 37, 56, 0.1);
+}
+
+.journal-paper__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 1rem 0.75rem;
+}
+
+.journal-paper--print .journal-paper__input,
+.journal-paper--print .journal-paper__prompt {
+  font-size: 1rem;
+}
+
+/* Session "notebook page" for reading / reflection / exercise copy */
+.session-paper {
+  --paper-line: rgba(63, 141, 210, 0.14);
+  --paper-line-gap: 1.75rem;
+  position: relative;
+  background-color: #fffdf8 !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent calc(var(--paper-line-gap) - 1px),
+    var(--paper-line) calc(var(--paper-line-gap) - 1px),
+    var(--paper-line) var(--paper-line-gap)
+  ) !important;
+  border: 1px solid rgba(14, 37, 56, 0.06);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 14px 36px rgba(14, 37, 56, 0.07);
+}
+
+.session-paper::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.28;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.session-paper > * {
+  position: relative;
+  z-index: 1;
+}
+
+.session-paper__prompt {
+  font-size: 1.15rem;
+  line-height: var(--paper-line-gap, 1.75rem);
+  color: #0e2538;
+}
+
+.session-paper.font-handwriting,
+.session-paper .font-handwriting {
+  line-height: var(--paper-line-gap, 1.75rem);
+}
+
+

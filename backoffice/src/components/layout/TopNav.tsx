@@ -1,10 +1,49 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Bell, User, LogOut, X, Command, FileText, Users, BarChart3, Settings, HelpCircle, ArrowRight } from 'lucide-react'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { useNavigate } from 'react-router-dom'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { formatDistanceToNow } from 'date-fns'
+
+const READ_STORAGE_KEY = 'smono_admin_notif_read'
+
+function safeRelativeTime(value?: string): string {
+  if (!value?.trim()) return 'recently'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return 'recently'
+  return formatDistanceToNow(d, { addSuffix: true })
+}
+
+function loadReadIds(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(READ_STORAGE_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    return new Set(Array.isArray(parsed) ? parsed : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveReadIds(ids: Set<string>) {
+  try {
+    sessionStorage.setItem(READ_STORAGE_KEY, JSON.stringify([...ids].slice(-200)))
+  } catch {
+    /* ignore quota */
+  }
+}
+
+type AdminNotification = {
+  id: string
+  type: string
+  title: string
+  message: string
+  time: string
+  timeSort: number
+  read: boolean
+  path: string
+}
 
 interface SearchResult {
   type: 'user' | 'program' | 'article' | 'page'
@@ -14,14 +53,14 @@ interface SearchResult {
   icon: React.ComponentType<{ className?: string }>
 }
 
-export const TopNav = () => {
+export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
   const { user, logout } = useAdminAuth()
   const navigate = useNavigate()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [notifications, setNotifications] = useState<any[]>([])
+  const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds())
 
   // Fetch latest data to power notifications
   const { data: recentUsers } = useQuery({
@@ -30,34 +69,21 @@ export const TopNav = () => {
       adminCollectionHelpers.getList('users', 1, 5, {
         sort: recentSort('users'),
       }),
+    staleTime: 30_000,
   })
 
   const { data: recentTickets } = useQuery({
     queryKey: ['nav', 'recent_support_tickets'],
     queryFn: async () => {
-      try {
-        // Try to fetch support tickets with proper error handling
-        const result = await adminCollectionHelpers.getList('support_tickets', 1, 5, {
-          filter: 'status = "open" || status = "in_progress"',
-          sort: recentSort('support_tickets'),
-          // Don't expand user if it might cause issues - we can access it later if needed
-        })
-        
-        // Check if the result is successful
-        if (result.success && result.data) {
-          return result
-        }
-        
-        // If not successful, return empty
-        return { success: true, data: { items: [], totalItems: 0, totalPages: 0 } }
-      } catch (error: any) {
-        // If collection doesn't exist or has errors, return empty
-        console.warn('Error fetching support_tickets for notifications:', error)
-        return { success: true, data: { items: [], totalItems: 0, totalPages: 0 } }
-      }
+      const result = await adminCollectionHelpers.getList('support_tickets', 1, 5, {
+        filter: 'status = "open" || status = "in_progress"',
+        sort: recentSort('support_tickets'),
+      })
+      if (result.success && result.data) return result
+      return { success: true as const, data: { items: [], totalItems: 0, totalPages: 0, page: 1, perPage: 5 } }
     },
-    retry: false, // collection might not exist yet
-    staleTime: 30000, // Cache for 30 seconds
+    retry: false,
+    staleTime: 30_000,
   })
 
   const { data: recentAchievements } = useQuery({
@@ -68,10 +94,10 @@ export const TopNav = () => {
         expand: 'user,achievement',
       }),
     retry: false,
+    staleTime: 30_000,
   })
 
   useEffect(() => {
-    // Listen for ⌘K or Ctrl+K to open search
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
@@ -88,83 +114,93 @@ export const TopNav = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Build notifications from live PocketBase data
-  useEffect(() => {
-    const next: any[] = []
+  const notifications = useMemo((): AdminNotification[] => {
+    const next: AdminNotification[] = []
 
-    // Recent user registrations
-    if (recentUsers?.data && 'items' in recentUsers.data && Array.isArray(recentUsers.data.items)) {
-      recentUsers.data.items.forEach((u: any) => {
-        next.push({
-          id: `user_${u.id}`,
-          type: 'user_registered',
-          title: 'New user registered',
-          message: `${u.name || u.email || 'User'} just signed up`,
-          time: formatDistanceToNow(new Date(u.created), { addSuffix: true }),
-          read: false,
-          path: '/users',
-        })
+    const userItems =
+      recentUsers?.success && recentUsers.data && 'items' in recentUsers.data
+        ? recentUsers.data.items
+        : []
+    for (const u of userItems as any[]) {
+      const createdMs = u.created ? new Date(u.created).getTime() : 0
+      next.push({
+        id: `user_${u.id}`,
+        type: 'user_registered',
+        title: 'New user registered',
+        message: `${u.name || u.email || 'User'} just signed up`,
+        time: safeRelativeTime(u.created),
+        timeSort: Number.isFinite(createdMs) ? createdMs : 0,
+        read: readIds.has(`user_${u.id}`),
+        path: `/users/${u.id}`,
       })
     }
 
-    // Recent open / in‑progress support tickets
-    if (recentTickets?.data && 'items' in recentTickets.data && Array.isArray(recentTickets.data.items)) {
-      recentTickets.data.items.forEach((t: any) => {
-        next.push({
-          id: `ticket_${t.id}`,
-          type: 'support_ticket',
-          title: `Support ticket: ${t.subject || 'New ticket'}`,
-          message: t.message?.slice(0, 80) || 'New support ticket requires attention',
-          time: formatDistanceToNow(new Date(t.created), { addSuffix: true }),
-          read: false,
-          path: '/support/tickets',
-        })
+    const ticketItems =
+      recentTickets?.success && recentTickets.data && 'items' in recentTickets.data
+        ? recentTickets.data.items
+        : []
+    for (const t of ticketItems as any[]) {
+      const createdMs = t.created ? new Date(t.created).getTime() : 0
+      next.push({
+        id: `ticket_${t.id}`,
+        type: 'support_ticket',
+        title: `Support ticket: ${t.subject || 'New ticket'}`,
+        message: t.priority ? `Priority: ${t.priority}` : 'Needs attention',
+        time: safeRelativeTime(t.created),
+        timeSort: Number.isFinite(createdMs) ? createdMs : 0,
+        read: readIds.has(`ticket_${t.id}`),
+        path: '/support/tickets',
       })
     }
 
-    // Recent achievement unlocks
-    if (recentAchievements?.data && 'items' in recentAchievements.data && Array.isArray(recentAchievements.data.items)) {
-      recentAchievements.data.items.forEach((ua: any) => {
-        next.push({
-          id: `achievement_${ua.id}`,
-          type: 'achievement',
-          title: 'Achievement unlocked',
-          message: `${ua.expand?.user?.name || 'User'} unlocked "${ua.expand?.achievement?.title || 'Achievement'}"`,
-          time: formatDistanceToNow(new Date(ua.unlocked_at || ua.created), { addSuffix: true }),
-          read: true,
-          path: '/achievements/logs',
-        })
+    const achievementItems =
+      recentAchievements?.success && recentAchievements.data && 'items' in recentAchievements.data
+        ? recentAchievements.data.items
+        : []
+    for (const ua of achievementItems as any[]) {
+      const unlocked = ua.unlocked_at || ua.created
+      const unlockedMs = unlocked ? new Date(unlocked).getTime() : 0
+      next.push({
+        id: `achievement_${ua.id}`,
+        type: 'achievement',
+        title: 'Achievement unlocked',
+        message: `${ua.expand?.user?.name || ua.expand?.user?.email || 'User'} unlocked "${ua.expand?.achievement?.title || 'Achievement'}"`,
+        time: safeRelativeTime(unlocked),
+        timeSort: Number.isFinite(unlockedMs) ? unlockedMs : 0,
+        read: readIds.has(`achievement_${ua.id}`),
+        path: '/achievements/logs',
       })
     }
 
-    // Sort newest first and limit to last 15
-    next.sort((a, b) => {
-      const ta = a.timeSort || 0
-      const tb = b.timeSort || 0
-      return tb - ta
-    })
+    next.sort((a, b) => b.timeSort - a.timeSort)
+    return next.slice(0, 15)
+  }, [recentUsers, recentTickets, recentAchievements, readIds])
 
-    setNotifications(next.slice(0, 15))
-  }, [recentUsers, recentTickets, recentAchievements])
-
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter((n) => !n.read).length
+  const hasTicketNotifs = notifications.some((n) => n.type === 'support_ticket')
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
-  const handleNotificationClick = (notification: any) => {
+  const markRead = (ids: string[]) => {
+    setReadIds((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) next.add(id)
+      saveReadIds(next)
+      return next
+    })
+  }
+
+  const handleNotificationClick = (notification: AdminNotification) => {
     setShowNotifications(false)
+    markRead([notification.id])
     navigate(notification.path)
-    // Mark as read
-    setNotifications(notifications.map(n => 
-      n.id === notification.id ? { ...n, read: true } : n
-    ))
   }
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
+    markRead(notifications.map((n) => n.id))
   }
 
   // Search results based on query
@@ -187,28 +223,43 @@ export const TopNav = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white border-b border-neutral-200 h-16 flex items-center justify-between px-6 shadow-sm">
-      {/* Left Section - Logo */}
-      <div className="flex items-center">
-        <h1 className="text-xl font-bold text-primary">smono Admin</h1>
-      </div>
+      <header className="shrink-0 z-40 bg-white border-b border-neutral-200 h-14 flex items-stretch shadow-sm">
+        {/* Brand aligns with sidebar width so the shell never drifts */}
+        <div
+          className={`shrink-0 flex items-center gap-2 px-4 border-r border-neutral-200 transition-[width] duration-200 ease-out ${
+            collapsed ? 'w-16 justify-center px-0' : 'w-60'
+          }`}
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-sm flex items-center justify-center">
+            S
+          </div>
+          {!collapsed && (
+            <h1 className="text-base font-semibold text-neutral-dark tracking-tight truncate">
+              smono Admin
+            </h1>
+          )}
+        </div>
 
-      {/* Center Section - Search */}
-      <div className="flex-1 max-w-2xl mx-8">
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-2 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors text-left bg-neutral-50"
-          >
-            <Search className="w-4 h-4 text-neutral-400" />
-            <span className="flex-1 text-sm text-neutral-500">Search users, content, programs...</span>
-            <kbd className="text-xs text-neutral-400 border border-neutral-200 rounded px-1.5 py-0.5">
-              <Command className="w-3 h-3 inline" />K
-          </kbd>
-          </button>
-      </div>
+        <div className="flex-1 min-w-0 flex items-center justify-between gap-3 px-4 sm:px-6">
+          {/* Search */}
+          <div className="flex-1 max-w-xl min-w-0">
+            <button
+              type="button"
+              onClick={() => setShowSearchModal(true)}
+              className="w-full flex items-center gap-3 px-3 py-2 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors text-left bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <Search className="w-4 h-4 text-neutral-400 shrink-0" />
+              <span className="flex-1 text-sm text-neutral-500 truncate">
+                Search users, content, programs...
+              </span>
+              <kbd className="hidden sm:inline-flex text-xs text-neutral-400 border border-neutral-200 rounded px-1.5 py-0.5 items-center gap-0.5">
+                <Command className="w-3 h-3" />K
+              </kbd>
+            </button>
+          </div>
 
-      {/* Right Section - Notifications & Profile */}
-      <div className="flex items-center gap-4">
+          {/* Right Section - Notifications & Profile */}
+          <div className="flex items-center gap-2 shrink-0">
         {/* Notifications */}
         <div className="relative">
           <button
@@ -216,7 +267,7 @@ export const TopNav = () => {
                 setShowNotifications(!showNotifications)
                 setShowProfileMenu(false)
               }}
-            className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+            className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <Bell className="w-5 h-5 text-neutral-600" />
               {unreadCount > 0 && (
@@ -269,18 +320,19 @@ export const TopNav = () => {
                       ))
                     )}
               </div>
-                  {notifications.length > 0 && (
+                  {hasTicketNotifs && (
                     <div className="px-4 py-2 border-t border-neutral-200">
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => {
                           setShowNotifications(false)
                           navigate('/support/tickets')
                         }}
                         className="text-xs text-primary hover:underline w-full text-center"
                       >
-                        View all notifications
+                        Open support inbox
                       </button>
-            </div>
+                    </div>
                   )}
                 </div>
               </>
@@ -299,7 +351,9 @@ export const TopNav = () => {
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-medium">
               {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
             </div>
-            <span className="text-sm font-medium">{user?.name || user?.email}</span>
+            <span className="text-sm font-medium hidden sm:inline max-w-[10rem] truncate">
+              {user?.name || user?.email}
+            </span>
           </button>
           {showProfileMenu && (
               <>
@@ -350,6 +404,7 @@ export const TopNav = () => {
           )}
         </div>
       </div>
+        </div>
     </header>
 
       {/* Global Search Modal */}

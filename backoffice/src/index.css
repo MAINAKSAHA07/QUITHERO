@@ -11,6 +11,20 @@
     @apply bg-bg-default text-neutral-dark antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @layer components {
@@ -19,15 +33,15 @@
   }
   
   .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
   }
   
   .btn-secondary {
-    @apply bg-neutral-light hover:bg-neutral-light/80 text-neutral-dark font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-neutral-light hover:bg-neutral-light/80 text-neutral-dark font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
   }
   
   .btn-danger {
-    @apply bg-danger hover:bg-danger/90 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply bg-danger hover:bg-danger/90 text-white font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger;
   }
 }
 

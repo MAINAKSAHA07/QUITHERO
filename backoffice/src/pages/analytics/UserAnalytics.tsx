@@ -5,7 +5,7 @@ import {
   countActiveUsers,
   indexDailyActivity,
 } from '../../lib/userActivity'
-import { cohortRetentionPct } from '../../lib/analyticsHelpers'
+import { cohortRetentionPct, distinctUsers, localDayKey } from '../../lib/analyticsHelpers'
 import { fetchActivityByUser, fetchActivityRecords } from '../../lib/fetchActivityByUser'
 import { Users, TrendingUp, Calendar } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -73,12 +73,11 @@ export const UserAnalytics = () => {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now)
       date.setDate(date.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = localDayKey(date)
       
       const newUsers = users.filter((u: any) => {
         if (!u.created) return false
-        const created = new Date(u.created).toISOString().split('T')[0]
-        return created === dateStr
+        return localDayKey(u.created) === dateStr
       }).length
 
       const activeUsers = dailyActivity.get(dateStr)?.size ?? 0
@@ -127,18 +126,26 @@ export const UserAnalytics = () => {
 
   const cohortData = generateCohortData()
 
-  const kycCompleted = profiles.filter((p: any) => p.onboarding_completed_at).length
-  const startedProgram = sessions.filter(
-    (s: any) => s.started_at || (s.status && s.status !== 'not_started')
-  ).length
-  const completedDay1 = sessionProgress.filter(
-    (sp: any) =>
-      sp.status === 'completed' && sp.expand?.program_day?.day_number === 1
-  ).length
-  const completedProgram = sessions.filter((s: any) => s.status === 'completed').length
+  const kycCompleted = distinctUsers(
+    profiles.filter((p: any) => p.onboarding_completed_at)
+  ).size
+  const startedProgram = distinctUsers(
+    sessions.filter(
+      (s: any) => s.started_at || (s.status && s.status !== 'not_started')
+    )
+  ).size
+  const completedDay1 = distinctUsers(
+    sessionProgress.filter(
+      (sp: any) =>
+        sp.status === 'completed' && sp.expand?.program_day?.day_number === 1
+    )
+  ).size
+  const completedProgram = distinctUsers(
+    sessions.filter((s: any) => s.status === 'completed')
+  ).size
   const totalUsers = users.length || 1
 
-  // User funnel
+  // User funnel (distinct users per stage)
   const funnelData = [
     { stage: 'Registered', value: users.length, percentage: 100 },
     {

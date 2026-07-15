@@ -156,37 +156,60 @@ export class SessionService extends BaseService {
   }
 
   /**
-   * Save step response
+   * Save step response. When overwrite is false, keep the first saved answer forever.
    */
   async saveStepResponse(
     userId: string,
     stepId: string,
-    response: any
+    response: any,
+    opts: { overwrite?: boolean } = {}
   ): Promise<ApiResponse<StepResponse>> {
+    const overwrite = opts.overwrite !== false
     try {
-      // Check if response already exists
       const existing = await pb
         .collection('step_responses')
         .getFirstListItem(`user = "${userId}" && step = "${stepId}"`)
         .catch(() => null)
 
       if (existing) {
-        // Update existing
+        if (!overwrite) {
+          return { success: true, data: existing as any }
+        }
         const updated = await pb.collection('step_responses').update(existing.id, {
           response_json: response,
         })
         return { success: true, data: updated as any }
-      } else {
-        // Create new
-        const created = await pb.collection('step_responses').create({
-          user: userId,
-          step: stepId,
-          response_json: response,
-        })
-        return { success: true, data: created as any }
       }
+
+      const created = await pb.collection('step_responses').create({
+        user: userId,
+        step: stepId,
+        response_json: response,
+      })
+      return { success: true, data: created as any }
     } catch (error: any) {
       return { success: false, error: error.message }
+    }
+  }
+
+  /** Map of step id → response_json for this user (client filters to the day). */
+  async getStepResponsesByUser(
+    userId: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    try {
+      const rows = await pb.collection('step_responses').getFullList({
+        filter: `user = "${userId}"`,
+        fields: 'step,response_json',
+      })
+      const map: Record<string, unknown> = {}
+      for (const row of rows as any[]) {
+        const stepId =
+          typeof row.step === 'string' ? row.step : row.step?.id
+        if (stepId) map[stepId] = row.response_json
+      }
+      return { success: true, data: map }
+    } catch (error: any) {
+      return { success: false, error: error.message, data: {} }
     }
   }
 

@@ -156,11 +156,20 @@ class SessionPersonalizationService {
       const rows = await pb.collection('step_responses').getList(1, 40, {
         filter: `user = "${userId}"`,
         expand: 'step,step.program_day',
-        sort: '-updated',
+        sort: '-id',
       })
 
       const lines: string[] = ['USER INPUT HISTORY (reflections & exercises — use for tone, never quote verbatim):']
       let count = 0
+
+      const clip = (s: string, n: number) =>
+        s.length > n ? `${s.slice(0, n)}…` : s
+
+      const stepQuestion = (step: any): string => {
+        const c = step?.content_json || {}
+        const raw = String(c.question || c.prompt || step?.step_title || step?.plain_text || '').trim()
+        return clip(raw.replace(/\s+/g, ' '), 140)
+      }
 
       for (const raw of rows.items as any[]) {
         const step = raw.expand?.step
@@ -169,30 +178,50 @@ class SessionPersonalizationService {
 
         const payload = raw.response_json || {}
         const slug = step?.slug || raw.step
+        const qFromPayload = String(payload.question || '').replace(/\s+/g, ' ').trim()
+        const qFromStep = stepQuestion(step)
+        const q = qFromPayload || qFromStep
 
         if (Array.isArray(payload.answers) && payload.answers.length) {
           for (const item of payload.answers) {
-            const q = String(item.prompt || '').slice(0, 100)
+            const itemQ = String(item.prompt || q || '').slice(0, 100)
             const a = String(item.answer || '').slice(0, 120)
             if (!a) continue
             lines.push(
-              `- Day ${dayNum ?? '?'} reflection (${slug}) Q: "${q}${q.length >= 100 ? '…' : ''}" → "${a}${String(item.answer).length > 120 ? '…' : ''}"`
+              `- Day ${dayNum ?? '?'} reflection (${slug}) Q: "${itemQ}${itemQ.length >= 100 ? '…' : ''}" → "${a}${String(item.answer).length > 120 ? '…' : ''}"`
             )
             count++
           }
         } else if (payload.answer) {
-          const snippet = String(payload.answer).slice(0, 120)
-          lines.push(`- Day ${dayNum ?? '?'} reflection (${slug}): "${snippet}${payload.answer.length > 120 ? '…' : ''}"`)
+          const a = clip(String(payload.answer), 120)
+          if (q) {
+            lines.push(`- Day ${dayNum ?? '?'} reflection (${slug}) Q: "${clip(q, 140)}" → "${a}"`)
+          } else {
+            lines.push(`- Day ${dayNum ?? '?'} reflection (${slug}): "${a}"`)
+          }
           count++
+        } else if (payload.worksheet?.values && typeof payload.worksheet.values === 'object') {
+          const pairs = Object.entries(payload.worksheet.values as Record<string, unknown>)
+            .filter(([, v]) => String(v ?? '').trim())
+            .slice(0, 6)
+            .map(([k, v]) => `${clip(String(k), 40)}="${clip(String(v), 60)}"`)
+          if (pairs.length) {
+            const head = q ? `Q: "${clip(q, 80)}" · ` : ''
+            lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): ${head}${pairs.join('; ')}`)
+            count++
+          }
         } else if (payload.worksheet) {
           lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): worksheet completed`)
           count++
         } else if (payload.selected_option != null) {
-          lines.push(`- Day ${dayNum ?? '?'} quiz (${slug}): option ${payload.selected_option}`)
+          const label = payload.selected_label
+            ? ` "${clip(String(payload.selected_label), 80)}"`
+            : ` option ${payload.selected_option}`
+          const head = q ? ` Q: "${clip(q, 80)}"` : ''
+          lines.push(`- Day ${dayNum ?? '?'} quiz (${slug}):${head} →${label}`)
           count++
         } else if (payload.completed) {
-          lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): marked complete`)
-          count++
+          // skip empty completions — no user language for personalization
         }
         if (count >= 12) break
       }

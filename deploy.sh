@@ -31,6 +31,7 @@
 #   PB_DATA_DIR      Persistent DB path on server (default: /var/lib/quithero/pb_data)
 #   PB_BACKUP_DIR    Backup location (default: /var/lib/quithero/backups)
 #   PB_ENCRYPTION_KEY 32-char key for PocketBase Docker (see docker-compose.yml)
+#   SUPPORT_CHAT_KEY  64-char hex AES key for support chat (server-only; see .env.example)
 
 set -euo pipefail
 
@@ -42,6 +43,8 @@ FRONTEND_PORT="${FRONTEND_PORT:-80}"
 BACKOFFICE_PORT="${BACKOFFICE_PORT:-8080}"
 AI_PROXY_PORT="${AI_PROXY_PORT:-8787}"
 NGINX_SITE_NAME="${NGINX_SITE_NAME:-quithero}"
+PB_CONTAINER_NAME="${PB_CONTAINER_NAME:-smono-pb}"
+AI_PROXY_SERVICE="${AI_PROXY_SERVICE:-smono-ai-proxy}"
 SKIP_PB_SETUP="${SKIP_PB_SETUP:-0}"
 
 log()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
@@ -368,12 +371,18 @@ backup_pb_data() {
 }
 
 migrate_ephemeral_container_data() {
-  if ! docker ps --format '{{.Names}}' | grep -qx 'quit-hero-pb'; then
+  # Legacy container name from pre-smono rename
+  local container=""
+  if docker ps --format '{{.Names}}' | grep -qx "$PB_CONTAINER_NAME"; then
+    container="$PB_CONTAINER_NAME"
+  elif docker ps --format '{{.Names}}' | grep -qx 'quit-hero-pb'; then
+    container='quit-hero-pb'
+  else
     return 0
   fi
 
   log "Checking for PocketBase data stored in container (pre-fix ephemeral storage)"
-  docker exec quit-hero-pb sh -c '
+  docker exec "$container" sh -c '
     if [ -f /usr/local/bin/pb_data/data.db ] && [ ! -f /pb/pb_data/data.db ]; then
       mkdir -p /pb/pb_data
       cp -a /usr/local/bin/pb_data/. /pb/pb_data/
@@ -406,6 +415,11 @@ deploy_pocketbase() {
     docker-compose up -d pocketbase
   else
     die "Neither 'docker compose' nor 'docker-compose' is available"
+  fi
+
+  # Drop legacy QuitHero container name if the smono container is up
+  if docker ps --format '{{.Names}}' | grep -qx "$PB_CONTAINER_NAME"; then
+    docker rm -f quit-hero-pb >/dev/null 2>&1 || true
   fi
 
   log "Waiting for PocketBase health check"
@@ -451,9 +465,17 @@ run_push_setup() {
 run_smoke_check_setup() {
   [[ -f "$APP_DIR/PocketBase/setup-smoke-check.js" ]] || return
 
-  log "Ensuring smoke_check_ins collection exists"
+  log "Ensuring smoke_check collection exists"
   cd "$APP_DIR"
-  node PocketBase/setup-smoke-check.js || warn "setup-smoke-check.js failed — smoke check push may not work"
+  node PocketBase/setup-smoke-check.js || warn "setup-smoke-check.js failed — smoke check may not work"
+}
+
+run_cravings_dates_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-cravings-dates.js" ]] || return
+
+  log "Ensuring cravings created/updated autodate fields"
+  cd "$APP_DIR"
+  node PocketBase/setup-cravings-dates.js || warn "setup-cravings-dates.js failed — craving history dates may be blank"
 }
 
 run_account_deletion_setup() {
@@ -462,6 +484,14 @@ run_account_deletion_setup() {
   log "Ensuring account_deletion_requests collection exists"
   cd "$APP_DIR"
   node PocketBase/setup-account-deletion.js || warn "setup-account-deletion.js failed — deletion requests may not work"
+}
+
+run_support_chat_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-support-chat.js" ]] || return
+
+  log "Ensuring support ticket chat collections exist"
+  cd "$APP_DIR"
+  node PocketBase/setup-support-chat.js || warn "setup-support-chat.js failed — support chat may not work"
 }
 
 run_blog_fields_setup() {
@@ -494,6 +524,22 @@ run_notification_prefs_setup() {
   log "Ensuring user_profiles notification fields exist"
   cd "$APP_DIR"
   node PocketBase/setup-notification-prefs.js || warn "setup-notification-prefs.js failed — profile notification toggles may not save"
+}
+
+run_behavior_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-behavior-collections.js" ]] || return
+
+  log "Ensuring behavior / notification_events collections exist"
+  cd "$APP_DIR"
+  node PocketBase/setup-behavior-collections.js || warn "setup-behavior-collections.js failed — AI notification logs may be empty"
+}
+
+run_ai_memory_setup() {
+  [[ -f "$APP_DIR/PocketBase/setup-ai-memory.js" ]] || return
+
+  log "Ensuring session_ai_memory collection exists"
+  cd "$APP_DIR"
+  node PocketBase/setup-ai-memory.js || warn "setup-ai-memory.js failed — session AI continuity may not persist"
 }
 
 run_pb_rules() {
@@ -579,7 +625,7 @@ setup_ai_proxy() {
 
   log "Configuring API server — AI + push (systemd, port ${AI_PROXY_PORT})"
 
-  service_file="/etc/systemd/system/quithero-ai-proxy.service"
+  service_file="/etc/systemd/system/${AI_PROXY_SERVICE}.service"
   sudo tee "$service_file" >/dev/null <<EOF
 [Unit]
 Description=Smono API server (AI personalization + Web Push)
@@ -600,14 +646,18 @@ WantedBy=multi-user.target
 EOF
 
   sudo systemctl daemon-reload
-  sudo systemctl enable quithero-ai-proxy.service
-  sudo systemctl restart quithero-ai-proxy.service
+  # Migrate off legacy QuitHero unit name
+  sudo systemctl disable --now quithero-ai-proxy.service >/dev/null 2>&1 || true
+  sudo rm -f /etc/systemd/system/quithero-ai-proxy.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable "${AI_PROXY_SERVICE}.service"
+  sudo systemctl restart "${AI_PROXY_SERVICE}.service"
 
   # ponytail: single health probe — fails deploy if proxy won't start
   sleep 1
-  if ! sudo systemctl is-active --quiet quithero-ai-proxy.service; then
-    sudo journalctl -u quithero-ai-proxy.service -n 20 --no-pager || true
-    die "quithero-ai-proxy failed to start"
+  if ! sudo systemctl is-active --quiet "${AI_PROXY_SERVICE}.service"; then
+    sudo journalctl -u "${AI_PROXY_SERVICE}.service" -n 20 --no-pager || true
+    die "${AI_PROXY_SERVICE} failed to start"
   fi
 
   log "AI proxy running at 127.0.0.1:${AI_PROXY_PORT}"
@@ -626,6 +676,7 @@ append_nginx_app_api_locations() {
 
     # PocketBase API proxy (matches Vite production /api/pocketbase)
     location /api/pocketbase/ {
+        client_max_body_size 100m;
         proxy_pass http://127.0.0.1:${PB_PORT}/;
         proxy_http_version 1.1;
         proxy_set_header Connection '';
@@ -664,6 +715,19 @@ append_nginx_app_api_locations() {
         proxy_connect_timeout 5s;
     }
 
+    # Support chat (AES-GCM at rest; key on API server only)
+    location /api/support/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/support/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
@@ -682,6 +746,7 @@ append_nginx_admin_api_locations() {
     location = /favicon.ico { try_files /mascot.png =404; }
 
     location /api/pocketbase/ {
+        client_max_body_size 100m;
         proxy_pass http://127.0.0.1:${PB_PORT}/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -689,6 +754,32 @@ append_nginx_admin_api_locations() {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Authorization \$http_authorization;
+    }
+
+    # Web Push notify (admin win-back / re-engagement)
+    location /api/push/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/push/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    # Support chat reply / decrypt (admin)
+    location /api/support/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/support/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
     }
 
     location /assets/ {
@@ -823,6 +914,7 @@ server {
     location = /favicon.ico { try_files /mascot.png =404; }
 
     location /api/pocketbase/ {
+        client_max_body_size 100m;
         proxy_pass http://127.0.0.1:${PB_PORT}/;
         proxy_http_version 1.1;
         proxy_set_header Connection '';
@@ -1010,11 +1102,15 @@ deploy_all() {
   run_pb_setup
   run_push_setup
   run_smoke_check_setup
+  run_cravings_dates_setup
   run_account_deletion_setup
+  run_support_chat_setup
   run_blog_fields_setup
   run_media_setup
   run_app_settings_setup
   run_notification_prefs_setup
+  run_behavior_setup
+  run_ai_memory_setup
   run_pb_rules
   run_last_active_setup
   run_fix_last_active

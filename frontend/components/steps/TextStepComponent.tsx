@@ -1,8 +1,10 @@
 import { Step } from '../../types/models'
 import { TextStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
+import { useApp } from '../../context/AppContext'
 import { sanitizeStepText } from '../../utils/stepContentFormat'
-import { isEmbedVideoUrl } from '../../utils/mediaUrl'
+import { usesHandwritingFont } from '../../utils/handwritingLang'
+import { isEmbedVideoUrl, resolveMediaUrl } from '../../utils/mediaUrl'
 
 interface TextStepComponentProps {
   step: Step
@@ -69,28 +71,32 @@ function formatText(text: string) {
 
 export default function TextStepComponent({ step, onNext }: TextStepComponentProps) {
   const content = step.content_json as TextStepContent
+  const { language } = useApp()
+  const handwriting = usesHandwritingFont(language)
+  const imageUrl = resolveMediaUrl(content.image_url)
+  const videoUrl = resolveMediaUrl(content.video_url)
 
   return (
     <div className="space-y-6">
-      {content.image_url && (
+      {imageUrl && (
         <img
-          src={content.image_url}
+          src={imageUrl}
           alt="Step illustration"
           className="w-full rounded-xl"
         />
       )}
-      {content.video_url && (
+      {videoUrl && (
         <div className="aspect-video glass rounded-xl overflow-hidden">
-          {isEmbedVideoUrl(content.video_url) ? (
+          {isEmbedVideoUrl(videoUrl) ? (
             <iframe
-              src={content.video_url}
+              src={videoUrl}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
           ) : (
             <video
-              src={content.video_url}
+              src={videoUrl}
               className="w-full h-full object-contain bg-black"
               controls
               playsInline
@@ -98,11 +104,25 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
           )}
         </div>
       )}
-      <div className="space-y-3 sm:space-y-4">
+      <div
+        className={`session-paper rounded-2xl p-4 sm:p-5 space-y-3 sm:space-y-4 ${
+          handwriting ? 'font-handwriting' : 'font-sans'
+        }`}
+      >
         {content.title && (
-          <h3 className="text-lg sm:text-xl font-bold text-text-primary leading-snug">{content.title}</h3>
+          <h3
+            className={`text-lg sm:text-xl font-bold text-text-primary leading-snug ${
+              handwriting ? 'session-paper__prompt' : ''
+            }`}
+          >
+            {content.title}
+          </h3>
         )}
-        <div className="text-text-primary/90 leading-relaxed space-y-3 sm:space-y-4 text-sm sm:text-[15px]">
+        <div
+          className={`text-text-primary/90 leading-relaxed space-y-3 sm:space-y-4 ${
+            handwriting ? 'text-[1.05rem] sm:text-[1.125rem]' : 'text-sm sm:text-[15px]'
+          }`}
+        >
           {formatText(sanitizeStepText(content.text || ''))}
         </div>
       </div>
@@ -123,4 +143,3 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
     </div>
   )
 }
-

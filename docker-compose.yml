@@ -1,7 +1,7 @@
 services:
   pocketbase:
     image: ghcr.io/muchobien/pocketbase:latest
-    container_name: quit-hero-pb
+    container_name: smono-pb
     restart: unless-stopped
     command:
       - serve
@@ -21,9 +21,8 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - quit-hero-network
+      - smono-network
 
 networks:
-  quit-hero-network:
+  smono-network:
     driver: bridge
-

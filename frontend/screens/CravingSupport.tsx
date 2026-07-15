@@ -26,6 +26,11 @@ import { useCravings } from '../hooks/useCravings'
 import { analyticsService } from '../services/analytics.service'
 import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
+import {
+  aiNotificationScheduler,
+  shouldTriggerCravingSpike,
+} from '../services/ai-notification.service'
+import { behaviorTracker } from '../services/behavior-tracker.service'
 import { contentService } from '../services/content.service'
 import { CravingType, CravingTrigger, ResolutionMethod } from '../types/enums'
 
@@ -105,7 +110,7 @@ function IconBubble({
 export default function CravingSupport() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user, refreshProgress } = useApp()
+  const { user, userProfile, refreshProgress } = useApp()
   const { cravings, logCraving, fetchCravings } = useCravings()
   const [showLogForm, setShowLogForm] = useState(false)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
@@ -206,6 +211,27 @@ export default function CravingSupport() {
         await refreshProgress()
         await achievementService.checkAndUnlock(user.id)
         behaviorProfileService.computeAndSave(user.id).catch(() => {})
+        behaviorTracker.trackCravingLogged(
+          String(trigger),
+          intensity,
+          slipped ? 'slip' : 'craving'
+        )
+
+        // AI interventions — respect craving alert pref
+        if (userProfile?.enable_craving_alerts !== false) {
+          if (slipped) {
+            aiNotificationScheduler.triggerSlipRecovery(user.id).catch(() => {})
+          } else {
+            const windowMs = 2 * 60 * 60 * 1000
+            const recentInWindow = cravings.filter((c) => {
+              const t = new Date(c.created || '').getTime()
+              return Number.isFinite(t) && Date.now() - t < windowMs
+            }).length
+            if (shouldTriggerCravingSpike(intensity, recentInWindow + 1)) {
+              aiNotificationScheduler.triggerCravingSpike(user.id).catch(() => {})
+            }
+          }
+        }
 
         const cravingsThisWeek = cravings.filter((c) => {
           const cravingDate = new Date(c.created || '')

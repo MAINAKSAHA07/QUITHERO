@@ -37,6 +37,7 @@ const configs = [
   { name: 'user_achievements', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'analytics_events', list: `${adminRule} || ${ownerOrNullRule('user')}`, view: `${adminRule} || ${ownerOrNullRule('user')}`, create: ownerOrNullRule('user'), update: adminRule, delete: adminRule },
   { name: 'support_tickets', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  { name: 'support_ticket_messages', list: null, view: null, create: null, update: null, delete: null },
   { name: 'session_ai_memory', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'personalization_logs', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'user_behavior_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
@@ -44,6 +45,8 @@ const configs = [
   { name: 'smoke_check_ins', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'account_deletion_requests', list: adminOrOwner('user'), view: adminOrOwner('user'), create: '@request.auth.id = user', update: adminRule, delete: adminRule },
   { name: 'belief_assessments', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
+  // push — API uses superuser; Retention UI lists as admin_users; app users own rows
+  { name: 'push_subscriptions', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
 
   // public-readable (mobile app), admin-writable
   { name: 'programs', list: '', view: '', create: adminRule, update: adminRule, delete: adminRule },

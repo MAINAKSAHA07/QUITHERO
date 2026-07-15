@@ -1,6 +1,6 @@
-# Quit Hero Admin Dashboard (Backoffice)
+# Smono Admin Dashboard (Backoffice)
 
-This is the administrative dashboard for Quit Hero, built with React, TypeScript, and Vite.
+This is the administrative dashboard for Smono, built with React, TypeScript, and Vite.
 
 ## Features
 

@@ -11,8 +11,6 @@ import {
   Sparkles,
   ArrowRight
 } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
-import Mascot from '../components/Mascot'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
@@ -99,23 +97,18 @@ export default function Onboarding() {
   const Icon = slides[currentSlide].icon
 
   return (
-    <div className="min-h-screen pb-20 flex flex-col justify-between">
-      <TopNavigation
-        left="logo"
-        center=""
-        right={
-          currentSlide < slides.length - 1 && (
-            <button
-              onClick={handleSkip}
-              className="text-text-primary/40 hover:text-text-primary text-xs font-semibold px-3 py-1.5 rounded-full glass-subtle transition-all"
-            >
-              Skip
-            </button>
-          )
-        }
-      />
+    <div className="min-h-screen pb-20 flex flex-col justify-between relative">
+      {currentSlide < slides.length - 1 && (
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="absolute top-4 right-4 z-10 text-text-primary/40 hover:text-text-primary text-xs font-semibold px-3 py-1.5 rounded-full glass-subtle transition-all"
+        >
+          Skip
+        </button>
+      )}
 
-      <div className="app-container flex-1 px-4 pt-8 flex flex-col justify-center" {...swipeHandlers}>
+      <div className="app-container flex-1 px-4 pt-12 flex flex-col justify-center" {...swipeHandlers}>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
@@ -139,11 +132,7 @@ export default function Onboarding() {
                 <GlassCard
                   className={`p-6 bg-gradient-to-br ${slides[currentSlide].gradient} shadow-glow border-white/10`}
                 >
-                  {currentSlide === 0 || currentSlide === slides.length - 1 ? (
-                    <Mascot size="md" className="mx-auto" />
-                  ) : (
-                    <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
-                  )}
+                  <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
                 </GlassCard>
               </motion.div>
             </motion.div>

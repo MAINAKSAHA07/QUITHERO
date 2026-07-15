@@ -19,7 +19,7 @@ export async function getPendingDeletionRequest(
   try {
     const list = await pb.collection('account_deletion_requests').getList(1, 1, {
       filter: `user = "${userId}" && status = "pending"`,
-      sort: '-created',
+      sort: '-id',
     })
     return {
       success: true,

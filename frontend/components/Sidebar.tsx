@@ -5,6 +5,7 @@ import { X, Home, Calendar, TrendingUp, BookOpen, User, Heart, Wind, Settings, L
 import SmonoLogo from './SmonoLogo'
 import { useApp } from '../context/AppContext'
 import pb, { authHelpers } from '../lib/pocketbase'
+import { resolveMediaUrl } from '../utils/mediaUrl'
 import TranslatedText from './TranslatedText'
 
 interface SidebarProps {
@@ -96,7 +97,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center overflow-hidden ring-2 ring-white">
                         {user.avatar ? (
-                          <img src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`} alt="" className="w-full h-full object-cover" />
+                          <img src={resolveMediaUrl(`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`)} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <User className="w-5 h-5 text-white" />
                         )}

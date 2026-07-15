@@ -2,64 +2,73 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
 import {
-  daysSinceLastActive,
   getUserLastActive,
-  isUserActiveWithinDays,
 } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
+import {
+  SEGMENT_LABELS,
+  userMatchesSegment,
+  type SegmentId,
+} from '../../lib/userSegments'
 import { Plus, TrendingUp, TrendingDown, Eye, Edit, Trash2, Filter } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface Segment {
-  id: string
+  id: SegmentId
   name: string
   description: string
-  criteria: any
+  criteria: Record<string, unknown>
   userCount: number
   trend?: number
   isPredefined: boolean
 }
 
-const predefinedSegments = [
+const predefinedSegments: {
+  id: SegmentId
+  name: string
+  description: string
+  criteria: Record<string, unknown>
+  isPredefined: true
+}[] = [
   {
     id: 'active',
-    name: 'Active Users',
-    description: 'Users who logged in within the last 7 days',
+    name: SEGMENT_LABELS.active,
+    description: 'Users with real activity in the last 7 days',
     criteria: { lastLoginDays: 7 },
     isPredefined: true,
   },
   {
     id: 'inactive',
-    name: 'Inactive Users',
-    description: 'Users who have not logged in for 30+ days',
+    name: SEGMENT_LABELS.inactive,
+    description: 'Previously active users quiet for 30+ days',
     criteria: { lastLoginDays: 30 },
     isPredefined: true,
   },
   {
     id: 'high-risk',
-    name: 'High Risk',
+    name: SEGMENT_LABELS['high-risk'],
     description: 'Users with many slips and low session completion',
     criteria: { slipsThreshold: 3, completionRate: 0.5 },
     isPredefined: true,
   },
   {
     id: 'star-performers',
-    name: 'Star Performers',
+    name: SEGMENT_LABELS['star-performers'],
     description: 'Users who completed the program with no slips',
     criteria: { slipsThreshold: 0, programCompleted: true },
     isPredefined: true,
   },
   {
     id: 'new-users',
-    name: 'New Users',
+    name: SEGMENT_LABELS['new-users'],
     description: 'Users registered within the last 7 days',
     criteria: { registrationDays: 7 },
     isPredefined: true,
   },
   {
     id: 'churned',
-    name: 'Churned',
-    description: 'Users not active for 90+ days',
+    name: SEGMENT_LABELS.churned,
+    description: 'Previously active users quiet for 90+ days',
     criteria: { lastLoginDays: 90 },
     isPredefined: true,
   },
@@ -90,62 +99,19 @@ export const UserSegments = () => {
     staleTime: 60_000,
   })
 
-  const calculateSegmentCount = (segmentId: string, periodDays?: number): number => {
+  const segmentContext = {
+    activityByUser,
+    sessions: (sessionsData?.data || []) as { user?: string; status?: string }[],
+    cravings: (cravingsData?.data || []) as { user?: string; type?: string }[],
+  }
+
+  const calculateSegmentCount = (segmentId: SegmentId): number => {
     if (!usersData?.data) return 0
-    const users = usersData.data
-    const sessions = sessionsData?.data || []
-    const cravings = cravingsData?.data || []
-    const now = new Date()
-    const period = periodDays || (segmentId === 'active' ? 7 : segmentId === 'inactive' ? 30 : segmentId === 'new-users' ? 7 : segmentId === 'churned' ? 90 : 0)
-
-    switch (segmentId) {
-      case 'active':
-        return users.filter((u: any) => isUserActiveWithinDays(u, activityByUser, period)).length
-
-      case 'inactive':
-        return users.filter((u: any) => {
-          const daysSince = daysSinceLastActive(u, activityByUser)
-          return daysSince === null || daysSince >= period
-        }).length
-
-      case 'high-risk':
-        return users.filter((u: any) => {
-          const userSessions = sessions.filter((s: any) => s.user === u.id)
-          const userCravings = cravings.filter((c: any) => c.user === u.id)
-          const slips = userCravings.filter((c: any) => c.type === 'slip').length
-          const completedSessions = userSessions.filter((s: any) => s.status === 'completed').length
-          return slips > 3 && completedSessions < 5
-        }).length
-
-      case 'star-performers':
-        return users.filter((u: any) => {
-          const userSessions = sessions.filter((s: any) => s.user === u.id)
-          const userCravings = cravings.filter((c: any) => c.user === u.id)
-          const completed = userSessions.filter((s: any) => s.status === 'completed').length
-          const slips = userCravings.filter((c: any) => c.type === 'slip').length
-          return completed >= 10 && slips === 0
-        }).length
-
-      case 'new-users':
-        const daysAgoNew = new Date(now.getTime() - period * 24 * 60 * 60 * 1000)
-        return users.filter((u: any) => {
-          if (!u.created) return false
-          return new Date(u.created) > daysAgoNew
-        }).length
-
-      case 'churned':
-        return users.filter((u: any) => {
-          const daysSince = daysSinceLastActive(u, activityByUser)
-          return daysSince === null || daysSince >= period
-        }).length
-
-      default:
-        return 0
-    }
+    return usersData.data.filter((u: any) => userMatchesSegment(u, segmentId, segmentContext)).length
   }
 
   // Calculate trend: compare current period with previous period
-  const calculateTrend = (segmentId: string): number => {
+  const calculateTrend = (segmentId: SegmentId): number => {
     const currentCount = calculateSegmentCount(segmentId)
     
     // For time-based segments, compare with previous period
@@ -188,16 +154,14 @@ export const UserSegments = () => {
     return 0
   }
 
-  const segments: Segment[] = predefinedSegments.map(seg => ({
+  const segments: Segment[] = predefinedSegments.map((seg) => ({
     ...seg,
-    criteria: seg.criteria || {},
     userCount: calculateSegmentCount(seg.id),
     trend: calculateTrend(seg.id),
   }))
 
-  const handleViewUsers = (segmentId: string) => {
-    // Navigate to users page with segment filter
-    navigate(`/users?segment=${segmentId}`)
+  const handleViewUsers = (segmentId: SegmentId) => {
+    navigate({ pathname: '/users', search: `?segment=${encodeURIComponent(segmentId)}` })
   }
 
   return (

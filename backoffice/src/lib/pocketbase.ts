@@ -5,9 +5,16 @@ const PB_URL = '/api/pocketbase'
 
 export const pb = new PocketBase(PB_URL)
 
-// Base collections were created without system date fields; only `users` supports `-created`.
+// Most base collections lack autodate; list those that have created.
+const HAS_CREATED = new Set([
+  'users',
+  'cravings',
+  'account_deletion_requests',
+  'support_tickets',
+  'support_ticket_messages',
+])
 export const recentSort = (collection: string) =>
-  collection === 'users' ? '-created' : '-id'
+  HAS_CREATED.has(collection) ? '-created' : '-id'
 
 if (import.meta.env.DEV) {
   console.log('[Backoffice] PocketBase URL:', PB_URL)

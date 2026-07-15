@@ -170,7 +170,7 @@ export default function LegalScreen({ initialType = 'terms' }: LegalScreenProps)
 
         {/* Support Disclaimer */}
         <p className="text-center text-xs text-text-primary/50 mt-8">
-          Have questions about our legal policies? Contact us at support@smono.com
+          Have questions about our legal policies? Contact us at support@smono.app
         </p>
       </div>
     </div>

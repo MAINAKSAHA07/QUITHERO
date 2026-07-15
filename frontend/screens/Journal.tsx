@@ -6,11 +6,13 @@ import AppHeader, { appHeaderBtn } from '../components/AppHeader'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
+import HandwrittenJournal from '../components/HandwrittenJournal'
 import { useApp } from '../context/AppContext'
 import { useJournal } from '../hooks/useJournal'
 import { analyticsService } from '../services/analytics.service'
 import { JournalEntry } from '../types/models'
 import { Mood } from '../types/enums'
+import { usesHandwritingFont } from '../utils/handwritingLang'
 
 const moodEmojis: Record<Mood, string> = {
   [Mood.VERY_HAPPY]: '😊',
@@ -29,7 +31,8 @@ const moodOptions = [
 ]
 
 export default function Journal() {
-  const { user } = useApp()
+  const { user, language } = useApp()
+  const handwriting = usesHandwritingFont(language)
   const location = useLocation()
   const { entries, loading, createEntry, updateEntry, deleteEntry, fetchEntries } = useJournal()
   const [showAddModal, setShowAddModal] = useState(false)
@@ -337,7 +340,11 @@ export default function Journal() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-text-primary/80 text-sm line-clamp-3">
+                  <p
+                    className={`text-text-primary/80 text-sm line-clamp-3 ${
+                      handwriting ? 'font-handwriting text-[15px]' : ''
+                    }`}
+                  >
                     {entry.content}
                   </p>
                 </GlassCard>
@@ -434,52 +441,36 @@ export default function Journal() {
 
                 {cbtMode ? (
                   <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        A — Situation (What happened?)
-                      </label>
-                      <textarea
-                        value={cbtFields.antecedent}
-                        onChange={(e) => setCbtFields({ ...cbtFields, antecedent: e.target.value })}
-                        placeholder="Describe the situation that triggered a craving or negative thought..."
-                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        B — Automatic Thought
-                      </label>
-                      <textarea
-                        value={cbtFields.thought}
-                        onChange={(e) => setCbtFields({ ...cbtFields, thought: e.target.value })}
-                        placeholder="What thought popped into your head? e.g. 'I need a cigarette to deal with this'"
-                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        C — Your Response
-                      </label>
-                      <textarea
-                        value={cbtFields.response}
-                        onChange={(e) => setCbtFields({ ...cbtFields, response: e.target.value })}
-                        placeholder="How did you respond? What did you do instead?"
-                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[80px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Write about your day
-                    </label>
-                    <textarea
-                      value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      placeholder="Write about your day, thoughts, challenges, or victories..."
-                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 min-h-[200px] resize-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                    <HandwrittenJournal
+                      label="A — Situation (What happened?)"
+                      value={cbtFields.antecedent}
+                      onChange={(antecedent) => setCbtFields({ ...cbtFields, antecedent })}
+                      placeholder="Describe the situation that triggered a craving or negative thought..."
+                      minRows={3}
+                    />
+                    <HandwrittenJournal
+                      label="B — Automatic Thought"
+                      value={cbtFields.thought}
+                      onChange={(thought) => setCbtFields({ ...cbtFields, thought })}
+                      placeholder="What thought popped into your head? e.g. 'I need a cigarette to deal with this'"
+                      minRows={3}
+                    />
+                    <HandwrittenJournal
+                      label="C — Your Response"
+                      value={cbtFields.response}
+                      onChange={(response) => setCbtFields({ ...cbtFields, response })}
+                      placeholder="How did you respond? What did you do instead?"
+                      minRows={3}
                     />
                   </div>
+                ) : (
+                  <HandwrittenJournal
+                    label="Write about your day"
+                    value={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                    placeholder="Write about your day, thoughts, challenges, or victories..."
+                    minRows={8}
+                  />
                 )}
 
                 {error && (

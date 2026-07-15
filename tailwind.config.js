@@ -28,6 +28,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        handwriting: ['Kalam', 'Inter', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',

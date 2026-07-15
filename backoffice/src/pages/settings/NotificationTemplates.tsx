@@ -28,45 +28,69 @@ const templateTypes = [
   { value: 'program_completion', label: 'Program Completion', event: 'program_completed' },
 ]
 
+const TEMPLATE_WRITE_FIELDS = [
+  'name',
+  'type',
+  'trigger_event',
+  'language',
+  'is_active',
+  'subject',
+  'content',
+  'from_name',
+  'from_email',
+] as const
+
+function pickTemplateFields(input: Record<string, unknown>) {
+  const out: Record<string, unknown> = {}
+  for (const key of TEMPLATE_WRITE_FIELDS) {
+    if (input[key] !== undefined) out[key] = input[key]
+  }
+  return out
+}
+
+function assertPbOk<T extends { success: boolean; error?: string }>(result: T, fallback: string) {
+  if (!result.success) throw new Error(result.error || fallback)
+  return result
+}
+
 export const NotificationTemplates = () => {
   const queryClient = useQueryClient()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null)
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [languageFilter, setLanguageFilter] = useState<string>('all')
 
-  // Note: Templates would be in a 'notification_templates' collection
-  const { data: templatesData, isLoading } = useQuery({
-    queryKey: ['notification_templates', typeFilter, languageFilter],
-    queryFn: async () => {
-      try {
-        return await adminCollectionHelpers.getFullList('notification_templates', {
-          filter: buildFilter(),
-          sort: 'trigger_event',
-        })
-      } catch (error: any) {
-        // If collection doesn't exist, return empty
-        return { data: [] }
-      }
-    },
-  })
-
   const buildFilter = () => {
     const filters: string[] = []
-    if (typeFilter !== 'all') {
-      filters.push(`type = "${typeFilter}"`)
-    }
-    if (languageFilter !== 'all') {
-      filters.push(`language = "${languageFilter}"`)
-    }
+    if (typeFilter !== 'all') filters.push(`type = "${typeFilter}"`)
+    if (languageFilter !== 'all') filters.push(`language = "${languageFilter}"`)
     return filters.length > 0 ? filters.join(' && ') : undefined
   }
 
-  const templates = templatesData?.data || []
+  const { data: templatesData, isLoading, isError, error } = useQuery({
+    queryKey: ['notification_templates', typeFilter, languageFilter],
+    queryFn: async () => {
+      const result = await adminCollectionHelpers.getFullList('notification_templates', {
+        filter: buildFilter(),
+        sort: 'trigger_event',
+      })
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load notification templates')
+      }
+      return result
+    },
+  })
+
+  const templates = (templatesData?.data || []) as unknown as Template[]
+  const loadError = isError ? (error as Error)?.message || 'Failed to load templates' : null
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      return adminCollectionHelpers.update('notification_templates', id, { is_active: isActive })
+      return assertPbOk(
+        await adminCollectionHelpers.update('notification_templates', id, { is_active: isActive }),
+        'Failed to update template'
+      )
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification_templates'] })
@@ -75,7 +99,10 @@ export const NotificationTemplates = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminCollectionHelpers.delete('notification_templates', id)
+      return assertPbOk(
+        await adminCollectionHelpers.delete('notification_templates', id),
+        'Failed to delete template'
+      )
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification_templates'] })
@@ -88,35 +115,39 @@ export const NotificationTemplates = () => {
         id: template.id,
         isActive: !template.is_active,
       })
-    } catch (error) {
-      console.error('Failed to toggle template status:', error)
-      alert('Failed to update template status')
+    } catch (err: any) {
+      console.error('Failed to toggle template status:', err)
+      alert(err?.message || 'Failed to update template status')
     }
   }
 
   const handleDelete = async (template: Template) => {
-    if (confirm(`Are you sure you want to delete "${template.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(template.id)
-      } catch (error) {
-        console.error('Failed to delete template:', error)
-        alert('Failed to delete template')
-      }
+    if (!confirm(`Are you sure you want to delete "${template.name}"?`)) return
+    try {
+      await deleteMutation.mutateAsync(template.id)
+    } catch (err: any) {
+      console.error('Failed to delete template:', err)
+      alert(err?.message || 'Failed to delete template')
     }
   }
 
   const handleDuplicate = async (template: Template) => {
     try {
-      const { id, created, updated, ...templateData } = template
-      await adminCollectionHelpers.create('notification_templates', {
-        ...templateData,
-        name: `${template.name} (Copy)`,
-        is_active: false,
-      })
+      assertPbOk(
+        await adminCollectionHelpers.create(
+          'notification_templates',
+          pickTemplateFields({
+            ...template,
+            name: `${template.name} (Copy)`,
+            is_active: false,
+          })
+        ),
+        'Failed to duplicate template'
+      )
       queryClient.invalidateQueries({ queryKey: ['notification_templates'] })
-    } catch (error) {
-      console.error('Failed to duplicate template:', error)
-      alert('Failed to duplicate template')
+    } catch (err: any) {
+      console.error('Failed to duplicate template:', err)
+      alert(err?.message || 'Failed to duplicate template')
     }
   }
 
@@ -176,20 +207,22 @@ export const NotificationTemplates = () => {
         </div>
       </div>
 
+      {loadError && (
+        <div className="bg-danger/10 border border-danger/20 text-danger rounded-lg px-4 py-3 text-sm">
+          Could not load templates: {loadError}
+        </div>
+      )}
+
       {/* Templates Table */}
       {isLoading ? (
         <div className="bg-white rounded-lg shadow-card p-12 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
         </div>
-      ) : templates.length === 0 ? (
+      ) : loadError ? null : templates.length === 0 ? (
         <div className="bg-white rounded-lg shadow-card p-12 text-center">
           <Mail className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
           <p className="text-neutral-500 mb-4">No notification templates found</p>
-          <p className="text-sm text-neutral-400 mb-4">
-            {templatesData === undefined
-              ? 'Notification templates collection may need to be created in PocketBase'
-              : 'Create your first template to get started'}
-          </p>
+          <p className="text-sm text-neutral-400 mb-4">Create your first template to get started</p>
           <button
             onClick={() => setShowCreateModal(true)}
             className="btn-primary"
@@ -212,7 +245,7 @@ export const NotificationTemplates = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {(templates as any as Template[]).map((template: Template) => {
+              {(templates as Template[]).map((template: Template) => {
                 const Icon = getTypeIcon(template.type)
                 return (
                   <tr key={template.id} className="hover:bg-neutral-50">
@@ -261,6 +294,8 @@ export const NotificationTemplates = () => {
                           <Copy className="w-4 h-4 text-secondary" />
                         </button>
                         <button
+                          type="button"
+                          onClick={() => setPreviewTemplate(template)}
                           className="p-2 hover:bg-neutral-100 rounded-lg"
                           title="Preview"
                         >
@@ -299,6 +334,35 @@ export const NotificationTemplates = () => {
           }}
         />
       )}
+
+      {previewTemplate && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setPreviewTemplate(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Preview</h2>
+              <button type="button" onClick={() => setPreviewTemplate(null)} className="text-neutral-500">
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-neutral-500 mb-2 capitalize">
+              {previewTemplate.type} · {previewTemplate.language?.toUpperCase()} ·{' '}
+              {previewTemplate.trigger_event}
+            </p>
+            {previewTemplate.subject && (
+              <p className="font-semibold text-neutral-dark mb-2">{previewTemplate.subject}</p>
+            )}
+            <pre className="whitespace-pre-wrap text-sm text-neutral-700 bg-neutral-50 rounded-lg p-3 max-h-80 overflow-y-auto">
+              {previewTemplate.content || '(empty)'}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -320,19 +384,29 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
     subject: template?.subject || '',
     content: template?.content || '',
     from_name: template?.from_name || 'smono',
-    from_email: template?.from_email || 'noreply@smono.com',
+    from_email: template?.from_email || 'noreply@smono.app',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return adminCollectionHelpers.create('notification_templates', data)
+    mutationFn: async (data: Record<string, unknown>) => {
+      return assertPbOk(
+        await adminCollectionHelpers.create('notification_templates', pickTemplateFields(data)),
+        'Failed to create template'
+      )
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return adminCollectionHelpers.update('notification_templates', template!.id, data)
+    mutationFn: async (data: Record<string, unknown>) => {
+      return assertPbOk(
+        await adminCollectionHelpers.update(
+          'notification_templates',
+          template!.id,
+          pickTemplateFields(data)
+        ),
+        'Failed to update template'
+      )
     },
   })
 
@@ -351,9 +425,9 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
         await createMutation.mutateAsync(formData)
       }
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to save template:', error)
-      alert(error?.error || 'Failed to save template')
+    } catch (err: any) {
+      console.error('Failed to save template:', err)
+      alert(err?.message || 'Failed to save template')
     } finally {
       setIsSubmitting(false)
     }
@@ -564,7 +638,7 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
               className="rounded border-neutral-300"
             />
             <label htmlFor="is_active" className="text-sm text-neutral-700">
-              Active (template will be used for notifications)
+              Active (available in Templates list for this trigger)
             </label>
           </div>
 
@@ -577,7 +651,20 @@ const TemplateModal: React.FC<TemplateModalProps> = ({ template, onClose, onSucc
             >
               Cancel
             </button>
-            <button className="btn-secondary">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                alert(
+                  [
+                    formData.subject && `Title/Subject: ${formData.subject}`,
+                    formData.content || '(empty body)',
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n')
+                )
+              }}
+            >
               Preview
             </button>
             <button

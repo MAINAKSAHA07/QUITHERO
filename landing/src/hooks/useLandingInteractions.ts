@@ -201,7 +201,12 @@ export function useLandingInteractions() {
       set('priceComparisonBad', badTotal)
       set('priceComparisonGood', promo)
       set('priceSavingsText', `Less than ${equivalentDays} days of cigarettes. Pays for itself in a week.`)
-      set('priceCta', `Start My 10-Day Quit Program — ${promo}`)
+      set('priceCta', `Start for ${promo}/month`)
+
+      const promoEl = document.getElementById('pricePromo')
+      if (promoEl) {
+        promoEl.innerHTML = `${promo}<span style="font-size:1.1rem;font-weight:500;color:var(--muted)">/month</span>`
+      }
       if (!cancelled) mockupCleanup = initInteractiveMockup(config)
     })()
 

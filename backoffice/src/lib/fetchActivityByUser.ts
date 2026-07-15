@@ -4,14 +4,14 @@ import { indexActivityByUser, type ActivityRecord } from './userActivity'
 async function loadActivityRecords(): Promise<ActivityRecord[]> {
   const [sessions, cravings, smokeChecks, journals] = await Promise.all([
     adminCollectionHelpers.getFullList('session_progress', {
-      fields: 'user,completed_at,updated,created',
+      fields: 'user,completed_at',
     }),
-    adminCollectionHelpers.getFullList('cravings', { fields: 'user,created' }),
+    adminCollectionHelpers.getFullList('cravings', { fields: 'user,created,updated' }),
     adminCollectionHelpers.getFullList('smoke_check_ins', {
       fields: 'user,responded_at,created',
     }),
     adminCollectionHelpers.getFullList('journal_entries', {
-      fields: 'user,created,date',
+      fields: 'user,date',
     }),
   ])
 

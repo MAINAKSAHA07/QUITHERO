@@ -10,9 +10,9 @@ const day3 = `Text.\n\nAnticipated (0–10)\n\nActual (0–10)\n\nWhat I really 
 
 const day6 = `Take the belief. Then answer, in writing:
 
-• Where did I first learn this?
+• Where did you first learn this?
 
-• What was I told smoking would give me?
+• What were you told smoking would give you?
 
 • Did it ever actually deliver that`
 
@@ -40,6 +40,22 @@ const d3 = splitExerciseInstructions(day3)
 console.assert(d3.worksheet?.kind === 'grid', 'day3 grid worksheet')
 
 console.assert(splitReflectionPrompts('• A\n\n• B').length === 2, 'reflection bullets split')
+
+const day1Reflection = `Write a few sentences tonight:
+
+1. When did you have your very first cigarette or vape, and did you ever decide to do this every day for years?
+2. Which of the four denial statements still feels true to you, and why?
+3. How did it feel to pause for five seconds before smoking?`
+const d1prompts = splitReflectionPrompts(day1Reflection)
+console.assert(d1prompts.length === 3, `day1 numbered split got ${d1prompts.length}`)
+console.assert(!d1prompts.some((p) => /Write a few|^1\./.test(p)), 'day1 drops intro + numbering')
+console.assert(d1prompts[0].includes('first cigarette'), 'day1 q1')
+console.assert(/\byou\b/.test(d1prompts[0]), 'day1 q1 is second-person')
+console.assert(!/\bI\b/.test(d1prompts[0]), 'day1 q1 must not ask as I')
+console.assert(d1prompts[2].includes('five seconds'), 'day1 q3')
+
+const numberedTight = `1. First?\n2. Second?\n3. Third?`
+console.assert(splitReflectionPrompts(numberedTight).length === 3, 'numbered without blank lines')
 
 const halt = detectWorksheetFormat(['State', 'My early sign', "What I'll actually do", 'Hungry', 'Angry', 'Lonely', 'Tired'])
 console.assert(halt?.kind === 'grid', 'day24 HALT grid')

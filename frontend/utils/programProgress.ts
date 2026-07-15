@@ -4,7 +4,19 @@ import { ProgramDay, SessionProgress } from '../types/models'
 export type ProgressByDayId = Map<string, SessionProgress>
 
 export function indexProgressByDayId(records: SessionProgress[]): ProgressByDayId {
-  return new Map(records.map((p) => [p.program_day as string, p]))
+  return new Map(
+    records.map((p) => {
+      const raw = p.program_day as unknown
+      // PB relation may be id string or expanded { id }
+      const key =
+        typeof raw === 'string'
+          ? raw
+          : raw && typeof raw === 'object' && 'id' in (raw as object)
+            ? String((raw as { id: string }).id)
+            : String(raw ?? '')
+      return [key, p] as const
+    }).filter(([key]) => key.length > 0)
+  )
 }
 
 /** Longest completed streak from Day 1 (stops at first gap) */

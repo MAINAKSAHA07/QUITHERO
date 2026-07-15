@@ -1,5 +1,5 @@
 /**
- * Day 1 — Seeing the Trap
+ * Day 1: Seeing the Trap
  * Source: Day_01_Seeing_the_Trap.docx (Smono Reset Method)
  *
  * Module map (for RAG + app steps):
@@ -17,7 +17,7 @@
 export const dayMeta = {
   day_number: 1,
   slug: 'day-01-seeing-the-trap',
-  title: 'Day 1 — Seeing the Trap',
+  title: 'Day 1: Seeing the Trap',
   subtitle: 'Psychoeducation & functional analysis',
   day_theme: 'Make the invisible trap visible before trying to quit',
   cbt_technique: 'Psychoeducation & functional analysis',
@@ -29,7 +29,7 @@ export const steps = [
     order: 1,
     type: 'text',
     module_key: 'day01_intro',
-    step_title: 'Welcome — You were never weak',
+    step_title: 'Welcome: You were never weak',
     slug: 'day-01-intro-welcome',
     content_role: 'intro',
     content_json: {
@@ -45,11 +45,11 @@ CBT focus today: Psychoeducation and functional analysis — before we change a 
     order: 2,
     type: 'text',
     module_key: 'day01_module_1',
-    step_title: 'Module 1 — Why every previous attempt failed',
+    step_title: 'Module 1: Why every previous attempt failed',
     slug: 'day-01-module-1-previous-attempts',
     content_role: 'lesson',
     content_json: {
-      title: 'Module 1 — Why every previous attempt failed',
+      title: 'Module 1: Why every previous attempt failed',
       text: `Be honest with yourself for a moment. You've probably tried to stop before. Maybe through sheer willpower. Maybe with patches, gum, or a vape. Maybe you lasted three days, three weeks, even three months — and then you were smoking again, often without quite knowing how.
 
 If part of you has started to believe you're simply "someone who can't quit," set that down. It isn't true, and by the end of these ten days you'll understand precisely why your past attempts had nothing to do with weakness.
@@ -63,11 +63,11 @@ You can't permanently walk away from something you still want. So we're not goin
     order: 3,
     type: 'text',
     module_key: 'day01_module_2',
-    step_title: 'Module 2 — What the trap actually is',
+    step_title: 'Module 2: What the trap actually is',
     slug: 'day-01-module-2-the-trap',
     content_role: 'lesson',
     content_json: {
-      title: 'Module 2 — What the trap actually is',
+      title: 'Module 2: What the trap actually is',
       text: `This is the single most important idea in the whole method, so read it slowly:
 
 Smoking does not give you anything. It takes something away, then briefly hands a small piece of it back — and you feel grateful for the return.
@@ -83,11 +83,11 @@ Once you truly see this, everything shifts. You stop feeling like you're sacrifi
     order: 4,
     type: 'text',
     module_key: 'day01_module_3',
-    step_title: 'Module 3 — The denial that keeps the trap shut',
+    step_title: 'Module 3: The denial that keeps the trap shut',
     slug: 'day-01-module-3-denial',
     content_role: 'lesson',
     content_json: {
-      title: 'Module 3 — The denial that keeps the trap shut',
+      title: 'Module 3: The denial that keeps the trap shut',
       text: `Addiction protects itself by manufacturing denial — it convinces you that you're still in control of the very thing controlling you.
 
 You don't need to argue with any of this today. Just read the four statements below and notice, quietly, which ones still have a grip on you:
@@ -117,11 +117,11 @@ Don't try to talk yourself out of them today. Just mark which ones feel true. Ov
     order: 6,
     type: 'text',
     module_key: 'day01_module_4',
-    step_title: 'Module 4 — Your first instruction',
+    step_title: 'Module 4: Your first instruction',
     slug: 'day-01-module-4-keep-smoking',
     content_role: 'lesson',
     content_json: {
-      title: 'Module 4 — Your first instruction (it will surprise you)',
+      title: 'Module 4: Your first instruction (it will surprise you)',
       text: `Keep smoking today. Do not try to quit.
 
 This is a genuine instruction, not a figure of speech. For the next nine days you smoke or vape exactly as you normally would. Quitting today, on willpower, before you've seen the trap, is precisely the fight you've already lost before.
@@ -133,11 +133,11 @@ We remove the desire first. When the desire is gone, putting the cigarette down 
     order: 7,
     type: 'exercise',
     module_key: 'day01_exercise_awareness_log',
-    step_title: "Today's Exercise — The Awareness Log",
+    step_title: "Today's Exercise: The Awareness Log",
     slug: 'day-01-exercise-awareness-log',
     content_role: 'exercise',
     content_json: {
-      title: "Today's Exercise — The Awareness Log",
+      title: "Today's Exercise: The Awareness Log",
       instructions: `For the rest of today, don't change anything about your smoking. Just observe it.
 
 Each time you reach for a cigarette or vape, pause five seconds before you light it and note three quick things (in your phone, the Smono app, or a notebook):
@@ -155,11 +155,11 @@ You're not judging yourself. You're becoming a scientist studying your own patte
     order: 8,
     type: 'exercise',
     module_key: 'day01_tool_five_second_pause',
-    step_title: 'Craving Tool — The Five-Second Pause',
+    step_title: 'Craving Tool: The Five-Second Pause',
     slug: 'day-01-tool-five-second-pause',
     content_role: 'tool',
     content_json: {
-      title: 'Craving Tool — The Five-Second Pause',
+      title: 'Craving Tool: The Five-Second Pause',
       instructions: `Every time today, before you light up, just pause and breathe once.
 
 You're still allowed to smoke. But that single pause breaks the automatic loop and hands the decision back to you.
@@ -177,8 +177,8 @@ You're training a tiny gap between trigger and reaction — and that gap is wher
     content_json: {
       question: `Write a few sentences tonight:
 
-1. When did I have my very first cigarette or vape — and did I ever decide to do this every day for years?
-2. Which of the four denial statements still feels true to me, and why?
+1. When did you have your very first cigarette or vape, and did you ever decide to do this every day for years?
+2. Which of the four denial statements still feels true to you, and why?
 3. How did it feel to pause for five seconds before smoking?`,
       placeholder: 'Take your time. There are no wrong answers.',
     },

@@ -1695,7 +1695,7 @@ async function createDemoUsers() {
 
   const demoUsers = [
     {
-      email: 'demo@quithero.com',
+      email: 'demo@smono.app',
       password: 'Demo123456!',
       name: 'Demo User',
       age: 30,
@@ -1704,7 +1704,7 @@ async function createDemoUsers() {
       daily_consumption: 10,
     },
     {
-      email: 'test@quithero.com',
+      email: 'test@smono.app',
       password: 'Test123456!',
       name: 'Test User',
       age: 25,
@@ -2047,11 +2047,11 @@ async function completeSetup() {
     console.log('')
     console.log('🔑 Login Credentials:')
     console.log('   Frontend Demo User:')
-    console.log('     Email: demo@quithero.com')
+    console.log('     Email: demo@smono.app')
     console.log('     Password: Demo123456!')
     console.log('')
     console.log('   Frontend Test User:')
-    console.log('     Email: test@quithero.com')
+    console.log('     Email: test@smono.app')
     console.log('     Password: Test123456!')
     console.log('')
     console.log('   Backoffice Admin:')

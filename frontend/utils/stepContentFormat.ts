@@ -396,25 +396,50 @@ export function formatInstructionParagraphs(text: string): string[] {
 }
 
 export function splitReflectionPrompts(question: string): string[] {
-  const parts = question
+  const raw = question.trim()
+  if (!raw) return []
+
+  // Numbered list anywhere (Day 1 evening reflection, etc.)
+  const numbered = [...raw.matchAll(/(?:^|\n)\s*\d+[\.\)]\s+([^\n]+)/g)]
+    .map((m) => m[1].trim())
+    .filter(Boolean)
+  if (numbered.length >= 2) return numbered
+
+  const parts = raw
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean)
-  if (parts.length <= 1) return parts
+  if (parts.length <= 1) {
+    // Single block of bullets without blank lines between
+    const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length > 1 && lines.every((l) => /^[•\-]/.test(l))) {
+      return lines.map((l) => l.replace(/^[•\-]\s*/, ''))
+    }
+    return parts.length ? parts : [raw]
+  }
 
   const prompts: string[] = []
   for (const part of parts) {
     const lines = part.split('\n').map((l) => l.trim()).filter(Boolean)
-    if (lines.length > 1 && lines.every((l) => l.startsWith('•') || l.startsWith('-'))) {
-      lines.forEach((l) => prompts.push(l.replace(/^[•-]\s*/, '')))
-    } else if (part.startsWith('•') || part.startsWith('-')) {
-      prompts.push(part.replace(/^[•-]\s*/, ''))
+    if (
+      lines.length > 1 &&
+      lines.every((l) => /^[•\-]/.test(l) || /^\d+[\.\)]\s/.test(l))
+    ) {
+      lines.forEach((l) =>
+        prompts.push(l.replace(/^[•\-]\s*/, '').replace(/^\d+[\.\)]\s*/, ''))
+      )
+    } else if (/^[•\-]/.test(part) || /^\d+[\.\)]\s/.test(part)) {
+      prompts.push(part.replace(/^[•\-]\s*/, '').replace(/^\d+[\.\)]\s*/, ''))
+    } else if (/write a few|take your time|^tonight/i.test(part) && parts.length > 1) {
+      // skip intro fluff when real prompts follow
+      continue
     } else {
       prompts.push(part)
     }
   }
-  return prompts
+  return prompts.length ? prompts : [raw]
 }
+
 
 export type WorksheetPayload =
   | { kind: 'stress'; rows: { before: string; after: string; tenMin: string; touchedProblem: string }[] }

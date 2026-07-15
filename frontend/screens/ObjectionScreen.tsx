@@ -10,7 +10,7 @@ interface ObjectionConfig {
 const OBJECTIONS: Record<string, ObjectionConfig> = {
   cost: {
     title: "Let's talk about cost",
-    body: "You spend thousands on cigarettes every year. This one-time investment is less than a couple of days of smoking — and it could save your life.",
+    body: "You spend thousands on cigarettes every year. One month of Smono costs less than a couple of days of smoking — and it could change your life.",
     reframe: "Think of it as redirecting money you're already spending on something that's killing you.",
   },
   willpower: {

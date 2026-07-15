@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Trophy, DollarSign, Cigarette, Clock, TrendingUp, RefreshCw, Shield, Target } from 'lucide-react'
+import { Trophy, RefreshCw, TrendingUp } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
 import AppHeader, { appHeaderBtn } from '../components/AppHeader'
@@ -344,10 +344,10 @@ export default function Progress() {
             />
             <StatGrid
               items={[
-                { icon: Target, label: 'Program', value: `Day ${preQuitData.programDay}`, tone: 'blue' },
-                { icon: Shield, label: 'Cravings resisted', value: String(preQuitData.totalResisted), tone: 'green' },
-                { icon: DollarSign, label: 'Money saved', value: preQuitData.moneySaved, tone: 'orange' },
-                { icon: TrendingUp, label: 'Nicotine avoided', value: `${preQuitData.nicotineAvoided}mg`, tone: 'blue' },
+                { label: 'Program', value: `Day ${preQuitData.programDay}` },
+                { label: 'Cravings resisted', value: String(preQuitData.totalResisted) },
+                { label: 'Money saved', value: preQuitData.moneySaved },
+                { label: 'Nicotine avoided', value: `${preQuitData.nicotineAvoided}mg` },
               ]}
             />
           </motion.section>
@@ -374,10 +374,10 @@ export default function Progress() {
             />
             <StatGrid
               items={[
-                { icon: DollarSign, label: 'Money saved', value: formatMoney(overallStats.moneySaved, userCountry), tone: 'orange' },
-                { icon: Cigarette, label: 'Not smoked', value: String(overallStats.cigarettesNotSmoked), tone: 'blue' },
-                { icon: TrendingUp, label: 'Nicotine avoided', value: `${overallStats.nicotineAvoided}mg`, tone: 'green' },
-                { icon: Clock, label: 'Life regained', value: `${overallStats.lifeRegained}h`, tone: 'blue' },
+                { label: 'Money saved', value: formatMoney(overallStats.moneySaved, userCountry) },
+                { label: 'Cigarettes avoided', value: String(overallStats.cigarettesNotSmoked) },
+                { label: 'Nicotine avoided', value: `${overallStats.nicotineAvoided}mg` },
+                { label: 'Life regained', value: `${overallStats.lifeRegained}h` },
               ]}
             />
           </motion.section>
@@ -565,26 +565,16 @@ function StatGrid({
   items,
 }: {
   items: {
-    icon: React.ComponentType<{ className?: string }>
     label: string
     value: string
-    tone?: 'blue' | 'orange' | 'green'
   }[]
 }) {
-  const tones = {
-    blue: 'bg-[#E8F4FC] text-[#3F8DD2]',
-    orange: 'bg-[#FFF1E6] text-[#E8894A]',
-    green: 'bg-[#EAF6F1] text-[#6EA48F]',
-  }
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      {items.map(({ icon: Icon, label, value, tone = 'blue' }) => (
-        <div key={label} className="p-3 rounded-2xl bg-[#F4FBFF] border border-[#0E2538]/06 text-center">
-          <div className={`w-8 h-8 rounded-full mx-auto mb-1.5 flex items-center justify-center ${tones[tone]}`}>
-            <Icon className="w-4 h-4" />
-          </div>
+      {items.map(({ label, value }) => (
+        <div key={label} className="p-3.5 rounded-2xl bg-[#F4FBFF] border border-[#0E2538]/06 text-center">
           <div className="text-base font-bold text-[#0E2538] tabular-nums truncate">{value}</div>
-          <div className="text-[10px] text-[#0E2538]/45 font-medium">
+          <div className="text-[10px] text-[#0E2538]/45 font-medium mt-0.5">
             <TranslatedText text={label} />
           </div>
         </div>

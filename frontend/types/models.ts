@@ -188,10 +188,20 @@ export interface SessionProgress {
 // Step Response
 export interface MCQResponse {
   selected_option: number
+  selected_label?: string
+  question?: string
+  step_title?: string
+  step_type?: string
 }
 
 export interface OpenResponse {
-  answer: string
+  answer?: string
+  answers?: { prompt: string; answer: string }[]
+  question?: string
+  step_title?: string
+  step_type?: string
+  completed?: boolean
+  worksheet?: unknown
 }
 
 export interface StepResponse {
@@ -341,6 +351,16 @@ export interface SupportTicket {
   priority?: SupportTicketPriority
   category?: SupportTicketCategory
   assigned_to?: string // Relation to admin_users
+  created?: string
+  updated?: string
+}
+
+export interface SupportTicketMessage {
+  id?: string
+  ticket: string
+  body: string
+  sender_role: 'user' | 'admin'
+  author_id?: string
   created?: string
   updated?: string
 }

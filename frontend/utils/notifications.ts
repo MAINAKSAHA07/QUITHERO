@@ -21,12 +21,39 @@ export class NotificationService {
   }
 
   /** Show via service worker when available (required for iOS PWA background alerts). */
-  static triggerNativeNotification(title: string, body: string, url = '/') {
+  static triggerNativeNotification(
+    title: string,
+    body: string,
+    url = '/',
+    extra?: { tag?: string; eventId?: string; triggerType?: string }
+  ) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return
+
+    const data = {
+      url,
+      eventId: extra?.eventId,
+      triggerType: extra?.triggerType,
+    }
 
     const fallback = () => {
       try {
-        new Notification(title, { body, icon: '/mascot.png' })
+        const n = new Notification(title, {
+          body,
+          icon: '/mascot.png',
+          tag: extra?.tag || 'smono-alert',
+          data,
+        })
+        n.onclick = () => {
+          window.focus()
+          if (extra?.eventId) {
+            window.dispatchEvent(
+              new CustomEvent('smono_notification_opened', {
+                detail: { eventId: extra.eventId, triggerType: extra.triggerType },
+              })
+            )
+          }
+          window.location.href = url
+        }
       } catch (e) {
         console.error('Notification failed:', e)
       }
@@ -42,8 +69,8 @@ export class NotificationService {
             body,
             icon: '/mascot.png',
             badge: '/mascot.png',
-            tag: 'smono-alert',
-            data: { url },
+            tag: extra?.tag || 'smono-alert',
+            data,
           })
         )
         .catch(() => fallback())
@@ -54,7 +81,16 @@ export class NotificationService {
 
   static showNotification(title: string, options?: NotificationOptions) {
     if (!this.isSupported()) return null
-    this.triggerNativeNotification(title, options?.body || '', options?.data?.url)
+    const data = (options?.data || {}) as {
+      url?: string
+      eventId?: string
+      triggerType?: string
+    }
+    this.triggerNativeNotification(title, options?.body || '', data.url || '/home', {
+      tag: options?.tag,
+      eventId: data.eventId,
+      triggerType: data.triggerType,
+    })
     return null
   }
 

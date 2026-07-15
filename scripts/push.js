@@ -105,13 +105,14 @@ async function loadSubscriptionsForUser(userId) {
 }
 
 export async function notifyUserPush(userId, { title, body, url = '/home', tag }) {
-  if (!pushReady || !userId) return 0
+  if (!pushReady || !userId) return { sent: 0, attempted: 0, error: 'push_not_ready' }
   const records = await loadSubscriptionsForUser(userId)
   if (!records.length) {
     console.warn(`[Push] No subscriptions for user ${userId.slice(0, 8)}…`)
-    return 0
+    return { sent: 0, attempted: 0, error: 'no_subscriptions' }
   }
   let sent = 0
+  let lastError = null
   const payload = { title, message: body, body, url, tag: tag || 'smono' }
 
   for (const record of records) {
@@ -121,10 +122,17 @@ export async function notifyUserPush(userId, { title, body, url = '/home', tag }
       await webpush.sendNotification(sub, JSON.stringify(payload))
       sent += 1
     } catch (err) {
+      lastError = err.body || err.message || String(err.statusCode || 'send_failed')
+      console.warn(
+        `[Push] send failed user=${userId.slice(0, 8)}… status=${err.statusCode || '?'} ${lastError}`
+      )
       if (err.statusCode === 404 || err.statusCode === 410) {
         await removePushSubscription(sub.endpoint)
       }
     }
   }
-  return sent
+  if (sent === 0) {
+    return { sent: 0, attempted: records.length, error: lastError || 'send_failed' }
+  }
+  return { sent, attempted: records.length }
 }

@@ -1,4 +1,4 @@
-# Quit Hero - Addiction Recovery App
+# Smono - Quit smoking recovery app
 
 A comprehensive addiction recovery app built with React, TypeScript, and Tailwind CSS, featuring a beautiful glassmorphism design and PocketBase backend.
 
@@ -350,7 +350,7 @@ Wrap text content with the `TranslatedText` component:
 import TranslatedText from '../components/TranslatedText'
 
 <h1>
-  <TranslatedText text="Welcome to Quit Hero" />
+  <TranslatedText text="Welcome to smono" />
 </h1>
 
 <p>

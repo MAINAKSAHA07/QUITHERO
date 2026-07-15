@@ -3,7 +3,7 @@ import { Step } from '../../types/models'
 import { VideoStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import { Play } from 'lucide-react'
-import { isEmbedVideoUrl } from '../../utils/mediaUrl'
+import { isEmbedVideoUrl, resolveMediaUrl } from '../../utils/mediaUrl'
 
 interface VideoPlayerComponentProps {
   step: Step
@@ -13,6 +13,7 @@ interface VideoPlayerComponentProps {
 export default function VideoPlayerComponent({ step, onNext }: VideoPlayerComponentProps) {
   const content = step.content_json as VideoStepContent
   const [watched, setWatched] = useState(false)
+  const videoUrl = resolveMediaUrl(content.video_url)
 
   return (
     <div className="space-y-4">
@@ -25,10 +26,10 @@ export default function VideoPlayerComponent({ step, onNext }: VideoPlayerCompon
         <p className="text-text-primary/70 mb-4">{content.description}</p>
       )}
       <div className="aspect-video glass rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
-        {content.video_url ? (
-          isEmbedVideoUrl(content.video_url) ? (
+        {videoUrl ? (
+          isEmbedVideoUrl(videoUrl) ? (
             <iframe
-              src={content.video_url}
+              src={videoUrl}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -36,7 +37,7 @@ export default function VideoPlayerComponent({ step, onNext }: VideoPlayerCompon
             />
           ) : (
             <video
-              src={content.video_url}
+              src={videoUrl}
               className="w-full h-full object-contain bg-black"
               controls
               playsInline
@@ -52,7 +53,7 @@ export default function VideoPlayerComponent({ step, onNext }: VideoPlayerCompon
       </div>
       <GlassButton
         onClick={onNext}
-        disabled={!watched && !content.video_url}
+        disabled={!watched && !videoUrl}
         fullWidth
         className="py-4"
       >

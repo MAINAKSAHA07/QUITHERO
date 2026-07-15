@@ -27,6 +27,8 @@ import { behaviorProfileService } from '../services/behavior-profile.service'
 import { beliefService } from '../services/belief.service'
 import { BeliefAssessment } from '../components/BeliefAssessment'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
+import { withStoredQuestion } from '../utils/stepResponse'
+import { formatDayTitle } from '../utils/formatDayTitle'
 import { StepType, SessionStatus } from '../types/enums'
 import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types/models'
 import {
@@ -52,7 +54,7 @@ import { useKycGate } from '../hooks/useKycGate'
 export default function Session() {
   const { dayId: dayIdParam, day: dayNumParam } = useParams<{ dayId?: string; day?: string }>()
   const navigate = useNavigate()
-  const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession, profileLoading } = useApp()
+  const { user, userProfile, progressStats, refreshProgress, isPremium, currentSession, profileLoading, fetchCurrentSession } = useApp()
   const { showKycModal, setShowKycModal, kycComplete } = useKycGate()
   const [resolvedDayId, setResolvedDayId] = useState<string | null>(null)
   const dayId = resolvedDayId
@@ -60,6 +62,7 @@ export default function Session() {
   const [programDay, setProgramDay] = useState<ProgramDay | null>(null)
   const [steps, setSteps] = useState<Step[]>([])
   const [sessionProgress, setSessionProgress] = useState<SessionProgress | null>(null)
+  const [savedResponses, setSavedResponses] = useState<Record<string, unknown>>({})
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -91,13 +94,16 @@ export default function Session() {
     startSessionSegment(dayId)
   }
 
-  useEffect(() => {
-    if (!dayId || isLoading || steps.length === 0) return
-    startSessionSegment(dayId)
-  }, [dayId, isLoading, steps.length])
+  const dayNumber = programDay?.day_number || 1
+  const isReviewMode = sessionProgress?.status === SessionStatus.COMPLETED
 
   useEffect(() => {
-    if (!dayId) return
+    if (!dayId || isLoading || steps.length === 0 || isReviewMode) return
+    startSessionSegment(dayId)
+  }, [dayId, isLoading, steps.length, isReviewMode])
+
+  useEffect(() => {
+    if (!dayId || isReviewMode) return
 
     const onHide = () => pauseSessionSegment(dayId)
     const onShow = () => startSessionSegment(dayId)
@@ -116,9 +122,7 @@ export default function Session() {
       window.removeEventListener('pageshow', onShow)
       onHide()
     }
-  }, [dayId])
-
-  const dayNumber = programDay?.day_number || 1
+  }, [dayId, isReviewMode])
 
   const comprehensionCheckpoint = useMemo(
     () => getComprehensionCheckpointIndex(steps),
@@ -326,34 +330,47 @@ export default function Session() {
         progress = progressResult.data || null
         if (progress && progress.id) {
           setSessionProgress(progress)
-          setCurrentStepIndex(progress.last_step_index || 0)
-          if (progress.last_step_index && progress.last_step_index > 0) {
+          const reviewing = progress.status === SessionStatus.COMPLETED
+
+          if (reviewing) {
+            setCurrentStepIndex(0)
             setTriggerCheckDone(true)
-          }
-          const checkpoint = getComprehensionCheckpointIndex(sorted)
-          if (
-            checkpoint !== null &&
-            progress.last_step_index != null &&
-            progress.last_step_index > checkpoint
-          ) {
             setComprehensionCheckDone(true)
-          }
-
-          if (progress.status === SessionStatus.NOT_STARTED) {
-            const updateResult = await sessionService.upsertSessionProgress(user.id, dayId, {
-              status: SessionStatus.IN_PROGRESS,
-            })
-            if (updateResult.success && updateResult.data) {
-              setSessionProgress(updateResult.data)
+            const responses = await sessionService.getStepResponsesByUser(user.id)
+            if (responses.success && responses.data) {
+              setSavedResponses(responses.data)
             }
-            analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
-            sessionService.markProgramStarted(user.id).catch(() => {})
-          }
+          } else {
+            setCurrentStepIndex(progress.last_step_index || 0)
+            if (progress.last_step_index && progress.last_step_index > 0) {
+              setTriggerCheckDone(true)
+            }
+            const checkpoint = getComprehensionCheckpointIndex(sorted)
+            if (
+              checkpoint !== null &&
+              progress.last_step_index != null &&
+              progress.last_step_index > checkpoint
+            ) {
+              setComprehensionCheckDone(true)
+            }
 
-          if (dayId && (progress.status === SessionStatus.IN_PROGRESS || (progress.last_step_index ?? 0) > 0)) {
-            startSessionSegment(dayId)
+            if (progress.status === SessionStatus.NOT_STARTED) {
+              const updateResult = await sessionService.upsertSessionProgress(user.id, dayId, {
+                status: SessionStatus.IN_PROGRESS,
+              })
+              if (updateResult.success && updateResult.data) {
+                setSessionProgress(updateResult.data)
+              }
+              analyticsService.trackSessionStarted(user.id, dayNum).catch(() => {})
+              sessionService.markProgramStarted(user.id).catch(() => {})
+            }
+
+            if (dayId && (progress.status === SessionStatus.IN_PROGRESS || (progress.last_step_index ?? 0) > 0)) {
+              startSessionSegment(dayId)
+            }
           }
         } else {
+          setSavedResponses({})
           const newProgressResult = await sessionService.upsertSessionProgress(user.id, dayId, {
             status: SessionStatus.IN_PROGRESS,
             last_step_index: 0,
@@ -378,20 +395,30 @@ export default function Session() {
     if (!user?.id || !dayId) return false
 
     if (currentStepIndex === steps.length - 1) {
+      if (isReviewMode) {
+        navigate('/sessions')
+        return true
+      }
       await completeSession()
       return true
     }
 
     const nextIndex = currentStepIndex + 1
     setCurrentStepIndex(nextIndex)
-    await sessionService.upsertSessionProgress(user.id, dayId, {
-      last_step_index: nextIndex,
-    })
+    if (!isReviewMode) {
+      await sessionService.upsertSessionProgress(user.id, dayId, {
+        last_step_index: nextIndex,
+      })
+    }
     return true
   }
 
   const advanceFromStep = async (stepResponse?: unknown): Promise<boolean> => {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return false
+
+    if (isReviewMode) {
+      return proceedToNextStepIndex()
+    }
 
     beginSessionTimer()
     if (sessionProgress?.status !== SessionStatus.IN_PROGRESS) {
@@ -410,7 +437,12 @@ export default function Session() {
       const currentStep = steps[currentStepIndex]
 
       if (stepResponse && currentStep.id && !isInjectedStep(currentStep.id)) {
-        const saved = await sessionService.saveStepResponse(user.id, currentStep.id, stepResponse)
+        const saved = await sessionService.saveStepResponse(
+          user.id,
+          currentStep.id,
+          withStoredQuestion(currentStep, stepResponse),
+          { overwrite: true }
+        )
         if (!saved.success) {
           console.error('Failed to save step response:', saved.error)
           alert('Could not save your answer. Please try again.')
@@ -531,6 +563,10 @@ export default function Session() {
   }
 
   const completeSession = async () => {
+    if (isReviewMode) {
+      navigate('/sessions')
+      return
+    }
     if (!user?.id || !dayId) {
       console.warn('Cannot complete session: missing required data', { user: user?.id, dayId })
       return
@@ -549,6 +585,8 @@ export default function Session() {
       if (result.success) {
         await achievementService.checkAndUnlock(user.id)
         await refreshProgress()
+        // Heal Home "Day X of 30" — completeSession writes PB but context was left stale
+        await fetchCurrentSession()
         await analyticsService.trackSessionCompleted(
           user.id,
           programDay?.day_number || 1,
@@ -568,15 +606,18 @@ export default function Session() {
   }
 
   const saveStepResponseOnly = async (response: unknown): Promise<boolean> => {
-    if (!user?.id || !steps[currentStepIndex]?.id || isInjectedStep(steps[currentStepIndex].id)) {
+    if (isReviewMode) return true
+    const step = steps[currentStepIndex]
+    if (!user?.id || !step?.id || isInjectedStep(step.id)) {
       return true
     }
     setIsSaving(true)
     try {
       const saved = await sessionService.saveStepResponse(
         user.id,
-        steps[currentStepIndex].id,
-        response
+        step.id,
+        withStoredQuestion(step, response),
+        { overwrite: true }
       )
       if (!saved.success) {
         console.error('Failed to save step response:', saved.error)
@@ -595,30 +636,59 @@ export default function Session() {
     if (!steps[currentStepIndex]) return null
 
     const step = steps[currentStepIndex]
+    const saved = step.id ? savedResponses[step.id] : undefined
+    const savedObj =
+      saved && typeof saved === 'object' && !Array.isArray(saved)
+        ? (saved as Record<string, unknown>)
+        : null
 
     switch (step.type) {
       case StepType.TEXT:
         return <TextStepComponent step={step} onNext={() => moveToNextStep()} />
 
       case StepType.QUESTION_MCQ:
-        return <MCQStepComponent step={step} onNext={handleStepResponse} />
+        return (
+          <MCQStepComponent
+            key={`${step.id}-${isReviewMode ? 'r' : 'e'}`}
+            step={step}
+            onNext={handleStepResponse}
+            readOnly={isReviewMode}
+            initialSelected={
+              typeof savedObj?.selected_option === 'number' ? savedObj.selected_option : null
+            }
+          />
+        )
 
       case StepType.QUESTION_OPEN:
         return (
           <OpenQuestionComponent
+            key={`${step.id}-${isReviewMode ? 'r' : 'e'}`}
             step={step}
             onNext={handleStepResponse}
-            onSavePartial={saveStepResponseOnly}
+            onSavePartial={isReviewMode ? undefined : saveStepResponseOnly}
+            readOnly={isReviewMode}
+            initialResponse={
+              Array.isArray(savedObj?.answers)
+                ? { answers: savedObj.answers as { prompt: string; answer: string }[] }
+                : null
+            }
           />
         )
 
       case StepType.EXERCISE:
         return (
           <ExerciseComponent
+            key={`${step.id}-${isReviewMode ? 'r' : 'e'}`}
             step={step}
             onNext={(response) => moveToNextStep(response)}
             focusLabel={
               isInjectedStep(step.id) ? triggerExerciseHint : undefined
+            }
+            readOnly={isReviewMode}
+            initialResponse={
+              savedObj?.worksheet
+                ? { worksheet: savedObj.worksheet as any }
+                : null
             }
           />
         )
@@ -740,10 +810,23 @@ export default function Session() {
 
         {!showTriggerCheck && (
           <div className={showComprehensionCheck ? 'pointer-events-none opacity-40 mb-4' : 'mb-4'}>
-          <GlassCard className="p-4 sm:p-6">
+          <GlassCard
+            className={`p-4 sm:p-6 ${
+              currentStep.type === StepType.QUESTION_OPEN ||
+              currentStep.type === StepType.EXERCISE ||
+              currentStep.type === StepType.TEXT
+                ? 'session-paper'
+                : ''
+            }`}
+          >
+            {isReviewMode && (
+              <div className="mb-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+                Viewing a completed day, and your answers are saved and can’t be changed.
+              </div>
+            )}
             <div className="mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
-                {programDay.title}
+                {formatDayTitle(programDay.title)}
               </h2>
               {programDay.subtitle && (
                 <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{programDay.subtitle}</p>

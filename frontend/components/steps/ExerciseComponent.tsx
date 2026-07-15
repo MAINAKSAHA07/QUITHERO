@@ -5,6 +5,8 @@ import { ExerciseStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import { Play, Pause, RotateCcw } from 'lucide-react'
 import ExerciseWorksheet from './ExerciseWorksheet'
+import { useApp } from '../../context/AppContext'
+import { usesHandwritingFont } from '../../utils/handwritingLang'
 import {
   splitExerciseInstructions,
   formatInstructionBullets,
@@ -17,20 +19,32 @@ interface ExerciseComponentProps {
   step: Step
   onNext: (response?: unknown) => void | Promise<boolean | void>
   focusLabel?: string
+  readOnly?: boolean
+  initialResponse?: { worksheet?: WorksheetPayload } | null
 }
 
-export default function ExerciseComponent({ step, onNext, focusLabel }: ExerciseComponentProps) {
+export default function ExerciseComponent({
+  step,
+  onNext,
+  focusLabel,
+  readOnly = false,
+  initialResponse = null,
+}: ExerciseComponentProps) {
   const content = step.content_json as ExerciseStepContent
+  const { language } = useApp()
+  const handwriting = usesHandwritingFont(language)
   const rawInstructions = sanitizeStepText(content.instructions || content.text || '')
   const { body, worksheet } = splitExerciseInstructions(rawInstructions)
   const bullets = formatInstructionBullets(body)
   const paragraphs = formatInstructionParagraphs(body)
-  const duration = content.duration_seconds || 0
+  const duration = readOnly ? 0 : content.duration_seconds || 0
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(duration)
   const [isActive, setIsActive] = useState(false)
-  const [worksheetData, setWorksheetData] = useState<WorksheetPayload | null>(null)
+  const [worksheetData, setWorksheetData] = useState<WorksheetPayload | null>(
+    () => initialResponse?.worksheet || null
+  )
 
   const buildPayload = () => ({
     completed: true,
@@ -80,17 +94,35 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
 
   return (
     <div className="space-y-5">
+      {readOnly && (
+        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">
+          Completed exercise · read only
+        </p>
+      )}
       {focusLabel && (
         <p className="text-xs font-semibold text-brand-primary uppercase tracking-wide">{focusLabel}</p>
       )}
 
-      <div className="space-y-3">
-        <h3 className="text-lg sm:text-xl font-black text-text-primary leading-snug">
+      <div
+        className={`session-paper rounded-2xl p-4 sm:p-5 space-y-3 ${
+          handwriting ? 'font-handwriting' : 'font-sans'
+        }`}
+      >
+        <h3
+          className={`text-lg sm:text-xl font-bold text-text-primary leading-snug ${
+            handwriting ? 'session-paper__prompt' : 'font-black'
+          }`}
+        >
           {content.title || 'Exercise'}
         </h3>
 
         {paragraphs.map((para, i) => (
-          <p key={i} className="text-text-primary/85 leading-relaxed text-sm sm:text-[15px]">
+          <p
+            key={i}
+            className={`text-text-primary/85 leading-relaxed ${
+              handwriting ? 'text-[1.05rem] sm:text-[1.125rem]' : 'text-sm sm:text-[15px]'
+            }`}
+          >
             {para}
           </p>
         ))}
@@ -98,7 +130,12 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
         {bullets.length > 0 && (
           <ul className="space-y-2.5 pl-0.5">
             {bullets.map((item, i) => (
-              <li key={i} className="flex gap-2.5 items-start text-sm sm:text-[15px] text-text-primary/90">
+              <li
+                key={i}
+                className={`flex gap-2.5 items-start text-text-primary/90 ${
+                  handwriting ? 'text-[1.05rem] sm:text-[1.125rem]' : 'text-sm sm:text-[15px]'
+                }`}
+              >
                 <span className="text-brand-primary font-bold mt-0.5 flex-shrink-0">{i + 1}.</span>
                 <span>{item}</span>
               </li>
@@ -107,17 +144,27 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
         )}
 
         {!paragraphs.length && !bullets.length && body && (
-          <p className="text-text-primary/85 whitespace-pre-line leading-relaxed text-sm sm:text-[15px]">
+          <p
+            className={`text-text-primary/85 whitespace-pre-line leading-relaxed ${
+              handwriting ? 'text-[1.05rem] sm:text-[1.125rem]' : 'text-sm sm:text-[15px]'
+            }`}
+          >
             {body}
           </p>
         )}
       </div>
 
       {worksheet && (
-        <ExerciseWorksheet format={worksheet} onChange={setWorksheetData} />
+        <ExerciseWorksheet
+          format={worksheet}
+          onChange={setWorksheetData}
+          handwriting={handwriting}
+          readOnly={readOnly}
+          initial={initialResponse?.worksheet || null}
+        />
       )}
 
-      {duration > 0 && (
+      {duration > 0 && !readOnly && (
         <div className="flex flex-col items-center gap-5 py-4">
           <motion.div
             className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-brand-primary/20 via-brand-accent/20 to-brand-primary/30 border border-brand-primary/30 flex flex-col items-center justify-center relative shadow-glass-md"
@@ -166,7 +213,7 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
       )}
 
       <div className="flex gap-2.5 pt-2">
-        {duration > 0 && (
+        {duration > 0 && !readOnly && (
           <GlassButton
             onClick={handleComplete}
             disabled={isSubmitting}
@@ -177,10 +224,10 @@ export default function ExerciseComponent({ step, onNext, focusLabel }: Exercise
         )}
         <GlassButton
           onClick={handleComplete}
-          disabled={(duration > 0 && timeLeft > 0 && isActive) || isSubmitting}
+          disabled={(!readOnly && duration > 0 && timeLeft > 0 && isActive) || isSubmitting}
           className="flex-[2] py-3.5 sm:py-4 font-bold"
         >
-          {isSubmitting ? 'Saving…' : 'Mark Complete'}
+          {isSubmitting ? 'Saving…' : readOnly ? 'Continue' : 'Mark Complete'}
         </GlassButton>
       </div>
     </div>

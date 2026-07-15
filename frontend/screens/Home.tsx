@@ -87,7 +87,7 @@ function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user, userProfile, currentSession, sessionLoading, progressStats } = useApp()
+  const { user, userProfile, currentSession, sessionLoading, progressStats, fetchCurrentSession } = useApp()
   const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -102,6 +102,8 @@ export default function Home() {
     if (!user?.id) return
     setIsRefreshing(true)
     try {
+      // Resync current_day from session_progress (Home used to keep a stale day-1 forever)
+      await fetchCurrentSession()
       const slipsResult = await cravingService.getCountByType(user.id, 'slip')
       setSlipsCount(slipsResult.success && slipsResult.data !== undefined ? slipsResult.data : 0)
       if (refreshProgress) await refreshProgressData()
@@ -118,7 +120,7 @@ export default function Home() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [user?.id, refreshProgressData])
+  }, [user?.id, refreshProgressData, fetchCurrentSession])
 
   useEffect(() => {
     if (!user?.id) return
@@ -348,7 +350,7 @@ export default function Home() {
             />
             <GlanceCard
               icon={Cigarette}
-              label="Avoided"
+              label="Cigarettes avoided"
               value={String(displayStats.cigarettesNotSmoked)}
               tint="bg-[#FFF1E6] text-[#E8894A]"
             />

@@ -71,13 +71,13 @@ export function startReminderScheduler() {
       sentToday.set(dedupe, true)
 
       const quoteBody = await getDailyQuoteText(token, profile.language || 'en')
-      const sent = await notifyUserPush(userId, {
+      const result = await notifyUserPush(userId, {
         title: 'Good morning ☀️',
         body: quoteBody,
         url: '/home',
         tag: `daily-quote-${day}`,
       })
-      if (sent > 0) {
+      if (result.sent > 0) {
         console.log(`[Reminder] Sent morning quote to ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'})`)
       }
     }

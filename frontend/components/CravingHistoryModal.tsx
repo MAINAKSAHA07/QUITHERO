@@ -12,10 +12,10 @@ interface CravingHistoryModalProps {
 export default function CravingHistoryModal({ isOpen, onClose, cravings }: CravingHistoryModalProps) {
   if (!isOpen) return null
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
+  const formatDate = (dateString?: string) => {
+    if (!dateString?.trim()) return '—'
     const date = new Date(dateString)
-    if (isNaN(date.getTime())) return ''
+    if (Number.isNaN(date.getTime())) return '—'
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -92,7 +92,7 @@ export default function CravingHistoryModal({ isOpen, onClose, cravings }: Cravi
                         </span>
                       </div>
                       <span className="text-xs text-gray-500">
-                        {formatDate(craving.created || '')}
+                        {formatDate(craving.created || craving.updated)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-700 mb-1">

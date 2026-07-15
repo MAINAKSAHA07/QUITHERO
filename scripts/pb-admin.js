@@ -48,3 +48,17 @@ export async function getAuthUser(token) {
   const data = await res.json()
   return data.record || null
 }
+
+/** Validate backoffice admin_users JWT (not app users). */
+export async function getAuthAdmin(token) {
+  if (!token) return null
+  const clean = String(token).replace(/^Bearer\s+/i, '').trim()
+  if (!clean) return null
+  const res = await fetch(`${PB_URL}/api/collections/admin_users/auth-refresh`, {
+    method: 'POST',
+    headers: { Authorization: clean },
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const data = await res.json()
+  return data.record || null
+}

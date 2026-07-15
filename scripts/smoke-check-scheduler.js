@@ -83,13 +83,13 @@ export function startSmokeCheckScheduler() {
       if (sentForPeriod.get(key)) continue
       sentForPeriod.set(key, true)
 
-      const sent = await notifyUserPush(userId, {
+      const result = await notifyUserPush(userId, {
         title: 'Quick smoke check-in',
         body: 'Did you stay smoke-free since your last check-in? Tap to answer — it only takes a second.',
         url: '/home?smoke_check=1',
         tag: `smoke-check-${key}`,
       })
-      if (sent > 0) {
+      if (result.sent > 0) {
         console.log(`[SmokeCheck] Push sent to ${userId.slice(0, 8)}…`)
       }
     }

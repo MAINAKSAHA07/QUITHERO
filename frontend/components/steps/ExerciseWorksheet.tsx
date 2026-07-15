@@ -4,24 +4,46 @@ import { WorksheetFormat, WorksheetPayload } from '../../utils/stepContentFormat
 interface ExerciseWorksheetProps {
   format: WorksheetFormat
   onChange: (data: WorksheetPayload) => void
+  handwriting?: boolean
+  readOnly?: boolean
+  initial?: WorksheetPayload | null
 }
 
 const inputClass =
   'w-full text-xs py-2 px-2 rounded-lg bg-white border border-black/[0.08] focus:border-brand-primary/40 outline-none'
 
-export default function ExerciseWorksheet({ format, onChange }: ExerciseWorksheetProps) {
+export default function ExerciseWorksheet({
+  format,
+  onChange,
+  handwriting = false,
+  readOnly = false,
+  initial = null,
+}: ExerciseWorksheetProps) {
+  const writeFont = handwriting ? 'font-handwriting text-sm' : ''
+  const locked = readOnly ? 'opacity-90 cursor-default' : ''
   const [stressRows, setStressRows] = useState(
     () =>
-      Array.from({ length: format.kind === 'stress' ? format.rows : 2 }, () => ({
-        before: '',
-        after: '',
-        tenMin: '',
-        touchedProblem: '',
-      }))
+      initial?.kind === 'stress'
+        ? initial.rows
+        : Array.from({ length: format.kind === 'stress' ? format.rows : 2 }, () => ({
+            before: '',
+            after: '',
+            tenMin: '',
+            touchedProblem: '',
+          }))
   )
 
   const [gridData, setGridData] = useState<Record<string, string>>(() => {
     if (format.kind !== 'grid') return {}
+    if (initial?.kind === 'grid') {
+      const init: Record<string, string> = {}
+      initial.rows.forEach((row, ri) => {
+        row.values.forEach((val, ci) => {
+          init[`${ri}-${ci}`] = val
+        })
+      })
+      return init
+    }
     const init: Record<string, string> = {}
     format.rowLabels.forEach((_, ri) => {
       format.headers.forEach((_, ci) => {
@@ -32,6 +54,9 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
   })
 
   const [fieldData, setFieldData] = useState<Record<string, string>>(() => {
+    if (initial && (initial.kind === 'fields' || initial.kind === 'lines')) {
+      return { ...initial.values }
+    }
     if (format.kind === 'fields') {
       return Object.fromEntries(format.fields.map((f) => [f.label, '']))
     }
@@ -42,6 +67,9 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
   })
 
   const [repeatData, setRepeatData] = useState<Record<string, string>[]>(() => {
+    if (initial?.kind === 'repeat') {
+      return initial.rows.map((r) => ({ ...r.values }))
+    }
     if (format.kind !== 'repeat') return []
     return Array.from({ length: format.rows }, () =>
       Object.fromEntries(format.fields.map((f) => [f.label, '']))
@@ -69,6 +97,7 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
   }
 
   useEffect(() => {
+    if (readOnly) return
     if (format.kind === 'fields') {
       emitFields(fieldData, 'fields')
     } else if (format.kind === 'lines') {
@@ -125,13 +154,16 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
                 placeholder="0–10"
                 value={row[key]}
                 onChange={(e) => update(i, key, e.target.value)}
-                className={`${inputClass} text-center`}
+                className={`${inputClass} text-center ${writeFont} ${locked}`}
+                readOnly={readOnly}
+                disabled={readOnly}
               />
             ))}
             <select
               value={row.touchedProblem}
               onChange={(e) => update(i, 'touchedProblem', e.target.value)}
               className={`${inputClass} text-[10px]`}
+              disabled={readOnly}
             >
               <option value="">—</option>
               <option value="yes">Yes</option>
@@ -172,7 +204,9 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
                   setGridData(next)
                   emitGrid(next)
                 }}
-                className={inputClass}
+                className={`${inputClass} ${writeFont} ${locked}`}
+                readOnly={readOnly}
+                disabled={readOnly}
               />
             ))}
           </div>
@@ -196,7 +230,8 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
               }}
               placeholder={field.hint}
               rows={2}
-              className={`${inputClass} resize-none min-h-[56px]`}
+              readOnly={readOnly}
+              className={`${inputClass} resize-none min-h-[56px] ${writeFont} ${locked}`}
             />
           </div>
         ))}
@@ -223,6 +258,7 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
                 <textarea
                   value={row[field.label] || ''}
                   onChange={(e) => {
+                    if (readOnly) return
                     setRepeatData((prev) => {
                       const next = prev.map((r, idx) =>
                         idx === ri ? { ...r, [field.label]: e.target.value } : r
@@ -233,7 +269,8 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
                   }}
                   placeholder={field.hint}
                   rows={2}
-                  className={`${inputClass} resize-none min-h-[52px] text-sm`}
+                  readOnly={readOnly}
+                  className={`${inputClass} resize-none min-h-[52px] text-sm ${writeFont} ${locked}`}
                 />
               </div>
             ))}
@@ -252,11 +289,13 @@ export default function ExerciseWorksheet({ format, onChange }: ExerciseWorkshee
             type="text"
             value={fieldData[field.label] || ''}
             onChange={(e) => {
+              if (readOnly) return
               const next = { ...fieldData, [field.label]: e.target.value }
               setFieldData(next)
               emitFields(next, 'lines')
             }}
-            className={inputClass}
+            readOnly={readOnly}
+            className={`${inputClass} ${writeFont} ${locked}`}
           />
         </div>
       ))}

@@ -1,17 +1,41 @@
 import { BaseService } from './base.service'
-import { SupportTicket } from '../types/models'
+import { SupportTicket, SupportTicketMessage } from '../types/models'
 import { SupportTicketStatus, SupportTicketPriority, SupportTicketCategory } from '../types/enums'
 import { ApiResponse } from '../types/api'
-import { recentSort } from '../lib/pocketbase'
+import { recentSort, pb } from '../lib/pocketbase'
+
+async function supportApi<T>(
+  path: string,
+  options?: { method?: string; body?: Record<string, unknown> }
+): Promise<ApiResponse<T>> {
+  try {
+    const token = pb.authStore.token
+    if (!token) return { success: false, error: 'Login required' }
+
+    const res = await fetch(path, {
+      method: options?.method || 'GET',
+      headers: {
+        Authorization: token,
+        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return { success: false, error: data.error || data.message || `Request failed (${res.status})` }
+    }
+    return { success: true, data: (data.data ?? data) as T }
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error' }
+  }
+}
 
 export class SupportService extends BaseService {
   constructor() {
     super('support_tickets')
   }
 
-  /**
-   * Create a new support ticket
-   */
+  /** Create ticket + first message (encrypted server-side). */
   async createTicket(
     userId: string,
     data: {
@@ -22,27 +46,20 @@ export class SupportService extends BaseService {
       priority?: SupportTicketPriority
     }
   ): Promise<ApiResponse<SupportTicket>> {
-    try {
-      const ticketData = {
-        user: userId,
+    const result = await supportApi<SupportTicket>('/api/support/tickets', {
+      method: 'POST',
+      body: {
         subject: data.subject,
         message: data.message || data.description || '',
-        description: data.description || data.message || '',
-        status: SupportTicketStatus.OPEN,
-        priority: data.priority || SupportTicketPriority.MEDIUM,
         category: data.category || SupportTicketCategory.OTHER,
-      }
-
-      const result = await this.create(ticketData)
-      return result
-    } catch (error: any) {
-      return this.handleError(error)
-    }
+        priority: data.priority || SupportTicketPriority.MEDIUM,
+      },
+    })
+    // userId unused — API binds ticket to auth user (prevents spoofing)
+    void userId
+    return result
   }
 
-  /**
-   * Get user's support tickets
-   */
   async getByUser(
     userId: string,
     options?: {
@@ -76,16 +93,10 @@ export class SupportService extends BaseService {
     }
   }
 
-  /**
-   * Get a single ticket by ID
-   */
   async getTicket(ticketId: string): Promise<ApiResponse<SupportTicket>> {
     return this.getOne(ticketId)
   }
 
-  /**
-   * Update ticket status (for user to close their own ticket)
-   */
   async updateTicket(
     ticketId: string,
     updates: {
@@ -94,6 +105,24 @@ export class SupportService extends BaseService {
     }
   ): Promise<ApiResponse<SupportTicket>> {
     return this.update(ticketId, updates)
+  }
+
+  async getMessages(ticketId: string): Promise<ApiResponse<SupportTicketMessage[]>> {
+    return supportApi<SupportTicketMessage[]>(
+      `/api/support/messages?ticket=${encodeURIComponent(ticketId)}`
+    )
+  }
+
+  async sendMessage(
+    ticketId: string,
+    body: string,
+    _senderRole: 'user' | 'admin' = 'user'
+  ): Promise<ApiResponse<SupportTicketMessage>> {
+    void _senderRole
+    return supportApi<SupportTicketMessage>('/api/support/messages', {
+      method: 'POST',
+      body: { ticket: ticketId, body: body.trim() },
+    })
   }
 }
 

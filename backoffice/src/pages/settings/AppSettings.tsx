@@ -383,6 +383,10 @@ const NotificationSettings: React.FC<SettingsComponentProps> = ({ settings, onCh
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Notification Settings</h2>
+        <p className="text-xs text-neutral-500 mt-1">
+          Global feature flags stored in app settings. Per-user delivery still follows each user’s
+          Profile toggles (reminders, craving alerts, achievements).
+        </p>
         <button onClick={onSave} className="btn-primary flex items-center gap-2" disabled={isSaving}>
           <Save className="w-4 h-4" />
           {isSaving ? 'Saving...' : 'Save'}

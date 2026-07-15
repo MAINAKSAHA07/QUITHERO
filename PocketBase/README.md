@@ -1,6 +1,6 @@
-# QUIT HERO - Database Setup Guide
+# SMONO - Database Setup Guide
 
-This guide will help new developers set up the complete PocketBase database for the Quit Hero application.
+This guide will help new developers set up the complete PocketBase database for the Smono application.
 
 ## Table of Contents
 
@@ -192,7 +192,7 @@ Each day includes 3-4 steps with a mix of:
 - 📔 Daily Chronicler (30 entries)
 
 #### Quotes & Tips (10 total)
-Motivational quotes from T.S. Eliot, Mark Twain, Theodore Roosevelt, and practical tips from the Quit Hero team.
+Motivational quotes from T.S. Eliot, Mark Twain, Theodore Roosevelt, and practical tips from the Smono team.
 
 ---
 
@@ -203,11 +203,11 @@ After running the complete setup, you'll have access to these accounts:
 ### Frontend Demo Users
 
 **Demo User**
-- Email: `demo@quithero.com`
+- Email: `demo@smono.app`
 - Password: `Demo123456!`
 
 **Test User**
-- Email: `test@quithero.com`
+- Email: `test@smono.app`
 - Password: `Test123456!`
 
 ### Backoffice Admin
@@ -246,7 +246,7 @@ npm run pb:seed-program
 
 ### 4. Seed Sample Data
 ```bash
-npm run pb:seed-sample
+npm run pb:seed-all-days
 ```
 
 ---
@@ -377,7 +377,7 @@ npm install
 | `npm run pb:setup` | Create collections only |
 | `npm run pb:rules` | Set access control rules |
 | `npm run pb:seed-program` | Seed 10-day program |
-| `npm run pb:seed-sample` | Seed sample data |
+| `npm run pb:seed-all-days` | Seed full 30-day program content |
 
 ### Development
 
@@ -425,7 +425,7 @@ After completing the database setup:
 1. **Test the Frontend**
    - Start the frontend: `npm run dev`
    - Navigate to http://localhost:5175
-   - Login with demo user: `demo@quithero.com` / `Demo123456!`
+   - Login with demo user: `demo@smono.app` / `Demo123456!`
    - Explore the 10-day program
 
 2. **Test the Backoffice**

@@ -312,7 +312,7 @@ export const Dashboard = () => {
         <MetricCard
           title="Total Users"
           value={totalUsers}
-          subtitle="Total Users"
+          subtitle="Registered accounts"
           trend={growthPercent > 0 ? `+${growthPercent}% this month` : `${growthPercent}% this month`}
           trendUp={growthPercent > 0}
           icon={Users}
@@ -335,7 +335,7 @@ export const Dashboard = () => {
         <MetricCard
           title="Pending Tickets"
           value={pendingTickets}
-          subtitle="Pending Tickets"
+          subtitle="Open + in progress"
           icon={MessageSquare}
           gradient="from-white to-warning/20"
           alert={pendingTickets > 10 ? 'danger' : pendingTickets > 5 ? 'warning' : undefined}

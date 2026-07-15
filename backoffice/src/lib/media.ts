@@ -39,6 +39,10 @@ export function mediaTypeFromFile(file: File): MediaType {
 }
 
 export async function uploadMediaFile(file: File, folder?: string): Promise<string> {
+  if (file.size > 100 * 1024 * 1024) {
+    throw new Error('File is too large (max 100 MB)')
+  }
+
   const formData = new FormData()
   formData.append('file', file)
   formData.append('filename', file.name)
@@ -50,9 +54,18 @@ export async function uploadMediaFile(file: File, folder?: string): Promise<stri
   try {
     record = (await pb.collection('media').create(formData)) as unknown as MediaRecord
   } catch (error: unknown) {
-    const err = error as { message?: string; response?: { data?: Record<string, unknown> } }
+    const err = error as {
+      message?: string
+      status?: number
+      response?: { data?: Record<string, unknown>; message?: string }
+      originalError?: { message?: string }
+    }
+    const status = err.status
+    if (status === 413 || /entity too large|413/i.test(err.message || '') || /entity too large/i.test(err.originalError?.message || '')) {
+      throw new Error('File is too large for the server upload limit. Try a smaller image (under ~1 MB until the server is redeployed with a higher limit).')
+    }
     const data = err?.response?.data
-    if (data && typeof data === 'object') {
+    if (data && typeof data === 'object' && Object.keys(data).length > 0) {
       const parts = Object.entries(data).map(([key, val]) => {
         if (val && typeof val === 'object' && 'message' in val) {
           return `${key}: ${(val as { message: string }).message}`
@@ -61,7 +74,13 @@ export async function uploadMediaFile(file: File, folder?: string): Promise<stri
       })
       throw new Error(parts.join('; ') || err.message || 'Upload failed')
     }
-    throw new Error(err?.message || 'Upload failed')
+    const msg = err.response?.message || err.message || 'Upload failed'
+    if (/something went wrong/i.test(msg)) {
+      throw new Error(
+        'Upload failed — the server rejected the request (often the file is too large). Try a smaller image under 1 MB, or redeploy so nginx allows larger uploads.'
+      )
+    }
+    throw new Error(msg)
   }
 
   const url = getMediaFileUrl(record)

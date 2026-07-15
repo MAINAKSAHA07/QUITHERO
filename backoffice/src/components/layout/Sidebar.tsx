@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
@@ -8,9 +8,11 @@ import {
   Trophy,
   Settings,
   HelpCircle,
-  ChevronLeft,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>
@@ -20,11 +22,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  {
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    path: '/dashboard',
-  },
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   {
     icon: Users,
     label: 'Users',
@@ -90,26 +88,35 @@ const navItems: NavItem[] = [
       { icon: Settings, label: 'API Keys', path: '/settings/api' },
     ],
   },
-  {
-    icon: HelpCircle,
-    label: 'Help',
-    path: '/help',
-  },
+  { icon: HelpCircle, label: 'Help', path: '/help' },
 ]
 
-interface SidebarProps {
-  onCollapseChange?: (collapsed: boolean) => void
+function sectionActive(pathname: string, item: NavItem) {
+  if (item.path === '/users') return pathname === '/users' || pathname.startsWith('/users/')
+  if (item.path === '/achievements') {
+    return pathname === '/achievements' || pathname.startsWith('/achievements/')
+  }
+  return pathname === item.path || pathname.startsWith(`${item.path}/`)
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
-  const [collapsed, setCollapsed] = useState(false)
+interface SidebarProps {
+  collapsed: boolean
+  onToggle: () => void
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+  const location = useLocation()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
 
-  const toggleCollapse = () => {
-    const newCollapsed = !collapsed
-    setCollapsed(newCollapsed)
-    onCollapseChange?.(newCollapsed)
-  }
+  // Keep the active section open
+  useEffect(() => {
+    const active = navItems
+      .filter((item) => item.children && sectionActive(location.pathname, item))
+      .map((item) => item.path)
+    if (active.length) {
+      setExpandedItems((prev) => Array.from(new Set([...prev, ...active])))
+    }
+  }, [location.pathname])
 
   const toggleExpand = (path: string) => {
     setExpandedItems((prev) =>
@@ -119,87 +126,109 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCollapseChange }) => {
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-neutral-dark text-white transition-all duration-300 ${
-        collapsed ? 'w-16' : 'w-64'
-      } overflow-y-auto`}
+      className={`shrink-0 h-full flex flex-col bg-[#1A2332] text-white transition-[width] duration-200 ease-out ${
+        collapsed ? 'w-16' : 'w-60'
+      }`}
+      aria-label="Main navigation"
     >
-      <nav className="p-4">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-0.5">
         {navItems.map((item) => {
-          const hasChildren = item.children && item.children.length > 0
+          const hasChildren = Boolean(item.children?.length)
           const isExpanded = expandedItems.includes(item.path)
+          const isSection = sectionActive(location.pathname, item)
           const Icon = item.icon
 
+          if (!hasChildren) {
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                title={collapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                    isActive
+                      ? 'bg-primary text-white'
+                      : 'text-white/75 hover:bg-white/10 hover:text-white'
+                  } ${collapsed ? 'justify-center px-0' : ''}`
+                }
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            )
+          }
+
           return (
-            <div key={item.path} className="mb-1">
-              {hasChildren ? (
-                <>
-                  <button
-                    onClick={() => toggleExpand(item.path)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
-                  >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    {!collapsed && <span className="flex-1">{item.label}</span>}
-                    {!collapsed && (
-                      <ChevronLeft
-                        className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                      />
-                    )}
-                  </button>
-                  {!collapsed && isExpanded && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {item.children?.map((child) => {
-                        const ChildIcon = child.icon
-                        return (
-                          <NavLink
-                            key={child.path}
-                            to={child.path}
-                            className={({ isActive }) =>
-                              `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                                isActive
-                                  ? 'bg-primary text-white'
-                                  : 'hover:bg-white/10 text-white/80'
-                              }`
-                            }
-                          >
-                            <ChildIcon className="w-4 h-4" />
-                            <span>{child.label}</span>
-                          </NavLink>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-primary text-white'
-                        : 'hover:bg-white/10 text-white/80'
-                    }`
-                  }
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </NavLink>
+            <div key={item.path}>
+              <button
+                type="button"
+                onClick={() => (collapsed ? onToggle() : toggleExpand(item.path))}
+                title={collapsed ? item.label : undefined}
+                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                  isSection ? 'bg-white/10 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                } ${collapsed ? 'justify-center px-0' : ''}`}
+                aria-expanded={!collapsed && isExpanded}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 opacity-70 transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </>
+                )}
+              </button>
+              {!collapsed && isExpanded && (
+                <div className="mt-0.5 mb-1 ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                  {item.children?.map((child) => (
+                    <NavLink
+                      key={child.path}
+                      to={child.path}
+                      end={child.path === '/users' || child.path === '/achievements'}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                          isActive
+                            ? 'bg-primary text-white'
+                            : 'text-white/65 hover:bg-white/10 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span className="truncate">{child.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
               )}
             </div>
           )
         })}
       </nav>
-      <button
-        onClick={toggleCollapse}
-        className="absolute bottom-4 left-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
-      >
-        <ChevronLeft
-          className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
-        />
-      </button>
+
+      <div className="p-2 border-t border-white/10">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+            collapsed ? 'justify-center px-0' : ''
+          }`}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={`${collapsed ? 'Expand' : 'Collapse'} sidebar (⌘B)`}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="w-5 h-5" />
+          ) : (
+            <>
+              <PanelLeftClose className="w-5 h-5" />
+              <span>Collapse</span>
+              <kbd className="ml-auto text-[10px] text-white/40 border border-white/15 rounded px-1.5 py-0.5">
+                ⌘B
+              </kbd>
+            </>
+          )}
+        </button>
+      </div>
     </aside>
   )
 }
-
-
-
-

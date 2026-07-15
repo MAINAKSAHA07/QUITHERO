@@ -22,6 +22,8 @@ import {
   Bell,
   ChevronRight,
   Phone,
+  Map,
+  Inbox,
 } from 'lucide-react'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassButton from '../components/GlassButton'
@@ -30,8 +32,10 @@ import TranslatedText from '../components/TranslatedText'
 import AppHeader from '../components/AppHeader'
 import { useApp } from '../context/AppContext'
 import pb, { authHelpers, mapAuthRecordToAppUser } from '../lib/pocketbase'
+import { resolveMediaUrl } from '../utils/mediaUrl'
 import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
+import SupportInbox from '../components/SupportInbox'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
 import { getUserTimezone } from '../utils/reminderTime'
@@ -43,6 +47,7 @@ import {
   getPendingDeletionRequest,
   submitDeletionRequest,
 } from '../services/account-deletion.service'
+import { requestAppTour } from '../utils/appTour'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -55,6 +60,7 @@ export default function Profile() {
     phone: userProfile?.phone || '',
   })
   const [showSupportModal, setShowSupportModal] = useState(false)
+  const [showSupportInbox, setShowSupportInbox] = useState(false)
   const [editingPhone, setEditingPhone] = useState(false)
   const [phoneDraft, setPhoneDraft] = useState(userProfile?.phone || '')
   const [savingPhone, setSavingPhone] = useState(false)
@@ -449,7 +455,7 @@ export default function Profile() {
           <label className="relative w-24 h-24 mx-auto mb-3 rounded-full bg-[#E8F4FC] border-4 border-[#3F8DD2]/20 flex items-center justify-center cursor-pointer group overflow-hidden">
             {user?.avatar ? (
               <img
-                src={`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`}
+                src={resolveMediaUrl(`${pb.baseUrl}/api/files/users/${user.id}/${user.avatar}`)}
                 alt=""
                 className="w-full h-full rounded-full object-cover"
               />
@@ -649,6 +655,12 @@ export default function Profile() {
               onClick={() => navigate('/language?from=/profile')}
             />
             <AccountRow
+              icon={Map}
+              label="Take a tour"
+              value="App features walkthrough"
+              onClick={() => requestAppTour()}
+            />
+            <AccountRow
               icon={Bell}
               label="Notifications"
               value={notifications.daily ? 'On' : 'Off'}
@@ -833,6 +845,14 @@ export default function Profile() {
           <div className="rounded-3xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white overflow-hidden divide-y divide-[#0E2538]/06">
             <AccountRow icon={HelpCircle} label="FAQs" onClick={handleFAQs} />
             <AccountRow icon={MessageCircle} label="Contact Support" onClick={handleContactSupport} />
+            <AccountRow
+              icon={Inbox}
+              label="My Support Tickets"
+              onClick={() => {
+                setShowSupportInbox(true)
+                analyticsService.trackEvent('support_inbox_opened', {}, user?.id)
+              }}
+            />
             <AccountRow icon={Star} label="Rate App" onClick={handleRateApp} />
             <AccountRow icon={Share2} label="Share App" onClick={handleShareApp} />
           </div>
@@ -897,11 +917,23 @@ export default function Profile() {
       <BottomNavigation />
 
       {user?.id && (
-        <SupportTicketModal
-          isOpen={showSupportModal}
-          onClose={() => setShowSupportModal(false)}
-          userId={user.id}
-        />
+        <>
+          <SupportTicketModal
+            isOpen={showSupportModal}
+            onClose={() => setShowSupportModal(false)}
+            userId={user.id}
+            onCreated={() => setShowSupportInbox(true)}
+          />
+          <SupportInbox
+            isOpen={showSupportInbox}
+            onClose={() => setShowSupportInbox(false)}
+            userId={user.id}
+            onNewTicket={() => {
+              setShowSupportInbox(false)
+              setShowSupportModal(true)
+            }}
+          />
+        </>
       )}
 
       {showPasswordModal && (

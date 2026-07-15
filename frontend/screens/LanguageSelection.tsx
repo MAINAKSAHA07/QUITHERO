@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
-import TopNavigation from '../components/TopNavigation'
 import SmonoLogo from '../components/SmonoLogo'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
@@ -75,9 +74,7 @@ export default function LanguageSelection() {
 
   return (
     <div className="min-h-screen pb-20">
-      <TopNavigation left="logo" center="" right="" />
-      
-      <div className="app-container px-3 sm:px-4 pt-8">
+      <div className="app-container px-3 sm:px-4 pt-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
