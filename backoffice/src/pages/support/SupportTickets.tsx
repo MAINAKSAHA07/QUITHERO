@@ -88,6 +88,9 @@ export const SupportTickets = () => {
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ['support_ticket_messages', selected?.id],
     enabled: !!selected?.id,
+    // Messages are encrypted behind /api/support — no PB realtime. Poll while open.
+    refetchInterval: selected?.id ? 2500 : false,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
       if (!selected?.id) return { data: [] as TicketMessage[] }
       const result = await fetchTicketMessages(selected.id)
