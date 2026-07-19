@@ -52,6 +52,24 @@ export function shouldAutoShowAppTour(): boolean {
   return Date.now() - last >= APP_TOUR_INACTIVE_MS
 }
 
+/** True when they’ve finished the tour before (7-day return or Profile replay). */
+export function isWelcomeBackTour(): boolean {
+  return hasSeenAppTour()
+}
+
+export function tourWelcomeCopy(welcomeBack: boolean): { title: string; body: string } {
+  if (welcomeBack) {
+    return {
+      title: 'Welcome back to Smono',
+      body: 'Been a while — here’s a quick refresher of the main buttons.',
+    }
+  }
+  return {
+    title: 'Welcome to Smono',
+    body: 'A short tour of the main buttons — we’ll highlight each one so you know where things live.',
+  }
+}
+
 export function requestAppTour(): void {
   listeners.forEach((cb) => cb())
 }

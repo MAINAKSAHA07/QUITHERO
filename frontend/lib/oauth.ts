@@ -1,5 +1,7 @@
 /** PocketBase OAuth helpers (redirect flow — avoids SSE/realtime through proxies). */
 
+import { apiUrl, isNativePlatform } from '../utils/apiOrigin'
+
 export type OAuthProvider = {
   name: string
   authURL: string
@@ -9,6 +11,10 @@ export type OAuthProvider = {
 }
 
 export function getOAuthBaseUrl(): string {
+  // Capacitor: never use WebView origin — OAuth must hit the real app host
+  if (isNativePlatform()) {
+    return apiUrl('/api/pocketbase')
+  }
   if (import.meta.env.PROD) {
     return `${window.location.origin}/api/pocketbase`
   }
@@ -47,6 +53,7 @@ export function stashOAuthSession(provider: OAuthProvider, redirectURL: string) 
   sessionStorage.setItem('pb_oauth_verifier', provider.codeVerifier)
   sessionStorage.setItem('pb_oauth_redirect', redirectURL)
   sessionStorage.setItem('pb_oauth_state', provider.state)
+  sessionStorage.setItem('pb_oauth_provider', provider.name)
 }
 
 const AUTH_STORAGE_KEY = 'pocketbase_auth'
@@ -59,4 +66,5 @@ export function clearOAuthSession() {
   sessionStorage.removeItem('pb_oauth_verifier')
   sessionStorage.removeItem('pb_oauth_redirect')
   sessionStorage.removeItem('pb_oauth_state')
+  sessionStorage.removeItem('pb_oauth_provider')
 }

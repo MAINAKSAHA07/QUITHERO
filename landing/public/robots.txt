@@ -1,16 +1,59 @@
+# Smono marketing site — crawl + AI assistants welcome
 User-agent: *
 Allow: /
 
+# OpenAI
 User-agent: GPTBot
 Allow: /
 
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+# Anthropic
 User-agent: ClaudeBot
 Allow: /
 
-User-agent: PerplexityBot
+User-agent: anthropic-ai
 Allow: /
 
+User-agent: Claude-Web
+Allow: /
+
+# Google AI / Gemini
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://smono.app/sitemap.xml
+User-agent: Googlebot
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Others commonly used by AI products
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# Discovery
+Sitemap: https://www.smono.app/sitemap.xml
+# Curated index for AI assistants (https://llmstxt.org)
+# llms.txt — https://www.smono.app/llms.txt
+# llms-full.txt — https://www.smono.app/llms-full.txt

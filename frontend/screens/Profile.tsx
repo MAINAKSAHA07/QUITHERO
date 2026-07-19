@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   User,
@@ -7,7 +7,6 @@ import {
   Lock,
   Globe,
   Calendar,
-  Download,
   HelpCircle,
   MessageCircle,
   Star,
@@ -36,8 +35,11 @@ import { resolveMediaUrl } from '../utils/mediaUrl'
 import { analyticsService } from '../services/analytics.service'
 import SupportTicketModal from '../components/SupportTicketModal'
 import SupportInbox from '../components/SupportInbox'
+import CertificateModal from '../components/CertificateModal'
+import UpgradePrompt from '../components/UpgradePrompt'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
+import { canIssueCertificate } from '../utils/certificate'
 import { getUserTimezone } from '../utils/reminderTime'
 import { daysSinceQuitDate } from '../utils/smokeFreeDays'
 import { useProgress } from '../hooks/useProgress'
@@ -48,10 +50,19 @@ import {
   submitDeletionRequest,
 } from '../services/account-deletion.service'
 import { requestAppTour } from '../utils/appTour'
+import { needsDay2Upgrade } from '../utils/upgradePrompt'
+import {
+  dialForCountry,
+  dialOptions,
+  splitPhone,
+  joinPhone,
+  isValidE164Phone,
+} from '../utils/phone'
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { user, userProfile, progressStats, currentSession, setIsAuthenticated, setUser, updateUserProfile, fetchUserProfile, language } = useApp()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { user, userProfile, progressStats, currentSession, setIsAuthenticated, setUser, updateUserProfile, fetchUserProfile, language, isPremium } = useApp()
   const { calculation, refresh: refreshProgress } = useProgress()
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -61,8 +72,14 @@ export default function Profile() {
   })
   const [showSupportModal, setShowSupportModal] = useState(false)
   const [showSupportInbox, setShowSupportInbox] = useState(false)
+  const [focusSupportTicketId, setFocusSupportTicketId] = useState<string | null>(null)
   const [editingPhone, setEditingPhone] = useState(false)
-  const [phoneDraft, setPhoneDraft] = useState(userProfile?.phone || '')
+  const [phoneDial, setPhoneDial] = useState(() =>
+    splitPhone(userProfile?.phone || '', dialForCountry(userProfile?.country)).dial
+  )
+  const [phoneLocal, setPhoneLocal] = useState(() =>
+    splitPhone(userProfile?.phone || '', dialForCountry(userProfile?.country)).local
+  )
   const [savingPhone, setSavingPhone] = useState(false)
   const [notifications, setNotifications] = useState({
     daily: userProfile?.enable_reminders ?? true,
@@ -75,6 +92,7 @@ export default function Profile() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showCertificateModal, setShowCertificateModal] = useState(false)
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -96,6 +114,32 @@ export default function Profile() {
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!searchParams.has('support')) return
+    const ticketId = searchParams.get('support')
+    setShowSupportInbox(true)
+    setFocusSupportTicketId(ticketId || null)
+    const next = new URLSearchParams(searchParams)
+    next.delete('support')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const [supportUnread, setSupportUnread] = useState(0)
+  useEffect(() => {
+    const sync = () => {
+      void import('../utils/supportReplyNotify').then(({ getPendingSupportTicketIds }) => {
+        setSupportUnread(getPendingSupportTicketIds().length)
+      })
+    }
+    sync()
+    window.addEventListener('smono_support_reply', sync)
+    window.addEventListener('smono_support_pending_change', sync)
+    return () => {
+      window.removeEventListener('smono_support_reply', sync)
+      window.removeEventListener('smono_support_pending_change', sync)
+    }
+  }, [])
+
+  useEffect(() => {
     if (userProfile) {
       setNotifications({
         daily: userProfile.enable_reminders ?? true,
@@ -110,23 +154,30 @@ export default function Profile() {
         phone: userProfile.phone || '',
       })
       if (!editingPhone) {
-        setPhoneDraft(userProfile.phone || '')
+        const parts = splitPhone(userProfile.phone || '', dialForCountry(userProfile.country))
+        setPhoneDial(parts.dial)
+        setPhoneLocal(parts.local)
       }
     }
   }, [userProfile, user, editingPhone])
 
   const handleSavePhone = async () => {
     if (!user?.id) return
+    const phone = joinPhone(phoneDial, phoneLocal)
+    if (!isValidE164Phone(phone)) {
+      setError('Enter a valid phone number with country code')
+      setTimeout(() => setError(''), 5000)
+      return
+    }
     setSavingPhone(true)
     setError('')
     try {
-      const phone = phoneDraft.trim()
       const { profileService } = await import('../services/profile.service')
       const result = await profileService.upsert(user.id, { phone })
       if (!result.success) throw new Error(result.error || 'Failed to save phone number')
       await fetchUserProfile()
       setEditingPhone(false)
-      setSuccess(phone ? 'Phone number saved' : 'Phone number removed')
+      setSuccess('Phone number saved')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err: any) {
       setError(err.message || 'Failed to save phone number')
@@ -288,49 +339,16 @@ export default function Profile() {
     }
   }
 
-  const handleDownloadCertificate = () => {
-    if (!userProfile?.quit_date) {
-      alert('Please set your quit date first to download a certificate.')
+  const handleOpenCertificate = () => {
+    if (!canIssueCertificate(userProfile?.quit_date)) {
+      setError('Set your quit date first to unlock your certificate.')
+      setTimeout(() => setError(''), 3000)
       return
     }
-
-    // Create a simple certificate (can be enhanced with PDF generation later)
-    const daysSmokeFree = progressStats?.days_smoke_free || 0
-    const certificateText = `
-╔═══════════════════════════════════════════════════════════╗
-║                                                             ║
-║                    CERTIFICATE OF ACHIEVEMENT               ║
-║                                                             ║
-║  This certifies that                                        ║
-║                                                             ║
-║  ${(user?.name || 'User').toUpperCase().padEnd(50)} ║
-║                                                             ║
-║  has successfully completed                                 ║
-║                                                             ║
-║  ${daysSmokeFree} DAYS SMOKE-FREE                            ║
-║                                                             ║
-║  Quit Date: ${new Date(userProfile.quit_date).toLocaleDateString()}                    ║
-║                                                             ║
-║  Keep up the amazing work!                                  ║
-║                                                             ║
-║  smono                                                      ║
-║  ${new Date().toLocaleDateString()}                          ║
-║                                                             ║
-╚═══════════════════════════════════════════════════════════╝
-    `.trim()
-
-    // Create a blob and download
-    const blob = new Blob([certificateText], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `smono-certificate-${new Date().toISOString().split('T')[0]}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
-    analyticsService.trackEvent('certificate_downloaded', { daysSmokeFree }, user?.id)
+    setShowCertificateModal(true)
+    analyticsService.trackEvent('certificate_opened', {
+      daysSmokeFree: progressStats?.days_smoke_free || 0,
+    }, user?.id)
   }
 
   const handleFAQs = () => {
@@ -397,12 +415,12 @@ export default function Profile() {
   }
 
   const handleTerms = () => {
-    navigate('/terms')
+    window.location.href = 'https://www.smono.app/terms/'
     analyticsService.trackEvent('terms_viewed', {}, user?.id)
   }
 
   const handlePrivacy = () => {
-    navigate('/privacy')
+    window.location.href = 'https://www.smono.app/privacy/'
     analyticsService.trackEvent('privacy_viewed', {}, user?.id)
   }
 
@@ -435,14 +453,19 @@ export default function Profile() {
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+          background:
+            'radial-gradient(ellipse 80% 50% at 20% 0%, rgba(139, 205, 232, 0.4), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 90%, rgba(246, 184, 132, 0.32), transparent 50%), radial-gradient(ellipse 40% 30% at 70% 30%, rgba(110, 164, 143, 0.14), transparent 50%)',
         }}
         aria-hidden
       />
 
-      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+      <div
+        className={`flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin relative z-10 ${
+          needsDay2Upgrade(isPremium, currentDay) ? 'pb-40' : 'pb-28'
+        }`}
+      >
         <AppHeader title="Profile" />
 
         {/* Profile hero card */}
@@ -603,15 +626,29 @@ export default function Profile() {
                     <p className="text-sm font-medium text-[#0E2538] mb-1.5">
                       <TranslatedText text="Phone" />
                     </p>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      value={phoneDraft}
-                      onChange={(e) => setPhoneDraft(e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2 text-sm text-[#0E2538]"
-                      autoFocus
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={phoneDial}
+                        onChange={(e) => setPhoneDial(e.target.value)}
+                        className="shrink-0 rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-2 py-2 text-sm text-[#0E2538]"
+                        aria-label="Country code"
+                      >
+                        {dialOptions().map((o) => (
+                          <option key={o.dial} value={o.dial}>
+                            {o.dial}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={phoneLocal}
+                        onChange={(e) => setPhoneLocal(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Mobile number"
+                        className="min-w-0 flex-1 rounded-xl border border-[#0E2538]/10 bg-[#F4FBFF] px-3 py-2 text-sm text-[#0E2538]"
+                        autoFocus
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 pl-12">
@@ -627,7 +664,12 @@ export default function Profile() {
                     type="button"
                     onClick={() => {
                       setEditingPhone(false)
-                      setPhoneDraft(userProfile?.phone || '')
+                      const parts = splitPhone(
+                        userProfile?.phone || '',
+                        dialForCountry(userProfile?.country)
+                      )
+                      setPhoneDial(parts.dial)
+                      setPhoneLocal(parts.local)
                     }}
                     disabled={savingPhone}
                     className="flex-1 py-2 rounded-xl border border-[#0E2538]/15 text-sm font-semibold text-[#0E2538]/70"
@@ -643,7 +685,12 @@ export default function Profile() {
                 value={userProfile?.phone?.trim() || 'Add phone number'}
                 muted={!userProfile?.phone?.trim()}
                 onClick={() => {
-                  setPhoneDraft(userProfile?.phone || '')
+                  const parts = splitPhone(
+                    userProfile?.phone || '',
+                    dialForCountry(userProfile?.country)
+                  )
+                  setPhoneDial(parts.dial)
+                  setPhoneLocal(parts.local)
                   setEditingPhone(true)
                 }}
               />
@@ -818,13 +865,13 @@ export default function Profile() {
             </div>
             <button
               type="button"
-              onClick={handleDownloadCertificate}
-              className="flex items-center justify-between w-full py-2.5 rounded-xl hover:bg-[#F4FBFF] transition-colors"
+              onClick={handleOpenCertificate}
+              className="flex items-center justify-between w-full py-2.5 rounded-xl active:bg-[#F4FBFF] transition-colors"
             >
               <div className="flex items-center gap-3">
-                <IconBubble icon={Download} />
+                <IconBubble icon={Trophy} />
                 <span className="text-sm font-medium text-[#0E2538]">
-                  <TranslatedText text="Download Certificate" />
+                  <TranslatedText text="Certificate" />
                 </span>
               </div>
               <ChevronRight className="w-4 h-4 text-[#0E2538]/30" />
@@ -848,6 +895,7 @@ export default function Profile() {
             <AccountRow
               icon={Inbox}
               label="My Support Tickets"
+              badge={supportUnread > 0 ? supportUnread : undefined}
               onClick={() => {
                 setShowSupportInbox(true)
                 analyticsService.trackEvent('support_inbox_opened', {}, user?.id)
@@ -884,7 +932,7 @@ export default function Profile() {
           onClick={async () => {
             if (!user?.id || pendingDeletionRequest) return
             const confirmed = window.confirm(
-              'Request permanent account deletion? Our team will review and process your request. You can keep using the app until deletion is completed.'
+              'Request account deletion? You can only submit a request here — our team deletes accounts from the backend after review. You can keep using the app until then.'
             )
             if (!confirmed) return
             setSubmittingDeletion(true)
@@ -896,7 +944,7 @@ export default function Profile() {
               }
               setPendingDeletionRequest(true)
               alert(
-                'Your deletion request has been submitted. Our team will process it shortly. You will be logged out once your account is deleted.'
+                'Request received. Only our team can delete your account from the backend. We will process it and you will lose access once completed.'
               )
             } catch {
               alert('Failed to submit deletion request. Please contact support.')
@@ -914,6 +962,14 @@ export default function Profile() {
         </button>
       </div>
 
+      {needsDay2Upgrade(isPremium, currentDay) && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-40 px-4">
+          <div className="pointer-events-auto upgrade-glass-overlay max-w-md mx-auto">
+            <UpgradePrompt variant="overlay" />
+          </div>
+        </div>
+      )}
+
       <BottomNavigation />
 
       {user?.id && (
@@ -926,8 +982,13 @@ export default function Profile() {
           />
           <SupportInbox
             isOpen={showSupportInbox}
-            onClose={() => setShowSupportInbox(false)}
+            onClose={() => {
+              setShowSupportInbox(false)
+              setFocusSupportTicketId(null)
+            }}
             userId={user.id}
+            focusTicketId={focusSupportTicketId}
+            onFocusTicketConsumed={() => setFocusSupportTicketId(null)}
             onNewTicket={() => {
               setShowSupportInbox(false)
               setShowSupportModal(true)
@@ -935,6 +996,25 @@ export default function Profile() {
           />
         </>
       )}
+
+      <CertificateModal
+        isOpen={showCertificateModal}
+        onClose={() => setShowCertificateModal(false)}
+        name={user?.name || ''}
+        daysSmokeFree={
+          progressStats?.days_smoke_free ??
+          daysSinceQuitDate(userProfile?.quit_date) ??
+          0
+        }
+        quitDate={userProfile?.quit_date || ''}
+        onDownloaded={() => {
+          analyticsService.trackEvent(
+            'certificate_downloaded',
+            { daysSmokeFree: progressStats?.days_smoke_free || 0 },
+            user?.id
+          )
+        }}
+      />
 
       {showPasswordModal && (
         <motion.div
@@ -1058,12 +1138,14 @@ function AccountRow({
   value,
   onClick,
   muted,
+  badge,
 }: {
   icon: typeof Mail
   label: string
   value?: string
   onClick?: () => void
   muted?: boolean
+  badge?: number
 }) {
   const Comp = onClick ? 'button' : 'div'
   return (
@@ -1081,6 +1163,11 @@ function AccountRow({
           <p className={`text-xs truncate ${muted ? 'text-[#0E2538]/35' : 'text-[#0E2538]/50'}`}>{value}</p>
         )}
       </div>
+      {badge != null && badge > 0 ? (
+        <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-[#3F8DD2] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      ) : null}
       {onClick && <ChevronRight className="w-4 h-4 text-[#0E2538]/25 flex-shrink-0" />}
     </Comp>
   )

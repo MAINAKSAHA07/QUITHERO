@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, CheckCircle2 } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { formatMoney } from '../../utils/currency'
 import {
   calculateLifetimeSpend,
@@ -32,8 +32,7 @@ export default function InsightSequence({
   onComplete
 }: InsightSequenceProps) {
   const [cardIndex, setCardIndex] = useState(0)
-  const [loaderProgress, setLoaderProgress] = useState(0)
-  const [loaderChecks, setLoaderChecks] = useState<boolean[]>([false, false, false, false])
+  const { fade, springUi } = useMotionPrefs()
 
   // Math Calculations
   const lifetimeSpend = calculateLifetimeSpend(dailyConsumption, howLongUsing, packCost)
@@ -53,42 +52,14 @@ export default function InsightSequence({
   const yearlyMinutesReclaimed = dailyConsumption * 365 * minutesPerCigarette
   const yearlyHoursReclaimed = Math.round(yearlyMinutesReclaimed / 60)
 
-  // Simulation loader ticks for Slide 5
-  useEffect(() => {
-    if (cardIndex === 4) {
-      const interval = setInterval(() => {
-        setLoaderProgress((prev) => {
-          const next = prev + 2
-          if (next >= 100) {
-            clearInterval(interval)
-            return 100
-          }
-          return next
-        })
-      }, 50)
-      return () => clearInterval(interval)
-    }
-  }, [cardIndex])
-
-  useEffect(() => {
-    if (cardIndex === 4) {
-      if (loaderProgress > 20) setLoaderChecks((c) => [true, c[1], c[2], c[3]])
-      if (loaderProgress > 50) setLoaderChecks((c) => [true, true, c[2], c[3]])
-      if (loaderProgress > 75) setLoaderChecks((c) => [true, true, true, c[3]])
-      if (loaderProgress >= 100) {
-        setLoaderChecks([true, true, true, true])
-        // Wait a small moment and then auto continue
-        const t = setTimeout(() => {
-          onComplete()
-        }, 800)
-        return () => clearTimeout(t)
-      }
-    }
-  }, [loaderProgress, cardIndex, onComplete])
+  const lastCardIndex = 3
 
   const handleNext = () => {
-    if (cardIndex < 4) {
+    if (cardIndex < lastCardIndex) {
       setCardIndex(cardIndex + 1)
+    } else {
+      // ponytail: plan-building loader only at KYC end (PersonalizationLoader)
+      onComplete()
     }
   }
 
@@ -174,7 +145,7 @@ export default function InsightSequence({
       tip: 'Within 24 hours of quitting, your oxygen levels return to normal.',
       btnText: 'Look at the Future',
     },
-    // Card 4: Reclaimed Future
+    // Card 4: Reclaimed Future — then continue KYC (plan loader only at end)
     {
       title: 'Now imagine what you could regain.',
       subtitle: 'Your potential progress in just one year of quitting.',
@@ -206,84 +177,42 @@ export default function InsightSequence({
         </div>
       ),
       tip: 'The decisions you make today pave the way for this future.',
-      btnText: 'Build My Program',
+      btnText: 'Continue',
     },
-    // Card 5: Plan Loader
-    {
-      title: 'Building your personal reset plan',
-      subtitle: 'Analyzing responses to calibrate your daily CBT modules...',
-      visual: (
-        <div className="space-y-4 my-8 text-left max-w-sm mx-auto">
-          {[
-            'Mapping emotional triggers',
-            'Matching support intensity preference',
-            'Preparing baseline CBT check-ins',
-            'Setting optimal check-in reminders'
-          ].map((text, i) => {
-            const isDone = loaderChecks[i]
-            return (
-              <div key={i} className="flex items-center gap-3">
-                {isDone ? (
-                  <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
-                ) : (
-                  <Loader2 className="w-5 h-5 text-text-primary/30 animate-spin flex-shrink-0" />
-                )}
-                <span className={`text-sm ${isDone ? 'text-text-primary' : 'text-text-primary/50'}`}>
-                  {text}
-                </span>
-              </div>
-            )
-          })}
-
-          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-6">
-            <div
-              className="h-full bg-brand-primary transition-all duration-75"
-              style={{ width: `${loaderProgress}%` }}
-            />
-          </div>
-        </div>
-      ),
-      tip: 'This plan is CBT-inspired and personalized to you.',
-      btnText: 'Loading...',
-    }
   ]
 
   const current = cards[cardIndex]
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5 p-4 justify-center">
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-[#F4FBFF] relative p-4 justify-center safe-area-top safe-area-bottom">
       <div className="overflow-y-auto max-h-full py-4 scrollbar-thin">
         <AnimatePresence mode="wait">
           <motion.div
             key={cardIndex}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.25 }}
+            {...fade}
+            transition={springUi}
           >
-            <GlassCard className="p-6 sm:p-8 border-white/10 shadow-glow bg-background-card/45 backdrop-blur-xl">
-              <h1 className="text-xl sm:text-2xl font-bold text-text-primary mb-2 text-center">
+            <GlassCard className="p-6 sm:p-8" borderGlow={false}>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#0E2538] mb-2 text-center tracking-tight">
                 {current.title}
               </h1>
-              <p className="text-xs sm:text-sm text-text-primary/60 text-center mb-6">
+              <p className="text-xs sm:text-sm text-[#0E2538]/50 text-center mb-6">
                 {current.subtitle}
               </p>
 
               {current.visual}
 
-              <p className="text-xs text-text-primary/50 text-center mt-4 mb-6 leading-relaxed italic">
+              <p className="text-xs text-[#0E2538]/45 text-center mt-4 mb-6 leading-relaxed">
                 {current.tip}
               </p>
 
-              {cardIndex < 4 && (
-                <GlassButton
-                  onClick={handleNext}
-                  fullWidth
-                  className="py-4 text-sm font-bold flex items-center justify-center gap-2"
-                >
-                  {current.btnText}
-                </GlassButton>
-              )}
+              <GlassButton
+                onClick={handleNext}
+                fullWidth
+                className="py-4 text-sm font-bold flex items-center justify-center gap-2"
+              >
+                {current.btnText}
+              </GlassButton>
             </GlassCard>
           </motion.div>
         </AnimatePresence>

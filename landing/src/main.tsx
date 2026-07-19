@@ -7,10 +7,13 @@ import './styles/blog.css'
 
 function dismissBootLoader() {
   const el = document.getElementById('boot-loader')
-  if (!el) return
+  if (!el || el.dataset.dismissed === '1') return
+  el.dataset.dismissed = '1'
   el.classList.add('is-done')
   el.setAttribute('aria-busy', 'false')
-  window.setTimeout(() => el.remove(), 500)
+  el.setAttribute('aria-hidden', 'true')
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.setTimeout(() => el.remove(), reduce ? 0 : 200)
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -19,12 +22,17 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>
 )
 
-// Wait for first paint + fonts so the page doesn’t flash under the loader
-const ready = Promise.all([
+// Apple: kill latency — never let the boot veil block the page
+const fontsReady = Promise.race([
   document.fonts?.ready ?? Promise.resolve(),
-  new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+  new Promise<void>((r) => window.setTimeout(r, 280)),
 ])
-ready.then(() => {
-  // ponytail: short beat so the mascot is readable on fast loads
-  window.setTimeout(dismissBootLoader, 320)
+const firstPaint = new Promise<void>((r) =>
+  requestAnimationFrame(() => requestAnimationFrame(() => r()))
+)
+Promise.all([fontsReady, firstPaint]).then(() => {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.setTimeout(dismissBootLoader, reduce ? 0 : 80)
 })
+// Hard failsafe — blog/prerender routes must never stay covered
+window.setTimeout(dismissBootLoader, 900)

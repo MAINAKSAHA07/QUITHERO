@@ -1,15 +1,30 @@
 /** Shared SEO copy — keep in sync with visible on-page content. */
-export const SITE_URL = 'https://smono.app'
+export const SITE_URL = 'https://www.smono.app'
 export const APP_URL = 'https://app.smono.app'
+/** 1200×630 share card — never use the wide wordmark alone (crawlers crop it). */
+export const OG_IMAGE = `${SITE_URL}/og-image.png`
 
-export const SEO_TITLE =
-  'Smono — Quit Smoking in 10 Days Without Willpower'
+/** Trailing-slash paths (matches prerendered `…/index.html` folders). */
+export function canonicalPath(path: string): string {
+  if (!path || path === '/') return '/'
+  const p = path.startsWith('/') ? path : `/${path}`
+  return p.endsWith('/') ? p : `${p}/`
+}
 
-export const SEO_DESCRIPTION =
-  'Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention — no patches or willpower wars.'
+/** Absolute canonical URL on the marketing host. */
+export function pageUrl(path = '/'): string {
+  if (!path || path === '/') return `${SITE_URL}/`
+  return `${SITE_URL}${canonicalPath(path)}`
+}
 
+/** Single coherent story: 10-day quit + 20-day support = 30-day path */
 export const PROGRAM_FRAMING =
   '10-day quit program with 20 days of smoke-free support (30 days total)'
+
+export const SEO_TITLE = 'A 10-Day Program to Help You Quit Smoking | Smono'
+
+export const SEO_DESCRIPTION =
+  'Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). CBT, mindfulness, and relapse prevention — no patches or willpower wars.'
 
 export const FAQ_ITEMS = [
   {
@@ -20,7 +35,7 @@ export const FAQ_ITEMS = [
   {
     question: 'How long does the program take?',
     answer:
-      'Smono includes a 10-day quit program followed by 20 days of smoke-free support, mindfulness, and relapse prevention.',
+      'Smono is a 30-day path: a 10-day quit program followed by 20 days of smoke-free support, mindfulness, and relapse prevention.',
   },
   {
     question: 'Will I need willpower?',
@@ -50,12 +65,17 @@ export const FAQ_ITEMS = [
   {
     question: 'What if I relapse?',
     answer:
-      'Smono includes anti-relapse training because slips can happen. The goal is to help you understand what happened, recover quickly, and protect your smoke-free identity.',
+      'Smono includes anti-relapse training because slips can happen. The goal is to help you understand what happened, recover quickly, and protect your smoke-free identity. Individual results vary.',
   },
   {
     question: 'Is Smono suitable for heavy smokers?',
     answer:
       'Yes. Smono is designed for different smoking patterns, including people who smoke heavily, socially, emotionally, or out of routine.',
+  },
+  {
+    question: 'Which languages does Smono support?',
+    answer:
+      'Smono supports English, Hindi, Marathi, Gujarati, Spanish, French, German, Italian, and Chinese. Choose your language at signup or in Profile — onboarding, daily sessions, reflections, and support follow your choice.',
   },
   {
     question: 'Is this medical treatment?',
@@ -72,6 +92,15 @@ export function organizationJsonLd() {
     url: SITE_URL,
     logo: `${SITE_URL}/smonologo.webp`,
     description: SEO_DESCRIPTION,
+    sameAs: [
+      'https://www.instagram.com/smono.app',
+      'https://www.linkedin.com/company/smono-app',
+    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      email: 'support@smono.app',
+      contactType: 'customer support',
+    },
   }
 }
 
@@ -85,10 +114,10 @@ export function webSiteJsonLd() {
   }
 }
 
-export function mobileAppJsonLd() {
+export function softwareApplicationJsonLd() {
   return {
     '@context': 'https://schema.org',
-    '@type': 'MobileApplication',
+    '@type': 'SoftwareApplication',
     name: 'Smono',
     operatingSystem: 'iOS, Android, Web',
     applicationCategory: 'HealthApplication',
@@ -98,9 +127,15 @@ export function mobileAppJsonLd() {
       '@type': 'Offer',
       price: '1999',
       priceCurrency: 'INR',
-      description: 'Monthly program access; price varies by country in the app.',
+      description:
+        'Monthly program access for the ~30-day path; most people only need one month. Price varies by country in the app.',
     },
   }
+}
+
+/** @deprecated use softwareApplicationJsonLd */
+export function mobileAppJsonLd() {
+  return softwareApplicationJsonLd()
 }
 
 export function faqJsonLd() {

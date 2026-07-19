@@ -3,31 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smono — Quit Smoking in 10 Days Without Willpower</title>
+    <title>A 10-Day Program to Help You Quit Smoking | Smono</title>
     <meta
       name="description"
-      content="Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention — no patches or willpower wars."
+      content="Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). CBT, mindfulness, and relapse prevention — no patches or willpower wars."
     />
-    <link rel="canonical" href="https://smono.app/" />
+    <link rel="canonical" href="https://www.smono.app/" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#F4FBFF" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://smono.app/" />
+    <meta property="og:url" content="https://www.smono.app/" />
     <meta property="og:site_name" content="Smono" />
-    <meta property="og:title" content="Smono — Quit Smoking in 10 Days Without Willpower" />
+    <meta property="og:title" content="A 10-Day Program to Help You Quit Smoking | Smono" />
     <meta
       property="og:description"
-      content="Remove the desire to smoke in 10 days, with 20 days of smoke-free support. A CBT-based quit smoking app — no patches, no willpower wars."
+      content="Remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). A CBT-based quit smoking app — no patches, no willpower wars."
     />
-    <meta property="og:image" content="https://smono.app/smonologo.webp" />
-    <meta property="og:image:alt" content="Smono — quit smoking app logo" />
+    <meta property="og:image" content="https://www.smono.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Smono — quit smoking app" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Smono — Quit Smoking in 10 Days Without Willpower" />
+    <meta name="twitter:title" content="A 10-Day Program to Help You Quit Smoking | Smono" />
     <meta
       name="twitter:description"
-      content="Remove the desire to smoke in 10 days, with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention."
+      content="Remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). CBT, mindfulness, and relapse prevention."
     />
-    <meta name="twitter:image" content="https://smono.app/smonologo.webp" />
+    <meta name="twitter:image" content="https://www.smono.app/og-image.png" />
     <link rel="icon" type="image/png" href="/mascot.png" />
     <link rel="apple-touch-icon" href="/mascot.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -48,30 +50,49 @@
         z-index: 100000;
         display: grid;
         place-content: center;
-        gap: 14px;
+        padding: 20px;
         background: linear-gradient(145deg, #e8f6fc 0%, #fff8f2 55%, #ffe8d6 100%);
-        transition: opacity 0.45s ease, visibility 0.45s ease;
+        transition: opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), visibility 0.2s cubic-bezier(0.23, 1, 0.32, 1);
       }
       .boot-loader.is-done {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
       }
+      .boot-card {
+        width: min(92vw, 320px);
+        border-radius: 18px;
+        border: 1px solid rgba(14, 37, 56, 0.1);
+        background: rgba(255, 255, 255, 0.58);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 20px 50px rgba(32, 48, 43, 0.1);
+        padding: 22px 18px 18px;
+        display: grid;
+        justify-items: center;
+        text-align: center;
+        gap: 10px;
+      }
       .boot-loader img {
-        width: 88px;
-        height: 88px;
+        width: 82px;
+        height: 82px;
         object-fit: contain;
-        margin-inline: auto;
         animation: boot-bob 1.2s ease-in-out infinite;
       }
-      .boot-loader span {
-        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-        font-size: 0.8rem;
+      .boot-brand {
+        margin: 0;
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.2rem;
         font-weight: 600;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: rgba(14, 37, 56, 0.55);
-        text-align: center;
+        color: rgba(14, 37, 56, 0.92);
+        letter-spacing: -0.01em;
+      }
+      .boot-copy {
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: rgba(14, 37, 56, 0.68);
       }
       @keyframes boot-bob {
         0%,
@@ -86,9 +107,8 @@
         width: 24px;
         height: 24px;
         border: 2.5px solid rgba(14, 37, 56, 0.12);
-        border-top-color: #3F8DD2;
+        border-top-color: #3f8dd2;
         border-radius: 50%;
-        margin-inline: auto;
         animation: boot-spin 0.8s linear infinite;
       }
       @keyframes boot-spin {
@@ -108,9 +128,12 @@
   </head>
   <body>
     <div id="boot-loader" class="boot-loader" aria-busy="true" aria-live="polite">
-      <img src="/mascot.png" alt="Smono phoenix mascot loading" width="88" height="88" />
-      <div class="boot-spinner"></div>
-      <span>Smono</span>
+      <div class="boot-card" role="status" aria-label="Loading Smono">
+        <img src="/mascot.png" alt="Smono phoenix mascot" width="82" height="82" />
+        <p class="boot-brand">Smono</p>
+        <p class="boot-copy">Preparing your smoke-free path...</p>
+        <div class="boot-spinner" aria-hidden="true"></div>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -7,12 +7,13 @@ import { isEmbedVideoUrl, resolveMediaUrl } from '../../utils/mediaUrl'
 
 interface VideoPlayerComponentProps {
   step: Step
-  onNext: () => void
+  onNext: () => void | Promise<boolean | void>
 }
 
 export default function VideoPlayerComponent({ step, onNext }: VideoPlayerComponentProps) {
   const content = step.content_json as VideoStepContent
   const [watched, setWatched] = useState(false)
+  const [busy, setBusy] = useState(false)
   const videoUrl = resolveMediaUrl(content.video_url)
 
   return (
@@ -52,12 +53,20 @@ export default function VideoPlayerComponent({ step, onNext }: VideoPlayerCompon
         )}
       </div>
       <GlassButton
-        onClick={onNext}
-        disabled={!watched && !videoUrl}
+        onClick={async () => {
+          if (busy) return
+          setBusy(true)
+          try {
+            await onNext()
+          } finally {
+            setBusy(false)
+          }
+        }}
+        disabled={(!watched && !videoUrl) || busy}
         fullWidth
         className="py-4"
       >
-        Continue
+        {busy ? 'Saving…' : 'Continue'}
       </GlassButton>
     </div>
   )

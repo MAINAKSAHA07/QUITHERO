@@ -40,6 +40,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
 }
 
 export const DEFAULT_COUNTRY = 'IN'
+
 const HIGH_VALUE = new Set(['IDR', 'VND', 'KRW', 'NGN', 'KES', 'PKR', 'BDT', 'JPY'])
 const CACHE_KEY = 'smono_geo_cc'
 const FAIL_KEY = 'smono_geo_fail'
@@ -119,12 +120,7 @@ function countryFromTimezone(): string | null {
   return null
 }
 
-function isLocalDev(): boolean {
-  const h = window.location.hostname
-  return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')
-}
-
-/** Resolve pricing country without spamming geo APIs (CORS/429 on localhost). */
+/** Resolve pricing country from network (IP), then locale/timezone fallback. */
 export async function detectCountryCode(): Promise<string> {
   try {
     const cached = sessionStorage.getItem(CACHE_KEY)
@@ -136,27 +132,18 @@ export async function detectCountryCode(): Promise<string> {
   if (inflight) return inflight
 
   inflight = (async () => {
-    const local = countryFromLocale() || countryFromTimezone()
-    if (local) return remember(local)
-
-    // ponytail: skip third-party geo on localhost — CORS + free-tier 429
-    if (isLocalDev()) return remember(DEFAULT_COUNTRY)
-
     try {
-      if (sessionStorage.getItem(FAIL_KEY)) return remember(DEFAULT_COUNTRY)
-    } catch {
-      /* ignore */
-    }
-
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 1800)
-      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal })
-      clearTimeout(timeoutId)
-      if (!res.ok) throw new Error(String(res.status))
-      const data = (await res.json()) as { country_code?: string }
-      const cc = data?.country_code?.toUpperCase()
-      if (cc && COUNTRIES[cc]) return remember(cc)
+      if (!sessionStorage.getItem(FAIL_KEY)) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 2500)
+        // ponytail: free IP geo; cache + FAIL_KEY avoid 429 loops
+        const res = await fetch('https://ipapi.co/json/', { signal: controller.signal })
+        clearTimeout(timeoutId)
+        if (!res.ok) throw new Error(String(res.status))
+        const data = (await res.json()) as { country_code?: string }
+        const cc = data?.country_code?.toUpperCase()
+        if (cc && COUNTRIES[cc]) return remember(cc)
+      }
     } catch {
       try {
         sessionStorage.setItem(FAIL_KEY, '1')
@@ -164,6 +151,9 @@ export async function detectCountryCode(): Promise<string> {
         /* ignore */
       }
     }
+
+    const local = countryFromLocale() || countryFromTimezone()
+    if (local) return remember(local)
 
     return remember(DEFAULT_COUNTRY)
   })()

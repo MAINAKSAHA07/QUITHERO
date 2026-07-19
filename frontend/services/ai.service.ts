@@ -1,4 +1,5 @@
 import { pb } from '../lib/pocketbase'
+import { apiUrl } from '../utils/apiOrigin'
 import {
   UserProfile,
   UserBehaviorProfile,
@@ -32,7 +33,9 @@ function buildOnboardingContext(profile: UserProfile): string {
   }
 
   if (profile.language) {
-    lines.push(`- Preferred language: ${profile.language}`)
+    lines.push(
+      `- Preferred language: ${profile.language} — write ALL user-facing copy in this language`
+    )
   }
 
   if (profile.nicotine_forms && profile.nicotine_forms.length > 0) {
@@ -578,8 +581,9 @@ class AIPersonalizationService {
     requestType: 'session_content' | 'notification',
     context: Record<string, unknown>
   ): Promise<string> {
-    const proxyUrl = import.meta.env.VITE_AI_PROXY_URL
-    if (!proxyUrl) throw new Error('AI proxy URL not configured')
+    const rawProxy = import.meta.env.VITE_AI_PROXY_URL
+    if (!rawProxy) throw new Error('AI proxy URL not configured')
+    const proxyUrl = apiUrl(rawProxy)
 
     const res = await fetch(proxyUrl, {
       method: 'POST',

@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Testimonials() {
   return (
     <>
@@ -5,6 +6,7 @@ export function Testimonials() {
     <div className="container">
       <h2 className="section-title reveal">Thousands of Smokers Are Ready for a New Way to Quit</h2>
       <p className="section-sub reveal">Most smokers do not fail because they are weak — they fail because they are using the wrong approach. Smono gives you a different path.</p>
+      <p className="section-sub reveal" style={{marginTop: '-8px', fontSize: '0.95rem', color: 'var(--muted)'}}>Individual results vary. Stories reflect personal experiences and are not a guarantee of outcomes.</p>
       <div className="badge-quote reveal">
         <p>From "I need a cigarette"</p>
         <span className="arrow">↓</span>
@@ -29,7 +31,7 @@ export function Testimonials() {
       </div>
     </div>
     <div className="section-cta reveal" style={{textAlign: 'center', marginTop: '32px'}}>
-      <button className="btn-primary js-start-app">Start My Transformation <span>→</span></button>
+      <a href={appStartHref()} className="btn-primary js-start-app">Start My Transformation <span>→</span></a>
     </div>
   </section>
 

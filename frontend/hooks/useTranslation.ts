@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { translationService } from '../services/translation.service'
 
@@ -10,9 +10,6 @@ export function useTranslation() {
   const { language } = useApp()
   const [isTranslating, setIsTranslating] = useState(false)
 
-  /**
-   * Translate a single text string
-   */
   const t = useCallback(
     async (text: string, sourceLang: string = 'en'): Promise<string> => {
       if (!text || language === sourceLang) {
@@ -21,8 +18,7 @@ export function useTranslation() {
 
       setIsTranslating(true)
       try {
-        const translated = await translationService.translate(text, language, sourceLang)
-        return translated
+        return await translationService.translate(text, language, sourceLang)
       } catch (error) {
         console.error('Translation error:', error)
         return text
@@ -33,9 +29,6 @@ export function useTranslation() {
     [language]
   )
 
-  /**
-   * Translate multiple texts at once
-   */
   const translateBatch = useCallback(
     async (texts: string[], sourceLang: string = 'en'): Promise<string[]> => {
       if (language === sourceLang) {
@@ -44,8 +37,7 @@ export function useTranslation() {
 
       setIsTranslating(true)
       try {
-        const translated = await translationService.translateBatch(texts, language, sourceLang)
-        return translated
+        return await translationService.translateBatch(texts, language, sourceLang)
       } catch (error) {
         console.error('Batch translation error:', error)
         return texts
@@ -64,18 +56,36 @@ export function useTranslation() {
   }
 }
 
+/** Live-updating translated string for longer bodies (sessions, KYC copy). */
+export function useLiveTranslation(text: string, sourceLang: string = 'en'): string {
+  const { language } = useApp()
+  const [out, setOut] = useState(text)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!text || language === sourceLang) {
+      setOut(text || '')
+      return
+    }
+    setOut(text)
+    translationService.translate(text, language, sourceLang).then((translated) => {
+      if (!cancelled) setOut(translated)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [text, language, sourceLang])
+
+  return out
+}
+
 /**
  * Hook for synchronous translation with cached results
- * Use this for components that need immediate translation without async
  */
 export function useTranslationSync() {
   const { language } = useApp()
   const [translations, setTranslations] = useState<Map<string, string>>(new Map())
 
-  /**
-   * Get translated text (synchronous, uses cache)
-   * If not cached, returns original text and triggers async translation
-   */
   const t = useCallback(
     (text: string, sourceLang: string = 'en'): string => {
       if (!text || language === sourceLang) {
@@ -84,12 +94,11 @@ export function useTranslationSync() {
 
       const cacheKey = `${sourceLang}-${language}-${text}`
       const cached = translations.get(cacheKey)
-      
+
       if (cached) {
         return cached
       }
 
-      // Trigger async translation and update cache
       translationService.translate(text, language, sourceLang).then((translated) => {
         setTranslations((prev) => {
           const newMap = new Map(prev)
@@ -98,7 +107,6 @@ export function useTranslationSync() {
         })
       })
 
-      // Return original text while translating
       return text
     },
     [language, translations]

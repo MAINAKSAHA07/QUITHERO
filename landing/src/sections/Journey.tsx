@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Journey() {
   return (
     <>
@@ -52,8 +53,8 @@ export function Journey() {
         </div>
       </div>
     </div>
-    <div className="section-cta reveal" style={{textAlign: 'center', marginTop: '28px'}}>
-      <button className="btn-primary js-start-app">Begin Day 1 <span>→</span></button>
+    <div className="section-cta reveal">
+      <a href={appStartHref()} className="btn-primary js-start-app">Begin Day 1 <span>→</span></a>
     </div>
   </section>
     </>

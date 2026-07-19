@@ -25,6 +25,7 @@
 #   PUBLIC_URL       Public app URL for OAuth/builds (default: http://<server-ip>)
 #   DOMAIN_ROOT      Marketing domain root (e.g. smono.app) — enables landing + app/admin subdomains
 #   LANDING_HOSTS    Space-separated landing hosts (default: DOMAIN_ROOT www.DOMAIN_ROOT)
+#   LANDING_CANONICAL_HOST Preferred landing host for redirects (default: www.DOMAIN_ROOT)
 #   APP_HOST         User app host (default: app.DOMAIN_ROOT)
 #   ADMIN_HOST       Backoffice host (default: admin.DOMAIN_ROOT)
 #   SKIP_PB_SETUP    Set to 1 to skip PocketBase schema setup scripts
@@ -119,6 +120,7 @@ derive_domain_hosts() {
   [[ -n "${DOMAIN_ROOT:-}" ]] || return 0
 
   LANDING_HOSTS="${LANDING_HOSTS:-${DOMAIN_ROOT} www.${DOMAIN_ROOT}}"
+  LANDING_CANONICAL_HOST="${LANDING_CANONICAL_HOST:-www.${DOMAIN_ROOT}}"
   APP_HOST="${APP_HOST:-app.${DOMAIN_ROOT}}"
   ADMIN_HOST="${ADMIN_HOST:-admin.${DOMAIN_ROOT}}"
 
@@ -610,7 +612,8 @@ build_landing() {
   log "Building landing"
   cd "$APP_DIR/landing"
   npm ci
-  npm run build
+  # prerender/sitemap need PB for blog <a> links
+  POCKETBASE_INTERNAL_URL="http://127.0.0.1:${PB_PORT}" npm run build
   [[ -f "$APP_DIR/landing/dist/index.html" ]] || die "Landing build missing dist/index.html"
 }
 
@@ -666,6 +669,9 @@ EOF
 append_nginx_app_api_locations() {
   local root="$1"
   cat >>"$tmp_conf" <<EOF
+
+    # Keep gated app out of search indexes
+    add_header X-Robots-Tag "noindex, nofollow" always;
 
     location = /favicon.ico { try_files /mascot.png =404; }
 
@@ -726,6 +732,75 @@ append_nginx_app_api_locations() {
         proxy_set_header Authorization \$http_authorization;
         proxy_read_timeout 15s;
         proxy_connect_timeout 5s;
+    }
+
+    # Razorpay Standard Checkout
+    location = /api/create-order {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/create-order;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/preview-coupon {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/preview-coupon;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/verify-payment {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/verify-payment;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/razorpay/webhook {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/razorpay/webhook;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Razorpay-Signature \$http_x_razorpay_signature;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # Store IAP (StoreKit / Play Billing)
+    location /api/iap/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/iap/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # Universal Links / App Links
+    location ^~ /.well-known/ {
+        default_type application/json;
+        add_header Content-Type application/json;
+        try_files \$uri =404;
     }
 
     location /assets/ {
@@ -908,6 +983,11 @@ write_nginx_config() {
 server {
     server_name ${LANDING_HOSTS};
 
+    # Consolidate www + apex to one host for crawl consistency.
+    if (\$host != ${LANDING_CANONICAL_HOST}) {
+        return 301 https://${LANDING_CANONICAL_HOST}\$request_uri;
+    }
+
     root ${landing_root};
     index index.html;
 
@@ -925,6 +1005,43 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Razorpay guest checkout from marketing site
+    location = /api/create-order {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/create-order;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/preview-coupon {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/preview-coupon;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/verify-payment {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/verify-payment;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
     }
 
     location / {
@@ -1054,7 +1171,7 @@ EOF
   log "nginx configured"
   echo ""
   if [[ -n "${DOMAIN_ROOT:-}" ]]; then
-    echo "  Landing:    https://${DOMAIN_ROOT}"
+    echo "  Landing:    https://${LANDING_CANONICAL_HOST:-$DOMAIN_ROOT}"
     echo "  App:        https://${APP_HOST}"
     echo "  Admin:      https://${ADMIN_HOST}"
     echo "  Backoffice: ${public_url%/}:${BACKOFFICE_PORT}  (legacy IP access)"
@@ -1150,7 +1267,7 @@ Examples:
 
 Environment:
   APP_DIR, EC2_HOST, EC2_SSH_KEY, GIT_BRANCH, PB_PORT, FRONTEND_PORT, BACKOFFICE_PORT, AI_PROXY_PORT
-  PUBLIC_URL, DOMAIN_ROOT, LANDING_HOSTS, APP_HOST, ADMIN_HOST
+  PUBLIC_URL, DOMAIN_ROOT, LANDING_HOSTS, LANDING_CANONICAL_HOST, APP_HOST, ADMIN_HOST
   SKIP_PB_SETUP, PB_DATA_DIR, PB_BACKUP_DIR, PB_ENCRYPTION_KEY
 USAGE
 }

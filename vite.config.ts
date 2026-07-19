@@ -35,6 +35,26 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
           changeOrigin: true,
         },
+        '/api/create-order': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/preview-coupon': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/verify-payment': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/razorpay': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/iap': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
       },
     },
     preview: {

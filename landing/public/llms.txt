@@ -1,0 +1,27 @@
+# Smono
+
+> Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). CBT, mindfulness, and relapse prevention — no patches or willpower wars.
+
+Smono (https://www.smono.app) is a personalised quit-smoking program: 10-day quit program with 20 days of smoke-free support (30 days total).
+It uses CBT, mindfulness, trigger mapping, and relapse prevention — without nicotine gums, patches, or vapes.
+Contact: support@smono.app · App: https://app.smono.app
+
+## Core pages
+
+- [Home](https://www.smono.app/): Personalised quit-smoking app: remove the desire to smoke in 10 days, then 20 days of support.
+- [How It Works](https://www.smono.app/how-it-works/): Step-by-step 10-day quit path plus 20 days of smoke-free support.
+- [The Smono Method](https://www.smono.app/method/): CBT, mindfulness, habit psychology, and relapse-prevention approach.
+- [Quit Smoking Program](https://www.smono.app/quit-smoking-program/): 30-day personalized program overview: who it is for and how it compares.
+- [Languages](https://www.smono.app/languages/): English, Hindi, Marathi, Gujarati, Spanish, French, German, Italian, Chinese.
+- [Pricing](https://www.smono.app/pricing/): Complete program pricing; billed monthly, most people need one month.
+- [About Smono](https://www.smono.app/about/): Founders, mission, and why Smono was built.
+- [Blog](https://www.smono.app/blog/): Articles on quitting smoking, cravings, CBT, and staying smoke-free.
+
+## Optional
+
+- [Privacy Policy](https://www.smono.app/privacy/): How personal data is collected, used, and deleted.
+- [Terms of Service](https://www.smono.app/terms/): Program terms and health disclaimer.
+- [Editorial Policy](https://www.smono.app/editorial-policy/): How program and educational content is created and reviewed.
+- [Medical Disclaimer](https://www.smono.app/medical-disclaimer/): Smono is behavioural support, not medical treatment.
+- [Start the app](https://app.smono.app/language): Open the Smono web app (account required for the program).
+- [Full site context (llms-full.txt)](https://www.smono.app/llms-full.txt): Single-file Markdown with program facts, FAQ, and page summaries.

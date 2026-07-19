@@ -8,7 +8,11 @@ export function AppPreview() {
       <div className="app-mockup-grid">
         {/* Home */}
         <div className="app-mockup-card reveal">
-          <div className="phone phone-gallery phone-home">
+          <div
+            className="phone phone-gallery phone-home"
+            role="img"
+            aria-label="Smono home screen showing Day 2 of the 30-day quit program, cigarettes avoided, money saved, and quick craving actions"
+          >
             <div className="phone-screen has-tabbar">
               <div className="phone-island"></div>
               <div className="phone-status"><span>9:41</span><span>●●● ⚡ 92%</span></div>
@@ -16,7 +20,7 @@ export function AppPreview() {
                 <div className="app-header">
                   <div className="app-icon-btn">☰</div>
                   <div className="app-header-center">
-                    <img src="mascot.png" alt="" className="app-header-mascot" role="presentation" />
+                    <img src="mascot.png" alt="Smono mascot" className="app-header-mascot" />
                     <span className="smono-wordmark" aria-hidden="true">
                       <span className="sm">sm</span>
                       <svg className="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" strokeWidth="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" strokeWidth="10" strokeLinecap="round"/></svg>
@@ -37,7 +41,7 @@ export function AppPreview() {
                       <div className="program-eyebrow">30-DAY PROGRAM</div>
                       <div className="program-day">Day 2</div>
                     </div>
-                    <img src="mascot.png" alt="" className="program-mascot" role="presentation" />
+                    <img src="mascot.png" alt="Smono mascot on program progress card" className="program-mascot" />
                   </div>
                   <div className="program-pct">7% complete</div>
                   <div className="program-bar-wrap"><div className="program-bar"><div className="program-bar-fill" style={{width: '7%'}}></div></div></div>
@@ -68,7 +72,11 @@ export function AppPreview() {
 
         {/* Sessions */}
         <div className="app-mockup-card reveal">
-          <div className="phone phone-gallery">
+          <div
+            className="phone phone-gallery"
+            role="img"
+            aria-label="Smono sessions screen listing daily CBT lessons in the 30-day quit program"
+          >
             <div className="phone-screen has-tabbar">
               <div className="phone-island"></div>
               <div className="phone-status"><span>9:41</span><span>●●● ⚡ 88%</span></div>
@@ -76,7 +84,7 @@ export function AppPreview() {
                 <div className="app-header">
                   <div className="app-icon-btn">☰</div>
                   <div className="app-header-center">
-                    <img src="mascot.png" alt="" className="app-header-mascot" role="presentation" />
+                    <img src="mascot.png" alt="Smono mascot" className="app-header-mascot" />
                     <span className="smono-wordmark" aria-hidden="true">
                       <span className="sm">sm</span>
                       <svg className="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" strokeWidth="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" strokeWidth="10" strokeLinecap="round"/></svg>
@@ -139,7 +147,11 @@ export function AppPreview() {
 
         {/* Progress */}
         <div className="app-mockup-card reveal">
-          <div className="phone phone-gallery">
+          <div
+            className="phone phone-gallery"
+            role="img"
+            aria-label="Smono progress screen with craving trend chart and trigger breakdown for stress, habit, social, and boredom"
+          >
             <div className="phone-screen has-tabbar">
               <div className="phone-island"></div>
               <div className="phone-status"><span>9:41</span><span>●●● ⚡ 95%</span></div>
@@ -147,7 +159,7 @@ export function AppPreview() {
                 <div className="app-header">
                   <div className="app-icon-btn">☰</div>
                   <div className="app-header-center">
-                    <img src="mascot.png" alt="" className="app-header-mascot" role="presentation" />
+                    <img src="mascot.png" alt="Smono mascot" className="app-header-mascot" />
                     <span className="smono-wordmark" aria-hidden="true">
                       <span className="sm">sm</span>
                       <svg className="logo-o" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="38" stroke="#A8D4EA" strokeWidth="10"/><rect x="60" y="46" width="16" height="8" fill="#FDB47B" rx="1"/><rect x="24" y="46" width="36" height="8" fill="#DCE8EE" rx="1"/><line x1="23" y1="23" x2="77" y2="77" stroke="#A8D4EA" strokeWidth="10" strokeLinecap="round"/></svg>

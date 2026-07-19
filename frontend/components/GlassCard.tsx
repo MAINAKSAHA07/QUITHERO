@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import BorderGlow from './ui/BorderGlow'
 
 interface GlassCardProps {
@@ -21,13 +21,13 @@ export default function GlassCard({
   hover = false,
   borderGlow = true,
 }: GlassCardProps) {
+  const reduce = useReducedMotion()
   const baseClasses = {
     default: 'glass',
     strong: 'glass-strong',
     subtle: 'glass-subtle',
   }
 
-  // Remove padding/shadow from classes when wrapping with BorderGlow to prevent duplicate padding/double borders
   const classes = `${baseClasses[variant]} ${gradient ? 'bg-gradient-to-br from-brand-primary/10 to-brand-accent/10' : ''} ${className} ${onClick ? 'cursor-pointer' : ''}`
 
   const card = borderGlow ? (
@@ -56,12 +56,11 @@ export default function GlassCard({
     </div>
   )
 
-  if (hover) {
+  if (hover && !reduce) {
     return (
       <motion.div
-        whileHover={{ y: -4, transition: { duration: 0.2 } }}
         whileTap={{ scale: 0.98 }}
-        className="w-full h-full"
+        className="w-full h-full transition-transform duration-200 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-1"
       >
         {card}
       </motion.div>
@@ -70,5 +69,3 @@ export default function GlassCard({
 
   return card
 }
-
-

@@ -14,12 +14,17 @@ import {
   savePushSubscription,
   removePushSubscription,
   notifyUserPush,
+  saveDeviceToken,
+  removeDeviceToken,
 } from './push.js'
 import { getAuthUser, getAuthAdmin, adminAuth, getPbUrl } from './pb-admin.js'
 import { startReminderScheduler } from './reminder-scheduler.js'
 import { startSmokeCheckScheduler } from './smoke-check-scheduler.js'
 import { handleSupportApi } from './support-api.js'
 import { isSupportCryptoReady } from './support-crypto.js'
+import { handleRazorpayApi, isRazorpayReady } from './razorpay-api.js'
+import { handleRazorpayWebhook, isWebhookConfigured } from './razorpay-webhook.js'
+import { handleIapApi, isIapReady } from './iap-api.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -132,6 +137,41 @@ async function handlePush(req, res, pathname) {
     return json(res, 200, { ok: true })
   }
 
+  if (pathname === '/api/push/register-device' && req.method === 'POST') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)).toString() || '{}')
+    } catch {
+      return json(res, 400, { error: 'Invalid JSON' })
+    }
+    const auth = req.headers.authorization
+    if (!auth) return json(res, 401, { error: 'Login required' })
+    const user = await getAuthUser(auth)
+    if (!user?.id) return json(res, 401, { error: 'Invalid or expired session' })
+    const token = String(body.token || '').trim()
+    const platform = String(body.platform || '').toLowerCase()
+    if (!token) return json(res, 400, { error: 'token required' })
+    try {
+      const record = await saveDeviceToken({ token, platform, userId: user.id })
+      return json(res, 200, { ok: true, record })
+    } catch (err) {
+      console.error('[push/register-device]', err.message)
+      return json(res, 500, { error: err.message || 'register failed' })
+    }
+  }
+
+  if (pathname === '/api/push/unregister-device' && req.method === 'POST') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)).toString() || '{}')
+    } catch {
+      return json(res, 400, { error: 'Invalid JSON' })
+    }
+    if (!body.token) return json(res, 400, { error: 'token required' })
+    await removeDeviceToken(body.token)
+    return json(res, 200, { ok: true })
+  }
+
   // Admin-only: send web push to a user (retention win-back, etc.)
   if (pathname === '/api/push/notify' && req.method === 'POST') {
     if (!isPushReady()) return json(res, 503, { error: 'Push not configured' })
@@ -218,6 +258,18 @@ const server = http.createServer(async (req, res) => {
       await handleSupportApi(req, res, url.pathname, url.searchParams, readBody, json)
       return
     }
+    if (url.pathname === '/api/create-order' || url.pathname === '/api/verify-payment' || url.pathname === '/api/preview-coupon') {
+      await handleRazorpayApi(req, res, url.pathname, readBody, json)
+      return
+    }
+    if (url.pathname === '/api/razorpay/webhook') {
+      await handleRazorpayWebhook(req, res, readBody, json)
+      return
+    }
+    if (url.pathname.startsWith('/api/iap/')) {
+      await handleIapApi(req, res, url.pathname, readBody, json)
+      return
+    }
     json(res, 404, { error: 'not_found' })
   } catch (err) {
     console.error('[api-server]', err.message)
@@ -233,6 +285,6 @@ server.listen(PORT, '127.0.0.1', () => {
   const hasAi = Boolean(process.env.ANTHROPIC_API_KEY)
   const hasPush = isPushReady()
   console.error(
-    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'} supportCrypto=${isSupportCryptoReady() ? 'on' : 'off'}`
+    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'} supportCrypto=${isSupportCryptoReady() ? 'on' : 'off'} razorpay=${isRazorpayReady() ? 'on' : 'off'} webhook=${isWebhookConfigured() ? 'on' : 'off'} iap=${isIapReady() ? 'on' : 'off'}`
   )
 })

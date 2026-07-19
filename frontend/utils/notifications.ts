@@ -3,7 +3,23 @@
  */
 
 const REMINDER_STORAGE_KEY = 'smono_next_reminder'
+const DEFAULT_REMINDER_BODY = 'Start your smoke-free day with intention.'
 let activeReminderTimeout: number | null = null
+
+export type ReminderBodySource = string | (() => string | Promise<string>)
+
+async function resolveReminderBody(source?: ReminderBodySource): Promise<string> {
+  if (typeof source === 'function') {
+    try {
+      const text = await source()
+      if (text?.trim()) return text.trim()
+    } catch {
+      /* fall through */
+    }
+    return DEFAULT_REMINDER_BODY
+  }
+  return source?.trim() || DEFAULT_REMINDER_BODY
+}
 
 export class NotificationService {
   static async requestPermission(): Promise<boolean> {
@@ -94,17 +110,21 @@ export class NotificationService {
     return null
   }
 
-  static scheduleDailyReminder(time: string, body?: string, callback?: () => void): number | null {
+  /**
+   * Schedule morning reminder. Pass a body provider so each day can pick a fresh quote
+   * (a fixed string would repeat forever when we reschedule).
+   */
+  static scheduleDailyReminder(
+    time: string,
+    body?: ReminderBodySource,
+    callback?: () => void
+  ): number | null {
     if (!this.isSupported()) return null
 
     if (activeReminderTimeout) {
       clearTimeout(activeReminderTimeout)
       activeReminderTimeout = null
     }
-
-    const message =
-      body?.trim() ||
-      'Start your smoke-free day with intention.'
 
     const [hours, minutes] = time.split(':').map(Number)
     const reminderTime = new Date()
@@ -115,35 +135,41 @@ export class NotificationService {
 
     localStorage.setItem(
       REMINDER_STORAGE_KEY,
-      JSON.stringify({ time, body: message, nextAt: reminderTime.getTime() })
+      JSON.stringify({ time, nextAt: reminderTime.getTime() })
     )
 
     const msUntil = reminderTime.getTime() - Date.now()
     activeReminderTimeout = window.setTimeout(() => {
-      this.triggerNativeNotification('Good morning ☀️', message, '/home')
-      callback?.()
-      this.scheduleDailyReminder(time, message, callback)
+      void (async () => {
+        const message = await resolveReminderBody(body)
+        const day = new Date().toISOString().slice(0, 10)
+        this.triggerNativeNotification('Good morning ☀️', message, '/home', {
+          tag: `daily-quote-${day}`,
+        })
+        callback?.()
+        // Re-schedule with the same provider so tomorrow gets a new quote
+        this.scheduleDailyReminder(time, body, callback)
+      })()
     }, msUntil)
 
     return activeReminderTimeout
   }
 
-  /** Fire missed reminder if user opens app after scheduled time. */
-  static checkDueReminder() {
+  /** Fire missed reminder if user opens app after scheduled time — always refresh body. */
+  static async checkDueReminder(body?: ReminderBodySource) {
     try {
       const raw = localStorage.getItem(REMINDER_STORAGE_KEY)
       if (!raw || !this.isSupported()) return
-      const { time, body, nextAt } = JSON.parse(raw) as {
+      const { time, nextAt } = JSON.parse(raw) as {
         time: string
-        body?: string
         nextAt: number
       }
       if (Date.now() >= nextAt) {
-        this.triggerNativeNotification(
-          'Good morning ☀️',
-          body || 'Start your smoke-free day with intention.',
-          '/home'
-        )
+        const message = await resolveReminderBody(body)
+        const day = new Date().toISOString().slice(0, 10)
+        this.triggerNativeNotification('Good morning ☀️', message, '/home', {
+          tag: `daily-quote-${day}`,
+        })
         this.scheduleDailyReminder(time, body)
       }
     } catch {

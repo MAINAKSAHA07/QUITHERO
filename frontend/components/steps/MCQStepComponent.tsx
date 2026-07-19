@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Step } from '../../types/models'
 import { MCQStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
+import TranslatedText from '../TranslatedText'
+import { useLiveTranslation } from '../../hooks/useTranslation'
 
 interface MCQStepComponentProps {
   step: Step
-  onNext: (response: any) => void
+  onNext: (response: any) => void | Promise<boolean | void>
   readOnly?: boolean
   initialSelected?: number | null
 }
@@ -17,25 +19,38 @@ export default function MCQStepComponent({
   initialSelected = null,
 }: MCQStepComponentProps) {
   const content = step.content_json as MCQStepContent
+  const question = useLiveTranslation(content.question || '')
   const [selectedOption, setSelectedOption] = useState<number | null>(
     typeof initialSelected === 'number' ? initialSelected : null
   )
   const [isSubmitted, setIsSubmitted] = useState(
     readOnly && typeof initialSelected === 'number'
   )
+  const [busy, setBusy] = useState(false)
 
-  const handleSubmit = () => {
-    if (selectedOption === null) return
+  const handleSubmit = async () => {
+    if (selectedOption === null || busy) return
 
     if (readOnly) {
-      onNext({ selected_option: selectedOption })
+      setBusy(true)
+      try {
+        await onNext({ selected_option: selectedOption })
+      } finally {
+        setBusy(false)
+      }
       return
     }
 
     if (!isSubmitted) {
       setIsSubmitted(true)
-    } else {
-      onNext({ selected_option: selectedOption })
+      return
+    }
+
+    setBusy(true)
+    try {
+      await onNext({ selected_option: selectedOption })
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -49,7 +64,7 @@ export default function MCQStepComponent({
         </p>
       )}
       <h3 className="text-lg sm:text-xl font-black text-text-primary leading-snug">
-        {content.question}
+        {question}
       </h3>
       <div className="space-y-3">
         {content.options.map((option, index) => {
@@ -78,6 +93,9 @@ export default function MCQStepComponent({
               onClick={() => setSelectedOption(index)}
               className={`w-full text-left p-4 rounded-xl border transition-all duration-200 shadow-glass-sm flex items-center justify-between ${optionStyle}`}
             >
+              <span className="text-sm font-medium text-text-primary pr-3">
+                <TranslatedText text={option} />
+              </span>
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
@@ -122,11 +140,15 @@ export default function MCQStepComponent({
       <div className="pt-2">
         <GlassButton
           onClick={handleSubmit}
-          disabled={selectedOption === null}
+          disabled={selectedOption === null || busy}
           fullWidth
           className="py-3.5 sm:py-4 font-bold"
         >
-          {readOnly || isSubmitted ? 'Continue' : 'Submit Answer'}
+          {busy
+            ? 'Saving…'
+            : readOnly || isSubmitted
+              ? 'Continue'
+              : 'Submit Answer'}
         </GlassButton>
       </div>
     </div>

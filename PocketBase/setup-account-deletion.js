@@ -12,7 +12,15 @@ const adminRule = '@request.auth.collectionName = "admin_users"'
 const adminOrOwner = (field) => `${adminRule} || @request.auth.id = ${field}`
 
 const BASE_FIELDS = [
-  { name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', maxSelect: 1 },
+  {
+    name: 'user',
+    type: 'relation',
+    // Optional so admins can detach + keep a completed audit row before deleting the auth user
+    required: false,
+    collectionId: '_pb_users_auth_',
+    maxSelect: 1,
+    cascadeDelete: true,
+  },
   {
     name: 'status',
     type: 'select',
@@ -49,7 +57,7 @@ const AUTODATE_FIELDS = [
 const RULES = {
   listRule: adminOrOwner('user'),
   viewRule: adminOrOwner('user'),
-  createRule: '@request.auth.id = user',
+  createRule: '@request.auth.id != "" && @request.body.user = @request.auth.id',
   updateRule: adminRule,
   deleteRule: adminRule,
 }
@@ -67,6 +75,16 @@ function ensureFields(fields) {
     if ((f.name === 'created' || f.name === 'updated') && f.type !== 'autodate') {
       const spec = AUTODATE_FIELDS.find((s) => s.name === f.name)
       return { ...f, ...spec, id: f.id }
+    }
+    // Allow clearing user on completed requests so auth user can be deleted
+    if (f.name === 'user' && f.type === 'relation') {
+      return {
+        ...f,
+        required: false,
+        cascadeDelete: true,
+        maxSelect: f.maxSelect || 1,
+        collectionId: f.collectionId || '_pb_users_auth_',
+      }
     }
     return f
   })

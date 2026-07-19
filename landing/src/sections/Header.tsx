@@ -1,3 +1,7 @@
+import { appStartHref } from '../lib/appUrl'
+
+const startHref = appStartHref()
+
 export function Header() {
   return (
     <>
@@ -10,36 +14,34 @@ export function Header() {
               <strong>Quit smoking without fighting cravings every day.</strong>
               <span className="announcement-secondary">
                 {' '}
-                Start your 10-day Smono transformation today.
+                10-day quit · 9 languages · CBT-based.
               </span>
             </p>
-            <a href="#" className="announcement-cta js-start-app">
-              Start Your Smoke-Free Journey →
+            <a href={startHref} className="announcement-cta js-start-app">
+              Start free →
             </a>
           </div>
         </div>
 
         <nav className="nav" role="navigation" aria-label="Main navigation">
           <div className="container">
-            <a href="#" className="nav-logo" aria-label="Smono home">
+            <a href="/" className="nav-logo" aria-label="Smono home">
               <img src="/smonologo.webp?v=3" alt="Smono" className="landing-logo" />
             </a>
             <div className="nav-links">
               <a href="#reset-story">How It Works</a>
-              <a href="#science">Our Method</a>
+              <a href="#languages">Languages</a>
               <a href="#why-smono">Why Smono</a>
-              <a href="#app-preview">Program Features</a>
-              <a href="#testimonials">Success Stories</a>
               <a href="#faq">FAQ</a>
-              <a href="/blog">Blog</a>
+              <a href="/blog/">Blog</a>
             </div>
             <div className="nav-actions">
-              <button type="button" className="nav-coach">
+              <a href="mailto:support@smono.app" className="nav-coach">
                 Talk to a Quit Coach
-              </button>
-              <button type="button" className="nav-cta js-start-app" aria-label="Start Now">
+              </a>
+              <a href={startHref} className="nav-cta js-start-app" aria-label="Start Now">
                 <span>✦</span> Start Now
-              </button>
+              </a>
             </div>
             <button
               type="button"
@@ -58,30 +60,24 @@ export function Header() {
           <a href="#reset-story" role="menuitem">
             How It Works
           </a>
-          <a href="#science" role="menuitem">
-            Our Method
+          <a href="#languages" role="menuitem">
+            Languages
           </a>
           <a href="#why-smono" role="menuitem">
             Why Smono
           </a>
-          <a href="#app-preview" role="menuitem">
-            Program Features
-          </a>
-          <a href="#testimonials" role="menuitem">
-            Success Stories
-          </a>
           <a href="#faq" role="menuitem">
             FAQ
           </a>
-          <a href="/blog" role="menuitem">
+          <a href="/blog/" role="menuitem">
             Blog
           </a>
-          <button type="button" className="nav-coach mobile-menu-btn">
+          <a href="mailto:support@smono.app" className="nav-coach mobile-menu-btn" role="menuitem">
             Talk to a Quit Coach
-          </button>
-          <button type="button" className="nav-cta js-start-app mobile-menu-btn">
+          </a>
+          <a href={startHref} className="nav-cta js-start-app mobile-menu-btn" role="menuitem">
             Start Now
-          </button>
+          </a>
         </div>
       </header>
     </>

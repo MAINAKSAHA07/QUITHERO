@@ -3,6 +3,7 @@ import { SupportTicket, SupportTicketMessage } from '../types/models'
 import { SupportTicketStatus, SupportTicketPriority, SupportTicketCategory } from '../types/enums'
 import { ApiResponse } from '../types/api'
 import { recentSort, pb } from '../lib/pocketbase'
+import { apiUrl } from '../utils/apiOrigin'
 
 async function supportApi<T>(
   path: string,
@@ -12,7 +13,7 @@ async function supportApi<T>(
     const token = pb.authStore.token
     if (!token) return { success: false, error: 'Login required' }
 
-    const res = await fetch(path, {
+    const res = await fetch(apiUrl(path), {
       method: options?.method || 'GET',
       headers: {
         Authorization: token,
@@ -108,9 +109,17 @@ export class SupportService extends BaseService {
   }
 
   async getMessages(ticketId: string): Promise<ApiResponse<SupportTicketMessage[]>> {
-    return supportApi<SupportTicketMessage[]>(
+    const result = await supportApi<SupportTicketMessage[] | { data?: SupportTicketMessage[] }>(
       `/api/support/messages?ticket=${encodeURIComponent(ticketId)}`
     )
+    if (!result.success) return result as ApiResponse<SupportTicketMessage[]>
+    const raw = result.data
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as { data?: SupportTicketMessage[] })?.data)
+        ? (raw as { data: SupportTicketMessage[] }).data
+        : []
+    return { success: true, data: list }
   }
 
   async sendMessage(

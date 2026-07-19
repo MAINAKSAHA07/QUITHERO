@@ -56,7 +56,7 @@ export default function MilestoneModal({ isOpen, days, onClose }: MilestoneModal
             {particles.map(p => (
               <motion.div
                 key={p.id}
-                initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+                initial={{ x: 0, y: 0, opacity: 1, scale: 0.85 }}
                 animate={{ x: p.x, y: p.y, opacity: 0, scale: p.scale, rotate: p.rotate }}
                 transition={{ duration: 1.5, delay: p.delay, ease: 'easeOut' }}
                 className="absolute left-1/2 top-1/2 w-3 h-3 rounded-sm"
@@ -65,8 +65,8 @@ export default function MilestoneModal({ isOpen, days, onClose }: MilestoneModal
             ))}
 
             <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
+              initial={{ opacity: 0, scale: 0.9, rotate: -12 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
               className="mb-4 flex flex-col items-center gap-2"
             >

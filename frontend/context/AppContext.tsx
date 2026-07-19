@@ -16,6 +16,7 @@ import {
 import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/programProgress'
 import { syncQuitDateWithSessions } from '../services/quitDateSync.service'
 import { UserProfile, ProgressStats, UserSession } from '../types/models'
+import { isNativePlatform } from '../utils/apiOrigin'
 
 interface AppContextType {
   language: string
@@ -50,20 +51,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return savedLanguage || 'en'
   })
   
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => authHelpers.isAuthenticated())
+  const [user, setUser] = useState(() =>
+    mapAuthRecordToAppUser(authHelpers.getCurrentUser() as Record<string, unknown> | null)
+  )
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [progressStats, setProgressStats] = useState<ProgressStats | null>(null)
   const [currentSession, setCurrentSession] = useState<UserSession | null>(null)
   // Avoid putting currentSession in fetchCurrentSession deps — that blocked resync after day completes
   const currentSessionRef = useRef<UserSession | null>(null)
-  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(() => authHelpers.isAuthenticated())
   const [progressLoading, setProgressLoading] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(false)
 
-  // TODO: Re-enable when payment API is integrated
-  // const isPremium = userProfile?.subscription_status === 'active'
-  const isPremium = true
+  // Premium after verified Razorpay payment (server sets subscription_status)
+  const isPremium = userProfile?.subscription_status === 'active'
 
   // Update language and persist to localStorage
   const setLanguage = (lang: string) => {
@@ -87,14 +89,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     profileService.updateProfile(user.id, { language: language as any }).catch(console.error)
   }, [user?.id, userProfile, language])
 
-  // Sync with PocketBase auth state on mount
+  // Re-sync if authStore changes (logout elsewhere / token clear)
   useEffect(() => {
-    const currentUser = authHelpers.getCurrentUser()
-    if (currentUser && authHelpers.isAuthenticated()) {
-      setIsAuthenticated(true)
-      const mapped = mapAuthRecordToAppUser(currentUser as Record<string, unknown>)
-      if (mapped) setUser(mapped)
-    }
+    const unsub = pb.authStore.onChange(() => {
+      const valid = authHelpers.isAuthenticated()
+      setIsAuthenticated(valid)
+      setUser(valid ? mapAuthRecordToAppUser(authHelpers.getCurrentUser() as Record<string, unknown>) : null)
+    })
+    return () => unsub()
   }, [])
 
   // lastActive heartbeat is written on real app actions only (not passive tab open)
@@ -146,7 +148,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const silent = currentSessionRef.current !== null
     if (!silent) setSessionLoading(true)
     try {
-      const result = await sessionService.getOrCreateCurrentSession(user.id)
+      const result = await sessionService.getOrCreateCurrentSession(
+        user.id,
+        language || userProfile?.language || 'en'
+      )
       if (result.success && result.data) {
         let session = result.data
         const programId = typeof session.program === 'string'
@@ -188,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       if (!silent) setSessionLoading(false)
     }
-  }, [user?.id, fetchUserProfile])
+  }, [user?.id, fetchUserProfile, language, userProfile?.language])
 
   const refreshProgress = useCallback(async () => {
     if (!user?.id) return
@@ -270,6 +275,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id])
 
+  // Support reply notices when push is missing or was marked "sent" but never seen
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    const tick = async () => {
+      if (cancelled || document.visibilityState === 'hidden') return
+      const { checkPendingSupportReplyNotices } = await import('../utils/supportReplyNotify')
+      await checkPendingSupportReplyNotices(user.id)
+    }
+    void tick()
+    // Foreground poll — native has no SW/APNs yet, so keep this reasonably fresh
+    const id = window.setInterval(tick, isNativePlatform() ? 12000 : 8000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+    const onSw = (event: MessageEvent) => {
+      if (event.data?.type === 'support_reply') void tick()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    navigator.serviceWorker?.addEventListener('message', onSw)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+      navigator.serviceWorker?.removeEventListener('message', onSw)
+    }
+  }, [user?.id])
+
   // Server Web Push (works when app closed) + local / AI-timed reminders when app is open
   useEffect(() => {
     if (!user?.id) return
@@ -282,16 +315,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false
     ;(async () => {
-      const { ensureServerPushRegistered, enablePushNotifications } = await import(
-        '../utils/pushNotifications'
-      )
+      const { ensureServerPushRegistered } = await import('../utils/pushNotifications')
 
       if (remindersOn) {
         if (Notification.permission === 'granted') {
           await ensureServerPushRegistered(user.id).catch(() => {})
-        } else if (Notification.permission === 'default' && userProfile?.enable_reminders) {
-          await enablePushNotifications().catch(() => {})
         }
+        // Permission default/denied: soft prompt on InstallPrompt (needs a user tap).
       }
 
       if (cancelled) return
@@ -310,10 +340,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Flat morning quote while still in observing phase (learning owns timing once active)
       if (!learning) {
-        const quote = await fetchDailyQuoteText(userProfile.language || 'en')
         if (cancelled || !NotificationService.isSupported()) return
-        NotificationService.checkDueReminder()
-        NotificationService.scheduleDailyReminder(reminderTime, quote)
+        const lang = userProfile.language || 'en'
+        const getQuote = () => fetchDailyQuoteText(lang)
+        await NotificationService.checkDueReminder(getQuote)
+        NotificationService.scheduleDailyReminder(reminderTime, getQuote)
       }
     })()
 

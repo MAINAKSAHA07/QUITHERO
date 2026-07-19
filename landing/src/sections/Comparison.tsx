@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Comparison() {
   return (
     <>
@@ -23,7 +24,7 @@ export function Comparison() {
         </div>
       </div>
       <div className="section-cta reveal" style={{textAlign: 'center', marginTop: '40px'}}>
-        <button className="btn-primary js-start-app">Choose the Smarter Way to Quit <span>→</span></button>
+        <a href={appStartHref()} className="btn-primary js-start-app">Choose the Smarter Way to Quit <span>→</span></a>
       </div>
     </div>
   </section>

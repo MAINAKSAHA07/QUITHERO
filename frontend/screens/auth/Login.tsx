@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
+import AuthModeTabs from '../../components/AuthModeTabs'
 import { useApp } from '../../context/AppContext'
+import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { authHelpers, mapAuthRecordToAppUser } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import SmonoLogo from '../../components/SmonoLogo'
@@ -18,6 +20,8 @@ import {
   getLoginRetryDelayMs,
   formatLockoutDuration,
   LOGIN_MAX_ATTEMPTS,
+  isReturningLoginUser,
+  markReturningLoginUser,
 } from '../../utils/loginRateLimit'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -30,7 +34,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [lockoutRetryMs, setLockoutRetryMs] = useState(0)
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, user, setIsAuthenticated, setUser } = useApp()
+  const { fade, springUi } = useMotionPrefs()
 
   const refreshLockout = useCallback(() => {
     if (!email.trim()) {
@@ -52,14 +58,31 @@ export default function Login() {
   }, [lockoutRetryMs, refreshLockout])
 
   const isLockedOut = lockoutRetryMs > 0
+  const fromState = location.state as { from?: { pathname?: string; search?: string }; isNew?: boolean } | null
+  // First-timers (and post-onboarding) get "Welcome"; only prior logins get "Welcome Back"
+  const showWelcomeBack = !fromState?.isNew && isReturningLoginUser()
 
-  // If user is already authenticated (e.g. after OAuth redirect), route them appropriately
+  // Already signed in (refresh race / OAuth) — return to prior page when we have one
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return
-    profileService.getByUserId(user.id).then(result => {
-      navigate(postAuthPath(result.data), { replace: true })
-    })
-  }, [isAuthenticated, user?.id, navigate])
+    const from = fromState?.from
+    if (from?.pathname && from.pathname !== '/login' && from.pathname !== '/signup' && from.pathname !== '/onboarding') {
+      navigate(`${from.pathname}${from.search || ''}`, { replace: true })
+      return
+    }
+    let cancelled = false
+    profileService
+      .getByUserId(user.id)
+      .then((result) => {
+        if (!cancelled) navigate(postAuthPath(result.data), { replace: true })
+      })
+      .catch(() => {
+        if (!cancelled) navigate('/home', { replace: true })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id, navigate, fromState])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,15 +111,21 @@ export default function Login() {
       
       if (result.success && result.data) {
         recordLoginSuccess(email)
+        markReturningLoginUser()
         setIsAuthenticated(true)
         const mapped = mapAuthRecordToAppUser(result.data.record as Record<string, unknown>)
         if (mapped) setUser(mapped)
         // Track login
         await analyticsService.trackEvent('login', {}, result.data.record.id)
 
-        // Check if user has completed onboarding
-        const profileResult = await profileService.getByUserId(result.data.record.id)
-        navigate(postAuthPath(profileResult.data), { replace: true })
+        // Check if user has completed onboarding — honor return path from protected route
+        const from = fromState?.from
+        if (from?.pathname && from.pathname !== '/login' && from.pathname !== '/signup' && from.pathname !== '/onboarding') {
+          navigate(`${from.pathname}${from.search || ''}`, { replace: true })
+        } else {
+          const profileResult = await profileService.getByUserId(result.data.record.id)
+          navigate(postAuthPath(profileResult.data), { replace: true })
+        }
       } else {
         const failure = recordLoginFailure(email)
         refreshLockout()
@@ -131,40 +160,75 @@ export default function Login() {
       if (result.redirecting) return
       if (result.success && result.data) {
         const record = result.data.record
+        markReturningLoginUser()
         setIsAuthenticated(true)
         const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
         if (mapped) setUser(mapped)
         // Track login
         await analyticsService.trackEvent('login', { method: 'google' }, record.id)
 
-        // Check if user has completed onboarding (has profile with essential data)
-        const profileResult = await profileService.getByUserId(record.id)
-        navigate(postAuthPath(profileResult.data), { replace: true })
+        const from = fromState?.from
+        if (from?.pathname && from.pathname !== '/login' && from.pathname !== '/signup' && from.pathname !== '/onboarding') {
+          navigate(`${from.pathname}${from.search || ''}`, { replace: true })
+        } else {
+          const profileResult = await profileService.getByUserId(record.id)
+          navigate(postAuthPath(profileResult.data), { replace: true })
+        }
       } else {
         setError(result.error || 'Google login failed')
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred during Google login')
+      setError(err.message || 'Google login failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAppleLogin = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const result = await authHelpers.loginWithApple()
+      if (result.redirecting) return
+      if (result.success && result.data) {
+        const record = result.data.record
+        markReturningLoginUser()
+        setIsAuthenticated(true)
+        const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
+        if (mapped) setUser(mapped)
+        await analyticsService.trackEvent('login', { method: 'apple' }, record.id)
+
+        const from = fromState?.from
+        if (from?.pathname && from.pathname !== '/login' && from.pathname !== '/signup' && from.pathname !== '/onboarding') {
+          navigate(`${from.pathname}${from.search || ''}`, { replace: true })
+        } else {
+          const profileResult = await profileService.getByUserId(record.id)
+          navigate(postAuthPath(profileResult.data), { replace: true })
+        }
+      } else {
+        setError(result.error || 'Apple login failed')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Apple login failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-background pb-20 safe-area-bottom">
-      <div className="app-container px-3 sm:px-4 pt-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Logo section */}
-          <div className="text-center mb-8 flex flex-col items-center">
+    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-[#F4FBFF] pb-20 safe-area-bottom safe-area-top">
+      <div className="app-container px-3 sm:px-4 pt-8">
+        <motion.div {...fade} transition={springUi}>
+          <div className="text-center mb-6 flex flex-col items-center">
             <SmonoLogo size="lg" showMascot className="mb-2" />
-            <p className="text-text-primary/70 mt-2">Welcome Back</p>
+            <p className="text-[#0E2538]/55 mt-1 text-[15px]">
+              {showWelcomeBack ? 'Welcome back' : 'Welcome'}
+            </p>
           </div>
 
-          <GlassCard className="p-6 mb-6">
+          <AuthModeTabs mode="login" />
+
+          <GlassCard className="p-6 mb-6" borderGlow={false}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <GlassInput
                 type="email"
@@ -173,6 +237,9 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="w-5 h-5" />}
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
               />
 
               <GlassInput
@@ -182,11 +249,13 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="w-5 h-5" />}
+                autoComplete="current-password"
                 rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="hover:text-text-primary transition-colors"
+                    className="active:scale-95 transition-transform duration-100"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -200,14 +269,14 @@ export default function Login() {
               <div className="text-right">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-brand-primary hover:underline"
+                  className="text-sm text-[#3F8DD2] font-medium active:opacity-70"
                 >
                   Forgot Password?
                 </Link>
               </div>
 
               {isLockedOut && (
-                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                   Login paused for {formatLockoutDuration(lockoutRetryMs)} after {LOGIN_MAX_ATTEMPTS} failed attempts.
                 </p>
               )}
@@ -217,28 +286,33 @@ export default function Login() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-sm text-error"
+                  role="alert"
                 >
                   {error}
                 </motion.p>
               )}
 
-              <GlassButton 
-                type="submit" 
-                fullWidth 
+              <GlassButton
+                type="submit"
+                fullWidth
                 className="py-4 text-lg mt-6"
                 disabled={loading || isLockedOut}
               >
                 {isLockedOut
                   ? `Try again in ${formatLockoutDuration(lockoutRetryMs)}`
                   : loading
-                    ? 'Logging in...'
-                    : 'Login'}
+                    ? 'Logging in…'
+                    : 'Log in'}
               </GlassButton>
             </form>
           </GlassCard>
 
-          {/* Social login */}
           <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-3 my-1">
+              <div className="flex-1 h-px bg-[#0E2538]/10" />
+              <span className="text-xs text-[#0E2538]/40">or</span>
+              <div className="flex-1 h-px bg-[#0E2538]/10" />
+            </div>
             <GlassButton
               variant="secondary"
               fullWidth
@@ -271,6 +345,8 @@ export default function Login() {
               variant="secondary"
               fullWidth
               className="py-3 flex items-center justify-center gap-2"
+              onClick={handleAppleLogin}
+              disabled={loading}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.96-3.24-1.5-1.84-.78-2.9-1.22-3.24-2.02-.3-.7-.19-1.73.1-2.78l.93-3.2c.05-.2-.02-.4-.16-.54L5.5 9.5c-.3-.3-.4-.7-.25-1.1.15-.4.5-.7.9-.8 1.5-.3 2.9-.6 3.9-1.1.5-.3 1-.6 1.5-1 .5-.4.9-.8 1.3-1.2.3-.3.6-.5 1-.6.4-.1.8-.1 1.2 0 .4.1.7.3 1 .6.4.4.8.8 1.3 1.2.5.4 1 .7 1.5 1 1 .5 2.4.8 3.9 1.1.4.1.75.4.9.8.15.4.05.8-.25 1.1l-2.12 2.06c-.14.14-.21.34-.16.54l.93 3.2c.29 1.05.4 2.08.1 2.78-.34.8-1.4 1.24-3.24 2.02-1.16.54-2.15 1-3.24 1.5-1.03.48-2.1.55-3.08-.4z" />
@@ -278,21 +354,8 @@ export default function Login() {
               Continue with Apple
             </GlassButton>
           </div>
-
-          <div className="text-center">
-            <p className="text-text-primary/70">
-              Don't have an account?{' '}
-              <Link
-                to="/signup"
-                className="text-brand-primary font-medium hover:underline"
-              >
-                Sign Up
-              </Link>
-            </p>
-          </div>
         </motion.div>
       </div>
-
     </div>
   )
 }

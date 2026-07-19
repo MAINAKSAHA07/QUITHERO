@@ -79,3 +79,100 @@ export function getPaywallSavingsFrame(countryCode?: string, dailyCigs: number =
   const monthlySaved = dailyCigs * config.pricePerCigarette * 30
   return formatMoney(monthlySaved, countryCode)
 }
+
+const GEO_CACHE = 'smono_geo_cc'
+const GEO_FAIL = 'smono_geo_fail'
+let geoInflight: Promise<string> | null = null
+
+function rememberGeo(code: string): string {
+  try {
+    sessionStorage.setItem(GEO_CACHE, code)
+  } catch {
+    /* private mode */
+  }
+  return code
+}
+
+function countryFromLocale(): string | null {
+  try {
+    for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+      const m = String(tag).match(/-([A-Za-z]{2})\b/)
+      if (!m) continue
+      const cc = m[1]!.toUpperCase()
+      if (COUNTRIES[cc]) return cc
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+function countryFromTimezone(): string | null {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+    if (/Calcutta|Kolkata|Delhi/.test(tz)) return 'IN'
+    if (/London/.test(tz)) return 'GB'
+    if (/Toronto|Vancouver|Montreal|Edmonton/.test(tz)) return 'CA'
+    if (/America\//.test(tz)) return 'US'
+    if (/Sydney|Melbourne|Brisbane|Perth|Adelaide/.test(tz)) return 'AU'
+    if (/Auckland|Pacific\/Auckland/.test(tz)) return 'NZ'
+    if (/Tokyo/.test(tz)) return 'JP'
+    if (/Seoul/.test(tz)) return 'KR'
+    if (/Dubai/.test(tz)) return 'AE'
+    if (/Riyadh/.test(tz)) return 'SA'
+    if (/Paris/.test(tz)) return 'FR'
+    if (/Berlin/.test(tz)) return 'DE'
+    if (/Rome/.test(tz)) return 'IT'
+    if (/Madrid/.test(tz)) return 'ES'
+    if (/Amsterdam/.test(tz)) return 'NL'
+    if (/Stockholm/.test(tz)) return 'SE'
+    if (/Europe\//.test(tz)) return 'DE'
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+/** Billing country from network (IP), then locale/timezone, then IN. */
+export async function detectCountryCode(): Promise<string> {
+  try {
+    const cached = sessionStorage.getItem(GEO_CACHE)
+    if (cached && COUNTRIES[cached]) return cached
+  } catch {
+    /* ignore */
+  }
+
+  if (geoInflight) return geoInflight
+
+  geoInflight = (async () => {
+    try {
+      if (!sessionStorage.getItem(GEO_FAIL)) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 2500)
+        const res = await fetch('https://ipapi.co/json/', { signal: controller.signal })
+        clearTimeout(timeoutId)
+        if (!res.ok) throw new Error(String(res.status))
+        const data = (await res.json()) as { country_code?: string }
+        const cc = data?.country_code?.toUpperCase()
+        if (cc && COUNTRIES[cc]) return rememberGeo(cc)
+      }
+    } catch {
+      try {
+        sessionStorage.setItem(GEO_FAIL, '1')
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const local = countryFromLocale() || countryFromTimezone()
+    if (local) return rememberGeo(local)
+    return rememberGeo(DEFAULT_COUNTRY)
+  })()
+
+  try {
+    return await geoInflight
+  } finally {
+    geoInflight = null
+  }
+}
+

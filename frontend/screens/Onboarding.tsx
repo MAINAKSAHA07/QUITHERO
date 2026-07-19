@@ -13,7 +13,9 @@ import {
 } from 'lucide-react'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
+import TranslatedText from '../components/TranslatedText'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
+import { useMotionPrefs } from '../hooks/useMotionPrefs'
 import { useApp } from '../context/AppContext'
 import { profileService } from '../services/profile.service'
 import { postAuthPath } from '../utils/kyc'
@@ -67,6 +69,7 @@ export default function Onboarding() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
   const { isAuthenticated, user } = useApp()
+  const { fade, springUi } = useMotionPrefs()
 
   // Returning users should not see marketing slides again
   useEffect(() => {
@@ -80,12 +83,12 @@ export default function Onboarding() {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1)
     } else {
-      navigate('/login')
+      navigate('/login', { state: { isNew: true } })
     }
   }
 
   const handleSkip = () => {
-    navigate('/login')
+    navigate('/login', { state: { isNew: true } })
   }
 
   const handlePrev = () => {
@@ -97,14 +100,14 @@ export default function Onboarding() {
   const Icon = slides[currentSlide].icon
 
   return (
-    <div className="min-h-screen pb-20 flex flex-col justify-between relative">
+    <div className="min-h-[100dvh] pb-20 flex flex-col justify-between relative bg-[#F4FBFF] safe-area-top">
       {currentSlide < slides.length - 1 && (
         <button
           type="button"
           onClick={handleSkip}
-          className="absolute top-4 right-4 z-10 text-text-primary/40 hover:text-text-primary text-xs font-semibold px-3 py-1.5 rounded-full glass-subtle transition-all"
+          className="absolute top-4 right-4 z-10 text-[#0E2538]/40 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#0E2538]/[0.05] active:scale-95 active:text-[#0E2538]/70 transition-[transform,color,background-color] duration-100"
         >
-          Skip
+          <TranslatedText text="Skip" />
         </button>
       )}
 
@@ -112,64 +115,52 @@ export default function Onboarding() {
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            {...fade}
+            transition={springUi}
             className="text-center flex flex-col items-center"
           >
-            {/* Visual Icon Card */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 0.3 }}
-              className="mb-8 flex justify-center"
-            >
-              <motion.div
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            <div className="mb-8 flex justify-center">
+              <GlassCard
+                borderGlow={false}
+                className={`p-6 bg-gradient-to-br ${slides[currentSlide].gradient}`}
               >
-                <GlassCard
-                  className={`p-6 bg-gradient-to-br ${slides[currentSlide].gradient} shadow-glow border-white/10`}
-                >
-                  <Icon className="w-20 h-20 text-brand-primary filter drop-shadow-md mx-auto" />
-                </GlassCard>
-              </motion.div>
-            </motion.div>
+                <Icon className="w-20 h-20 text-[#3F8DD2] mx-auto" />
+              </GlassCard>
+            </div>
 
-            {/* Typography */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-4 leading-tight px-2">
-              {slides[currentSlide].title}
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#0E2538] mb-4 leading-tight tracking-tight px-2">
+              <TranslatedText text={slides[currentSlide].title} />
             </h1>
-            <p className="text-base text-text-primary/70 mb-8 max-w-md px-4 leading-relaxed">
-              {slides[currentSlide].description}
+            <p className="text-base text-[#0E2538]/55 mb-8 max-w-md px-4 leading-relaxed">
+              <TranslatedText text={slides[currentSlide].description} />
             </p>
 
-            {/* Slide Indicators */}
-            <div className="flex justify-center gap-1.5 mb-8">
+            <div className="flex justify-center gap-1.5 mb-8" role="tablist" aria-label="Slides">
               {slides.map((_, index) => (
                 <button
                   key={index}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === currentSlide}
                   onClick={() => setCurrentSlide(index)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                  className={`h-1.5 rounded-full transition-[width,background-color,transform] duration-200 ease-out active:scale-90 ${
                     index === currentSlide
-                      ? 'w-6 bg-brand-primary'
-                      : 'w-1.5 bg-text-primary/20 hover:bg-text-primary/45'
+                      ? 'w-6 bg-[#3F8DD2]'
+                      : 'w-1.5 bg-[#0E2538]/20 active:bg-[#0E2538]/40'
                   }`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}
             </div>
 
-            {/* Main Action Button */}
             <div className="w-full max-w-sm px-4">
               <GlassButton onClick={handleNext} fullWidth className="py-3.5 text-base font-semibold flex items-center justify-center gap-2">
                 {currentSlide === slides.length - 1 ? (
                   <>
-                    Start My Plan <ArrowRight className="w-4 h-4" />
+                    <TranslatedText text="Start My Plan" /> <ArrowRight className="w-4 h-4" />
                   </>
                 ) : (
-                  'Next'
+                  <TranslatedText text="Next" />
                 )}
               </GlassButton>
             </div>

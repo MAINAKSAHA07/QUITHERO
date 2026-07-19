@@ -1199,6 +1199,7 @@ async function setPermissions() {
       createRule: '',
       updateRule: `${adminRule} || @request.auth.id = id`,
       deleteRule: adminRule,
+      manageRule: adminRule,
     },
     // User-owned collections - users can only access their own records
     { 
@@ -1390,6 +1391,10 @@ async function setPermissions() {
           rule = adminRule
         }
         updateData.deleteRule = rule
+      }
+
+      if (cfg.manageRule !== undefined) {
+        updateData.manageRule = cfg.manageRule
       }
       
       // Fallback to single rule if provided

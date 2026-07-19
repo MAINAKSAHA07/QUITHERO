@@ -3,6 +3,8 @@ import {
   recordLoginFailure,
   recordLoginSuccess,
   formatLockoutDuration,
+  isReturningLoginUser,
+  markReturningLoginUser,
 } from './loginRateLimit'
 
 // ponytail: minimal in-memory localStorage for node self-check
@@ -29,3 +31,9 @@ state = getLoginLockout(email)
 console.assert(!state.locked && state.failures === 0, 'clears on success')
 
 console.assert(formatLockoutDuration(90_000).includes('min'), 'formats lockout')
+
+console.assert(!isReturningLoginUser(), 'new device is not returning')
+markReturningLoginUser()
+console.assert(isReturningLoginUser(), 'marks returning after login')
+
+console.log('loginRateLimit.check: ok')

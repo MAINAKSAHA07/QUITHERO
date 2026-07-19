@@ -18,7 +18,7 @@ interface ReminderSettingsProps {
 }
 
 export default function ReminderSettings({ step, totalSteps, onBack }: ReminderSettingsProps) {
-  const { user, updateUserProfile } = useApp()
+  const { user, updateUserProfile, language, userProfile } = useApp()
   const navigate = useNavigate()
   const [remindersEnabled, setRemindersEnabled] = useState(true)
   const [reminderTime, setReminderTime] = useState('09:00')
@@ -48,8 +48,11 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
         return
       }
 
-      // Get or create default program
-      const programResult = await programService.getActiveProgram('en')
+      const lang = language || userProfile?.language || 'en'
+      let programResult = await programService.getActiveProgram(lang)
+      if ((!programResult.success || !programResult.data) && lang !== 'en') {
+        programResult = await programService.getActiveProgram('en')
+      }
       if (!programResult.success || !programResult.data) {
         setError('Program not found. Please contact support.')
         setLoading(false)

@@ -89,7 +89,7 @@ export default function TopNavigation({
   return (
     <>
       <nav
-        className={`sticky top-0 z-40 safe-area-top ${
+        className={`relative z-40 shrink-0 safe-area-top ${
           showGlass ? 'glass-strong border-b border-white/30' : ''
         }`}
       >

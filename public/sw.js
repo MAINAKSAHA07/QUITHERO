@@ -1,5 +1,5 @@
 // ponytail: minimal service worker for PWA installability + offline shell
-const CACHE = 'smono-v2'
+const CACHE = 'smono-v4'
 const SHELL = ['/', '/index.html']
 
 self.addEventListener('install', (e) => {
@@ -37,33 +37,82 @@ self.addEventListener('fetch', (e) => {
           if (cached) return cached
           if (isNavigate) {
             return caches.match('/index.html').then(
-              (html) => html || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/html' } })
+              (html) =>
+                html ||
+                new Response('Offline', {
+                  status: 503,
+                  headers: { 'Content-Type': 'text/html' },
+                })
             )
           }
-          return new Response('', { status: 408, statusText: 'Offline' })
+          // Don't invent a fake 408 for failed GETs — let the page see a network error
+          return Response.error()
         })
       )
   )
 })
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'smono', message: 'You have a new update.', url: '/' }
-  try {
-    if (event.data) data = { ...data, ...event.data.json() }
-  } catch {
-    /* ponytail: malformed push payload — show default */
-  }
-  const body = data.message || data.body || ''
   event.waitUntil(
-    self.registration.showNotification(data.title || 'smono', {
-      body,
-      icon: '/mascot.png',
-      badge: '/mascot.png',
-      tag: data.tag || 'smono-push',
-      renotify: true,
-      data: { url: data.url || '/' },
-    })
+    (async () => {
+      let data = { title: 'smono', message: 'You have a new update.', url: '/' }
+      try {
+        if (event.data) data = { ...data, ...event.data.json() }
+      } catch {
+        /* ponytail: malformed push payload — show default */
+      }
+
+      const ticketId = supportTicketIdFromPush(data)
+
+      // Wake open tabs so SupportInbox can poll even if we skip the banner
+      try {
+        const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of list) {
+          client.postMessage({
+            type: 'support_reply',
+            ticketId,
+            url: data.url || '/',
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // User is already reading this thread — skip the banner.
+      if (ticketId && viewingSupportTicketId === ticketId) return
+
+      const body = data.message || data.body || ''
+      await self.registration.showNotification(data.title || 'smono', {
+        body,
+        icon: '/mascot.png',
+        badge: '/mascot.png',
+        tag: data.tag || 'smono-push',
+        renotify: true,
+        data: { url: data.url || '/', ticketId },
+      })
+    })()
   )
+})
+
+/** Track which support ticket the app is viewing so we don't ping while chatting. */
+let viewingSupportTicketId = null
+
+function supportTicketIdFromPush(data) {
+  const tag = String(data?.tag || '')
+  if (tag.startsWith('support-')) return tag.slice('support-'.length) || null
+  try {
+    const url = String(data?.url || '')
+    const q = url.includes('?') ? new URL(url, self.location.origin).searchParams.get('support') : null
+    return q || null
+  } catch {
+    return null
+  }
+}
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'support_viewing') {
+    viewingSupportTicketId = event.data.ticketId || null
+  }
 })
 
 function absoluteUrl(path) {

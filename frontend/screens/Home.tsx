@@ -29,7 +29,9 @@ import { CravingType, CravingTrigger } from '../types/enums'
 import { haptic, hapticPatterns } from '../utils/haptic'
 import { formatMoney, getCountryConfig } from '../utils/currency'
 import KycRequiredModal from '../components/KycRequiredModal'
+import UpgradePrompt from '../components/UpgradePrompt'
 import { useKycGate } from '../hooks/useKycGate'
+import { needsDay2Upgrade } from '../utils/upgradePrompt'
 
 const MILESTONE_DAYS = [3, 7, 14, 30]
 
@@ -87,7 +89,7 @@ function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
 
 export default function Home() {
   const navigate = useNavigate()
-  const { user, userProfile, currentSession, sessionLoading, progressStats, fetchCurrentSession } = useApp()
+  const { user, userProfile, currentSession, sessionLoading, progressStats, fetchCurrentSession, isPremium } = useApp()
   const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -176,6 +178,7 @@ export default function Home() {
   }, [stats, calculation, progressStats, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
+  const showUpgrade = needsDay2Upgrade(isPremium, currentDay)
   const programProgress = Math.round((currentDay / 30) * 100)
   const firstName =
     userProfile?.onboarding_name?.trim() ||
@@ -185,6 +188,11 @@ export default function Home() {
 
   const handleContinueProgram = async () => {
     if (!user?.id) return
+    if (showUpgrade) {
+      navigate('/paywall')
+      analyticsService.trackEvent('upgrade_cta_clicked', { source: 'home_continue' }, user.id)
+      return
+    }
     gateSessionAccess(async () => {
       try {
         if (currentSession?.program) {
@@ -207,16 +215,21 @@ export default function Home() {
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
-      {/* Soft sky wash */}
+      {/* Soft sky + peach + sage wash (landing palette) */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+          background:
+            'radial-gradient(ellipse 80% 50% at 20% 0%, rgba(139, 205, 232, 0.4), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 90%, rgba(246, 184, 132, 0.32), transparent 50%), radial-gradient(ellipse 40% 30% at 70% 30%, rgba(110, 164, 143, 0.14), transparent 50%)',
         }}
         aria-hidden
       />
 
-      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+      <div
+        className={`flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin relative z-10 ${
+          showUpgrade ? 'pb-40' : 'pb-28'
+        }`}
+      >
         {/* Greeting header */}
         <header className="flex items-start justify-between gap-3 pt-4 pb-5">
           <button
@@ -315,10 +328,15 @@ export default function Home() {
             onClick={handleContinueProgram}
             disabled={sessionLoading}
             className="relative mt-5 w-full py-3.5 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60"
-            style={{ background: 'linear-gradient(90deg, #3F8DD2, #5BA3DC)' }}
+            style={{ background: 'linear-gradient(90deg, #3F8DD2 0%, #6EA48F 55%, #F6B884 100%)' }}
           >
             {sessionLoading ? (
               <TranslatedText text="Loading..." />
+            ) : showUpgrade ? (
+              <>
+                <TranslatedText text="Unlock Day 2" />
+                <ArrowRight className="w-4 h-4" />
+              </>
             ) : (
               <>
                 <TranslatedText text="Continue Program" />
@@ -462,6 +480,13 @@ export default function Home() {
         onClose={() => setMilestoneDay(null)}
       />
       <KycRequiredModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} />
+      {showUpgrade && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-40 px-4">
+          <div className="pointer-events-auto upgrade-glass-overlay max-w-md mx-auto">
+            <UpgradePrompt variant="overlay" />
+          </div>
+        </div>
+      )}
       <BottomNavigation />
     </div>
   )

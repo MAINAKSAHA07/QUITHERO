@@ -20,6 +20,8 @@ import { PREVIEW_CRAVING_TREND_WEEK, PREVIEW_TRIGGER_BREAKDOWN } from '../utils/
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
 import { useAchievements } from '../hooks/useAchievements'
+import UpgradePrompt from '../components/UpgradePrompt'
+import { needsDay2Upgrade } from '../utils/upgradePrompt'
 import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { beliefService, BeliefDelta } from '../services/belief.service'
@@ -56,7 +58,7 @@ const TIME_FILTERS = [
 
 export default function Progress() {
   const navigate = useNavigate()
-  const { user, currentSession, userProfile, progressStats } = useApp()
+  const { user, currentSession, userProfile, progressStats, isPremium } = useApp()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
   const {
     achievements,
@@ -273,13 +275,15 @@ export default function Progress() {
   const displayCravingTrend = hasCravingData ? cravingTrend : PREVIEW_CRAVING_TREND_WEEK
   const displayTriggerBreakdown = hasTriggerData ? triggerBreakdown : PREVIEW_TRIGGER_BREAKDOWN
   const displayTimeFilter = hasCravingData ? timeFilter : 'week'
+  const showUpgradeOverlay = needsDay2Upgrade(isPremium, currentSession?.current_day)
 
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+          background:
+            'radial-gradient(ellipse 80% 50% at 20% 0%, rgba(139, 205, 232, 0.4), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 90%, rgba(246, 184, 132, 0.32), transparent 50%), radial-gradient(ellipse 40% 30% at 70% 30%, rgba(110, 164, 143, 0.14), transparent 50%)',
         }}
         aria-hidden
       />
@@ -310,18 +314,22 @@ export default function Progress() {
         />
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pt-1 scrollbar-thin pb-28 space-y-5 relative z-10">
+      <div
+        className={`flex-1 overflow-y-auto px-4 pt-1 scrollbar-thin space-y-5 relative z-10 ${
+          showUpgradeOverlay ? 'pb-40' : 'pb-28'
+        }`}
+      >
         {/* Time range pills */}
-        <div className="flex gap-1 p-1 rounded-2xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white">
+        <div className="flex gap-1 p-1 rounded-2xl bg-white/75 backdrop-blur-[8px] shadow-[0_4px_16px_rgba(90,130,150,0.08)] border border-white/80">
           {TIME_FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setTimeFilter(f.id)}
-              className={`flex-1 py-2 px-2 rounded-xl text-xs font-semibold transition-colors ${
+              className={`flex-1 py-2 px-2 rounded-xl text-xs font-semibold transition-colors active:scale-[0.98] ${
                 timeFilter === f.id
-                  ? 'bg-[#E8F4FC] text-[#3F8DD2]'
-                  : 'text-[#0E2538]/45 hover:text-[#0E2538]/70'
+                  ? 'bg-[#EAF6F1] text-[#6EA48F]'
+                  : 'text-[#4A6574] active:text-[#0E2538]'
               }`}
             >
               <TranslatedText text={f.label} />
@@ -513,6 +521,14 @@ export default function Progress() {
           </div>
         </SoftCard>
       </div>
+
+      {showUpgradeOverlay && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-40 px-4">
+          <div className="pointer-events-auto upgrade-glass-overlay max-w-md mx-auto">
+            <UpgradePrompt variant="overlay" />
+          </div>
+        </div>
+      )}
 
       <BottomNavigation />
     </div>

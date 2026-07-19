@@ -41,6 +41,8 @@ interface SupportInboxProps {
   onClose: () => void
   userId: string
   onNewTicket: () => void
+  focusTicketId?: string | null
+  onFocusTicketConsumed?: () => void
 }
 
 export default function SupportInbox({
@@ -48,6 +50,8 @@ export default function SupportInbox({
   onClose,
   userId,
   onNewTicket,
+  focusTicketId = null,
+  onFocusTicketConsumed,
 }: SupportInboxProps) {
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,6 +61,23 @@ export default function SupportInbox({
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [pendingTicketIds, setPendingTicketIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const sync = () => {
+      void import('../utils/supportReplyNotify').then(({ getPendingSupportTicketIds }) => {
+        setPendingTicketIds(getPendingSupportTicketIds())
+      })
+    }
+    sync()
+    window.addEventListener('smono_support_reply', sync)
+    window.addEventListener('smono_support_pending_change', sync)
+    return () => {
+      window.removeEventListener('smono_support_reply', sync)
+      window.removeEventListener('smono_support_pending_change', sync)
+    }
+  }, [isOpen])
 
   const loadTickets = async () => {
     setLoading(true)
@@ -73,7 +94,11 @@ export default function SupportInbox({
   const loadMessages = async (ticketId: string, opts?: { quiet?: boolean }) => {
     const result = await supportService.getMessages(ticketId)
     if (result.success && result.data) {
-      setMessages(result.data)
+      const list = Array.isArray(result.data) ? result.data : []
+      setMessages(list)
+      void import('../utils/supportReplyNotify').then(({ markSupportReplyNoticesOpened }) => {
+        void markSupportReplyNoticesOpened(ticketId)
+      })
     } else if (!opts?.quiet) {
       setError(result.error || 'Could not load chat')
     }
@@ -88,6 +113,27 @@ export default function SupportInbox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userId])
 
+  useEffect(() => {
+    if (!isOpen || !focusTicketId || loading) return
+    const match = tickets.find((t) => t.id === focusTicketId)
+    if (!match) return
+    void openTicket(match)
+    onFocusTicketConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, focusTicketId, loading, tickets])
+
+  // Tell SW (and in-app fallback) which ticket is open — skip notify banners for that thread.
+  useEffect(() => {
+    void import('../utils/supportReplyNotify').then(({ setViewingSupportTicket }) => {
+      setViewingSupportTicket(isOpen && active?.id ? active.id : null)
+    })
+    return () => {
+      void import('../utils/supportReplyNotify').then(({ setViewingSupportTicket }) => {
+        setViewingSupportTicket(null)
+      })
+    }
+  }, [isOpen, active?.id])
+
   // ponytail: messages collection is API-only (encrypted); poll while chat is open.
   useEffect(() => {
     if (!isOpen || !active?.id) return
@@ -96,9 +142,39 @@ export default function SupportInbox({
       if (document.visibilityState === 'hidden') return
       void loadMessages(ticketId, { quiet: true })
     }
-    const id = window.setInterval(refresh, 2500)
-    return () => window.clearInterval(id)
+    const id = window.setInterval(refresh, 2000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    const onReply = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail || {}
+      if (detail.ticketId && detail.ticketId !== ticketId) return
+      refresh()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('smono_support_reply', onReply)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('smono_support_reply', onReply)
+    }
   }, [isOpen, active?.id])
+
+  // Refresh ticket list while inbox is open (status / new threads / admin replies)
+  useEffect(() => {
+    if (!isOpen || active) return
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return
+      void loadTickets()
+    }
+    const id = window.setInterval(refresh, 5000)
+    const onReply = () => refresh()
+    window.addEventListener('smono_support_reply', onReply)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('smono_support_reply', onReply)
+    }
+  }, [isOpen, active, userId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -217,16 +293,25 @@ export default function SupportInbox({
                   </div>
                 ) : (
                   <>
-                    {tickets.map((t) => (
+                    {tickets.map((t) => {
+                      const unread = !!(t.id && pendingTicketIds.includes(t.id))
+                      return (
                       <button
                         key={t.id}
                         type="button"
                         onClick={() => void openTicket(t)}
-                        className="w-full text-left rounded-2xl border border-[#0E2538]/08 bg-[#F4FBFF] hover:bg-[#E8F4FC] p-3.5 transition-colors"
+                        className={`w-full text-left rounded-2xl border p-3.5 transition-colors ${
+                          unread
+                            ? 'border-[#3F8DD2]/35 bg-[#E8F4FC] hover:bg-[#D6ECFA]'
+                            : 'border-[#0E2538]/08 bg-[#F4FBFF] hover:bg-[#E8F4FC]'
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <span className="font-semibold text-sm text-[#0E2538] line-clamp-1">
+                          <span className="font-semibold text-sm text-[#0E2538] line-clamp-1 flex items-center gap-2">
                             {t.subject}
+                            {unread ? (
+                              <span className="w-2 h-2 rounded-full bg-[#3F8DD2] flex-shrink-0" aria-label="New reply" />
+                            ) : null}
                           </span>
                           <span
                             className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusStyle(t.status)}`}
@@ -234,14 +319,17 @@ export default function SupportInbox({
                             {statusLabel(t.status)}
                           </span>
                         </div>
-                        <p className="text-xs text-[#0E2538]/50">Tap to open conversation</p>
+                        <p className="text-xs text-[#0E2538]/50">
+                          {unread ? 'New reply from support' : 'Tap to open conversation'}
+                        </p>
                         {t.created ? (
                           <p className="text-[10px] text-[#0E2538]/35 mt-1.5">
                             {safeRelative(t.created)}
                           </p>
                         ) : null}
                       </button>
-                    ))}
+                      )
+                    })}
                     <button
                       type="button"
                       onClick={onNewTicket}

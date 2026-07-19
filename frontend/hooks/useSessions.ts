@@ -9,7 +9,7 @@ import { expectedCurrentDayNumber, indexProgressByDayId } from '../utils/program
 let _fetchInFlight = false
 
 export function useSessions() {
-  const { user } = useApp()
+  const { user, language, userProfile } = useApp()
   const [currentSession, setCurrentSession] = useState<UserSession | null>(null)
   const [programDays, setProgramDays] = useState<ProgramDay[]>([])
   const [loading, setLoading] = useState(false)
@@ -22,7 +22,10 @@ export function useSessions() {
     setLoading(true)
     setError(null)
     try {
-      const result = await sessionService.getOrCreateCurrentSession(user.id)
+      const result = await sessionService.getOrCreateCurrentSession(
+        user.id,
+        language || userProfile?.language || 'en'
+      )
       if (!result.success || !result.data) {
         setError(result.error || 'Failed to load program session')
         setCurrentSession(null)
@@ -68,9 +71,7 @@ export function useSessions() {
       setLoading(false)
       _fetchInFlight = false
     }
-  }, [user?.id])
-
-  // Reset local session state when user changes
+  }, [user?.id, language, userProfile?.language])
   useEffect(() => {
     if (userIdRef.current && userIdRef.current !== user?.id) {
       setCurrentSession(null)

@@ -16,7 +16,9 @@ export function Faq() {
                 </svg>
               </button>
               <div className="faq-answer" role="region">
-                <p>{item.answer}</p>
+                <div className="faq-answer-inner">
+                  <p>{item.answer}</p>
+                </div>
               </div>
             </div>
           ))}

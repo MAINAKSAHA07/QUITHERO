@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, User, Eye, EyeOff, Check } from 'lucide-react'
 import SmonoLogo from '../../components/SmonoLogo'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
 import GlassInput from '../../components/GlassInput'
+import AuthModeTabs from '../../components/AuthModeTabs'
 import LanguageModal from '../../components/LanguageModal'
 import { useApp } from '../../context/AppContext'
+import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { authHelpers, mapAuthRecordToAppUser } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
 import { profileService } from '../../services/profile.service'
 import { postAuthPath } from '../../utils/kyc'
+import { hasChosenLanguage, markLanguageChosen } from '../../utils/languageChoice'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -28,20 +31,36 @@ export default function SignUp() {
   const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [didSubmit, setDidSubmit] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, user, setIsAuthenticated, setUser } = useApp()
+  const { fade, springUi } = useMotionPrefs()
+  const returnFrom = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from
+  const goAfterAuth = async (userId: string) => {
+    if (
+      returnFrom?.pathname &&
+      returnFrom.pathname !== '/login' &&
+      returnFrom.pathname !== '/signup' &&
+      returnFrom.pathname !== '/onboarding'
+    ) {
+      navigate(`${returnFrom.pathname}${returnFrom.search || ''}`, { replace: true })
+      return
+    }
+    const profileResult = await profileService.getByUserId(userId)
+    navigate(postAuthPath(profileResult.data), { replace: true })
+  }
 
   // If user lands here already authenticated (e.g. after OAuth redirect), route them
   useEffect(() => {
     if (!isAuthenticated || !user?.id || didSubmit) return
-    profileService.getByUserId(user.id).then(result => {
-      navigate(postAuthPath(result.data), { replace: true })
-    })
+    goAfterAuth(user.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount / auth only
   }, [isAuthenticated, user?.id, navigate, didSubmit])
 
   const getPasswordStrength = (password: string) => {
     if (password.length === 0) return { strength: 0, label: '', color: '' }
-    if (password.length < 6) return { strength: 1, label: 'Weak', color: 'bg-error' }
-    if (password.length < 10) return { strength: 2, label: 'Medium', color: 'bg-brand-light' }
+    // PocketBase users.password min is 8
+    if (password.length < 8) return { strength: 1, label: 'Too short', color: 'bg-error' }
+    if (password.length < 12) return { strength: 2, label: 'Medium', color: 'bg-brand-light' }
     return { strength: 3, label: 'Strong', color: 'bg-success' }
   }
 
@@ -54,6 +73,12 @@ export default function SignUp() {
 
     if (!formData.name || !formData.email || !formData.password) {
       setError('Please fill in all fields')
+      setLoading(false)
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters')
       setLoading(false)
       return
     }
@@ -88,8 +113,12 @@ export default function SignUp() {
           name: formData.name,
         }, result.data.record.id)
 
-        // Show language selection before KYC
-        setShowLanguageModal(true)
+        // Language once at start — skip if already chosen (e.g. /language before signup)
+        if (hasChosenLanguage()) {
+          await goAfterAuth(result.data.record.id)
+        } else {
+          setShowLanguageModal(true)
+        }
       } else {
         setError(result.error || 'Registration failed. Please try again.')
       }
@@ -114,8 +143,11 @@ export default function SignUp() {
         if (mapped) setUser(mapped)
         await analyticsService.trackEvent('user_registered', { method: 'google' }, record.id)
 
-        const profileResult = await profileService.getByUserId(record.id)
-        navigate(postAuthPath(profileResult.data), { replace: true })
+        if (hasChosenLanguage()) {
+          await goAfterAuth(record.id)
+        } else {
+          setShowLanguageModal(true)
+        }
       } else {
         setError(result.error || 'Google sign up failed')
       }
@@ -127,19 +159,17 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-background pb-20 safe-area-bottom">
-      <div className="app-container px-3 sm:px-4 pt-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+    <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-[#F4FBFF] pb-20 safe-area-bottom safe-area-top">
+      <div className="app-container px-3 sm:px-4 pt-8">
+        <motion.div {...fade} transition={springUi}>
           <div className="text-center mb-6 flex flex-col items-center">
             <SmonoLogo size="lg" showMascot className="mb-2" />
-            <p className="text-text-primary/70 mt-2">Create your account</p>
+            <p className="text-[#0E2538]/55 mt-1 text-[15px]">Create your account</p>
           </div>
 
-          <GlassCard className="p-6 mb-6">
+          <AuthModeTabs mode="signup" />
+
+          <GlassCard className="p-6 mb-6" borderGlow={false}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <GlassInput
                 type="text"
@@ -148,6 +178,8 @@ export default function SignUp() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 icon={<User className="w-5 h-5" />}
+                autoComplete="name"
+                autoCapitalize="words"
               />
 
               <GlassInput
@@ -157,6 +189,9 @@ export default function SignUp() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 icon={<Mail className="w-5 h-5" />}
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
               />
 
               <GlassInput
@@ -166,11 +201,13 @@ export default function SignUp() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 icon={<Lock className="w-5 h-5" />}
+                autoComplete="new-password"
                 rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="hover:text-text-primary transition-colors"
+                    className="active:scale-95 transition-transform duration-100"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -184,17 +221,17 @@ export default function SignUp() {
               {formData.password && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-text-primary/70">Password strength</span>
+                    <span className="text-xs text-[#0E2538]/55">Password strength</span>
                     <span className={`text-xs font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
                       {passwordStrength.label}
                     </span>
                   </div>
-                  <div className="h-1.5 glass rounded-full overflow-hidden">
+                  <div className="h-1.5 rounded-full overflow-hidden bg-[#0E2538]/08">
                     <motion.div
                       className={`h-full ${passwordStrength.color}`}
                       initial={{ width: 0 }}
                       animate={{ width: `${(passwordStrength.strength / 3) * 100}%` }}
-                      transition={{ duration: 0.3 }}
+                      transition={springUi}
                     />
                   </div>
                 </div>
@@ -207,11 +244,13 @@ export default function SignUp() {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 icon={<Lock className="w-5 h-5" />}
+                autoComplete="new-password"
                 rightIcon={
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="hover:text-text-primary transition-colors"
+                    className="active:scale-95 transition-transform duration-100"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -226,26 +265,39 @@ export default function SignUp() {
                 <button
                   type="button"
                   onClick={() => setAcceptedTerms(!acceptedTerms)}
-                  className={`mt-1 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all ${
-                    acceptedTerms 
-                      ? 'bg-brand-primary border-2 border-brand-primary shadow-lg' 
-                      : 'bg-white border-2 border-gray-300 hover:border-brand-primary/50'
+                  className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-100 active:scale-95 ${
+                    acceptedTerms
+                      ? 'bg-[#3F8DD2] border-2 border-[#3F8DD2]'
+                      : 'bg-white border-2 border-[#0E2538]/20'
                   }`}
+                  aria-pressed={acceptedTerms}
                 >
-                  {acceptedTerms && <Check className="w-4 h-4 text-white font-bold" strokeWidth={3} />}
+                  {acceptedTerms && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
                 </button>
-                <label 
-                  className="text-sm text-text-primary/70 cursor-pointer"
+                <label
+                  className="text-sm text-[#0E2538]/60 cursor-pointer"
                   onClick={() => setAcceptedTerms(!acceptedTerms)}
                 >
                   I agree to the{' '}
-                  <Link to="/terms" className="text-brand-primary hover:underline">
+                  <a
+                    href="https://www.smono.app/terms/"
+                    className="text-[#3F8DD2] font-medium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     Terms & Conditions
-                  </Link>{' '}
+                  </a>{' '}
                   and{' '}
-                  <Link to="/privacy" className="text-brand-primary hover:underline">
+                  <a
+                    href="https://www.smono.app/privacy/"
+                    className="text-[#3F8DD2] font-medium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     Privacy Policy
-                  </Link>
+                  </a>
                 </label>
               </div>
 
@@ -254,28 +306,28 @@ export default function SignUp() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-sm text-error"
+                  role="alert"
                 >
                   {error}
                 </motion.p>
               )}
 
-              <GlassButton 
-                type="submit" 
-                fullWidth 
+              <GlassButton
+                type="submit"
+                fullWidth
                 className="py-4 text-lg mt-6"
                 disabled={loading}
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Creating account…' : 'Create account'}
               </GlassButton>
             </form>
           </GlassCard>
 
-          {/* Social sign up */}
           <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-text-primary/20" />
-              <span className="text-xs text-text-primary/50">or</span>
-              <div className="flex-1 h-px bg-text-primary/20" />
+            <div className="flex items-center gap-3 my-1">
+              <div className="flex-1 h-px bg-[#0E2538]/10" />
+              <span className="text-xs text-[#0E2538]/40">or</span>
+              <div className="flex-1 h-px bg-[#0E2538]/10" />
             </div>
             <GlassButton
               variant="secondary"
@@ -293,18 +345,6 @@ export default function SignUp() {
               Continue with Google
             </GlassButton>
           </div>
-
-          <div className="text-center">
-            <p className="text-text-primary/70">
-              Already have an account?{' '}
-              <Link
-                to="/login"
-                className="text-brand-primary font-medium hover:underline"
-              >
-                Login
-              </Link>
-            </p>
-          </div>
         </motion.div>
       </div>
 
@@ -312,13 +352,16 @@ export default function SignUp() {
         isOpen={showLanguageModal}
         onClose={() => {
           setShowLanguageModal(false)
-          navigate('/kyc')
+          if (user?.id) void goAfterAuth(user.id)
+          else navigate('/kyc')
         }}
-        onLanguageSelected={() => {
+        onLanguageSelected={(lang) => {
+          markLanguageChosen(lang)
           setShowLanguageModal(false)
-          navigate('/kyc')
+          if (user?.id) void goAfterAuth(user.id)
+          else navigate('/kyc')
         }}
-        showSkip={true}
+        showSkip={false}
       />
     </div>
   )

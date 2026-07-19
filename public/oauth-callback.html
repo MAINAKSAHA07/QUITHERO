@@ -21,7 +21,7 @@
   </head>
   <body>
     <div class="box">
-      <p id="status">Completing Google sign-in…</p>
+      <p id="status">Completing sign-in…</p>
       <p id="error" class="err" hidden></p>
     </div>
     <script>
@@ -38,7 +38,7 @@
 
         const oauthError = params.get('error')
         if (oauthError) {
-          fail('Google sign-in was cancelled or denied.')
+          fail('Sign-in was cancelled or denied.')
           return
         }
 
@@ -49,6 +49,7 @@
           sessionStorage.getItem('pb_oauth_redirect') ||
           location.origin + '/api/pocketbase/api/oauth2-redirect'
         const expectedState = sessionStorage.getItem('pb_oauth_state')
+        const provider = sessionStorage.getItem('pb_oauth_provider') || 'google'
 
         if (!code || !verifier) {
           fail('Missing OAuth data. Please try signing in again.')
@@ -66,7 +67,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({
-              provider: 'google',
+              provider,
               code,
               codeVerifier: verifier,
               redirectURL,
@@ -86,6 +87,7 @@
           sessionStorage.removeItem('pb_oauth_verifier')
           sessionStorage.removeItem('pb_oauth_redirect')
           sessionStorage.removeItem('pb_oauth_state')
+          sessionStorage.removeItem('pb_oauth_provider')
 
           location.replace('/home')
         } catch (e) {

@@ -9,6 +9,7 @@ import { profileService } from '../services/profile.service'
 import { analyticsService } from '../services/analytics.service'
 import { Language } from '../types/enums'
 import { APP_LANGUAGES } from '../constants/languages'
+import { markLanguageChosen } from '../utils/languageChoice'
 
 interface LanguageModalProps {
   isOpen: boolean
@@ -37,8 +38,8 @@ export default function LanguageModal({
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Update language in context and localStorage
       setLanguage(selectedLang)
+      markLanguageChosen(selectedLang)
 
       // Clear translation cache when language changes
       const { translationService } = await import('../services/translation.service')
@@ -155,8 +156,8 @@ export default function LanguageModal({
                         </div>
                         {selectedLang === lang.code && (
                           <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             className="w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center"
                           >
                             <Check className="w-4 h-4 text-white" />

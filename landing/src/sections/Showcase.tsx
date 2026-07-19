@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Showcase() {
   return (
     <>
@@ -160,7 +161,7 @@ export function Showcase() {
             <li>Anti-relapse library for parties, alcohol, and stress</li>
             <li>Smoke-free identity building — not "trying not to smoke"</li>
           </ul>
-          <div className="section-cta"><button className="btn-primary js-start-app">Become Smoke-Free <span>→</span></button></div>
+          <div className="section-cta"><a href={appStartHref()} className="btn-primary js-start-app">Become Smoke-Free <span>→</span></a></div>
         </div>
       </div>
     </div>

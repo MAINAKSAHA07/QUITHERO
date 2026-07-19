@@ -2,8 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useState, type CSSProperties }
 import { motion, AnimatePresence } from 'framer-motion'
 import GlassButton from './GlassButton'
 import {
+  isWelcomeBackTour,
   markAppTourSeen,
   tourTargetSelector,
+  tourWelcomeCopy,
   type TourTargetId,
 } from '../utils/appTour'
 
@@ -16,7 +18,8 @@ export type TourStep = {
 
 export const APP_TOUR_STEPS: TourStep[] = [
   {
-    title: 'Welcome back to Smono',
+    // Filled at open from tourWelcomeCopy (first visit vs 7-day welcome back)
+    title: 'Welcome to Smono',
     body: 'A short tour of the main buttons — we’ll highlight each one so you know where things live.',
   },
   {
@@ -74,9 +77,14 @@ function readTargetRect(target?: TourTargetId): Rect | null {
 
 export default function AppTourModal({ isOpen, onClose }: Props) {
   const [step, setStep] = useState(0)
+  const [welcomeBack, setWelcomeBack] = useState(false)
   const [hole, setHole] = useState<Rect | null>(null)
   const total = APP_TOUR_STEPS.length
-  const current = APP_TOUR_STEPS[step]
+  const base = APP_TOUR_STEPS[step]
+  const current =
+    step === 0
+      ? { ...base, ...tourWelcomeCopy(welcomeBack) }
+      : base
   const isLast = step === total - 1
 
   const measure = useCallback(() => {
@@ -84,7 +92,10 @@ export default function AppTourModal({ isOpen, onClose }: Props) {
   }, [current?.target])
 
   useEffect(() => {
-    if (isOpen) setStep(0)
+    if (!isOpen) return
+    setStep(0)
+    // Snapshot at open — first visit = Welcome; already seen (7-day / replay) = Welcome back
+    setWelcomeBack(isWelcomeBackTour())
   }, [isOpen])
 
   useLayoutEffect(() => {

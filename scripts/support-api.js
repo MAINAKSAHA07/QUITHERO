@@ -8,6 +8,7 @@ import {
   encryptSupportText,
   isSupportCryptoReady,
 } from './support-crypto.js'
+import { isPushReady, notifyUserPush } from './push.js'
 
 function cleanAuth(header) {
   return String(header || '')
@@ -55,13 +56,67 @@ async function loadTicket(ticketId, serviceToken) {
 function canAccessTicket(caller, ticket) {
   if (!caller || !ticket) return false
   if (caller.kind === 'admin') return true
-  return ticket.user === caller.id
+  const owner = typeof ticket.user === 'string' ? ticket.user : ticket.user?.id
+  return owner === caller.id
 }
 
 function decryptMessage(record) {
-  return {
-    ...record,
-    body: decryptSupportText(record.body),
+  try {
+    return {
+      ...record,
+      body: decryptSupportText(record.body),
+    }
+  } catch (err) {
+    console.warn('[support] decrypt failed for', record?.id, err?.message || err)
+    return {
+      ...record,
+      body: '[Message unavailable — please refresh or contact support]',
+    }
+  }
+}
+
+/** Best-effort: push when support replies. Always leave an unopened inbox signal for the app. */
+async function notifyUserOfSupportReply(ticket) {
+  const userId = typeof ticket?.user === 'string' ? ticket.user : ticket?.user?.id
+  if (!userId) return
+  const subject = String(ticket.subject || 'your ticket').slice(0, 80)
+  const title = 'Support replied'
+  const body = `New reply on “${subject}”`
+  const url = `/profile?support=${encodeURIComponent(ticket.id)}`
+
+  if (isPushReady()) {
+    try {
+      await notifyUserPush(userId, {
+        title,
+        body,
+        url,
+        tag: `support-${ticket.id}`,
+      })
+    } catch (err) {
+      console.warn('[support] push notify failed:', err?.message || err)
+    }
+  }
+
+  // Always write unopened event — app/SW surfaces it; opened when user views the ticket.
+  // ponytail: do NOT set opened_at when push "succeeds" — that killed the in-app fallback
+  try {
+    const token = await adminAuth()
+    if (!token) return
+    await fetch(`${getPbUrl()}/api/collections/notification_events/records`, {
+      method: 'POST',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: userId,
+        trigger_type: 'support_reply',
+        message_title: title,
+        message_body: body,
+        archetype_at_send: `support:${ticket.id}`,
+        sent_at: new Date().toISOString(),
+        day_number: 0,
+      }),
+    }).catch(() => null)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -97,10 +152,17 @@ export async function handleSupportApi(req, res, pathname, searchParams, readBod
     }
 
     const filter = encodeURIComponent(`ticket = "${ticketId}"`)
-    const list = await pbFetch(
+    // Prefer created; fall back to id if autodate missing on older installs
+    let list = await pbFetch(
       `/api/collections/support_ticket_messages/records?filter=${filter}&sort=created&perPage=200`,
       { token: serviceToken }
     )
+    if (!list.ok) {
+      list = await pbFetch(
+        `/api/collections/support_ticket_messages/records?filter=${filter}&sort=id&perPage=200`,
+        { token: serviceToken }
+      )
+    }
     if (!list.ok) {
       return json(res, list.status, { error: list.data?.message || 'Failed to load messages' })
     }
@@ -153,6 +215,10 @@ export async function handleSupportApi(req, res, pathname, searchParams, readBod
         token: serviceToken,
         body: { status: 'in_progress' },
       })
+    }
+
+    if (caller.kind === 'admin') {
+      void notifyUserOfSupportReply(ticket)
     }
 
     return json(res, 200, { ok: true, data: decryptMessage(created.data) })

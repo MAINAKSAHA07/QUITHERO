@@ -56,5 +56,9 @@ frontend/.netlify/
 # Vite
 *.local
 
+# Capacitor Android (generate locally: npx cap add android)
+android/
+# iOS project is tracked; heavy/generated bits ignored via ios/.gitignore
+
 # Document sources
 *.docx

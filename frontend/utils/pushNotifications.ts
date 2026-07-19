@@ -1,17 +1,16 @@
 import { pb } from '../lib/pocketbase'
 import { NotificationService } from './notifications'
+import { apiUrl, isNativePlatform } from './apiOrigin'
 
 function parseJson(res: Response) {
   return res.json().catch(() => ({}))
 }
 
 export function isPushSupported() {
-  return (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
-  )
+  if (typeof window === 'undefined') return false
+  // Native uses APNs/FCM — do not touch Web Push / SW
+  if (isNativePlatform()) return false
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -25,6 +24,9 @@ function urlBase64ToUint8Array(base64String: string) {
 
 /** Wait for SW registration — push cannot work without it when the app is closed. */
 export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration> {
+  if (isNativePlatform()) {
+    throw new Error('Web Push is not used on native.')
+  }
   if (!('serviceWorker' in navigator)) {
     throw new Error('Service worker not supported on this device.')
   }
@@ -64,7 +66,7 @@ async function postSubscription(subscription: PushSubscriptionJSON) {
   }
   const userId = pb.authStore.model!.id
 
-  const res = await fetch('/api/push/subscribe', {
+  const res = await fetch(apiUrl('/api/push/subscribe'), {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ subscription, userId }),
@@ -76,7 +78,47 @@ async function postSubscription(subscription: PushSubscriptionJSON) {
   return { ok: true as const }
 }
 
+/**
+ * Register FCM/APNs token with api-server.
+ * Token comes from Capacitor PushNotifications plugin when present; until then no-op skip.
+ */
+export async function registerNativeDeviceToken(): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
+  const ok = await ensureFreshAuth()
+  if (!ok) {
+    return { ok: false, error: 'Sign in again to enable notifications.' }
+  }
+
+  const token =
+    typeof window !== 'undefined'
+      ? (window as unknown as { __smonoPushToken?: string }).__smonoPushToken
+      : undefined
+  if (!token) {
+    return { ok: false, skipped: true, error: 'Native push token not ready yet.' }
+  }
+
+  const platform =
+    /iphone|ipad|ipod/i.test(navigator.userAgent) || (window as unknown as { Capacitor?: { getPlatform?: () => string } }).Capacitor?.getPlatform?.() === 'ios'
+      ? 'ios'
+      : 'android'
+
+  const res = await fetch(apiUrl('/api/push/register-device'), {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ token, platform }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) {
+    return { ok: false, error: (data as { error?: string }).error || 'Failed to register device.' }
+  }
+  return { ok: true }
+}
+
 export async function enablePushNotifications(): Promise<{ ok: boolean; error?: string }> {
+  // Native uses FCM/APNs device tokens — Web Push is browser-only
+  if (isNativePlatform()) {
+    return registerNativeDeviceToken()
+  }
+
   if (!isPushSupported()) {
     return { ok: false, error: 'Push not supported on this device.' }
   }
@@ -93,7 +135,7 @@ export async function enablePushNotifications(): Promise<{ ok: boolean; error?: 
     return { ok: false, error: 'Sign in to enable background notifications.' }
   }
 
-  const keyRes = await fetch('/api/push/vapid-public-key')
+  const keyRes = await fetch(apiUrl('/api/push/vapid-public-key'))
   const keyData = await parseJson(keyRes)
   if (!keyRes.ok || !(keyData as { publicKey?: string }).publicKey) {
     return { ok: false, error: 'Push not configured on server yet.' }
@@ -115,6 +157,11 @@ export async function enablePushNotifications(): Promise<{ ok: boolean; error?: 
 export async function ensureServerPushRegistered(
   _userId?: string
 ): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+  if (isNativePlatform()) {
+    if (!pb.authStore.isValid) return { ok: false, skipped: true }
+    return registerNativeDeviceToken()
+  }
+
   if (!isPushSupported() || Notification.permission !== 'granted') {
     return { ok: false, skipped: true }
   }

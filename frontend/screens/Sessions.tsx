@@ -17,7 +17,10 @@ import {
 } from '../utils/programProgress'
 import { formatDayTitle } from '../utils/formatDayTitle'
 import KycRequiredModal from '../components/KycRequiredModal'
+import UpgradePrompt from '../components/UpgradePrompt'
 import { useKycGate } from '../hooks/useKycGate'
+import TranslatedText from '../components/TranslatedText'
+import { needsDay2Upgrade } from '../utils/upgradePrompt'
 
 interface DayWithProgress {
   day: ProgramDay
@@ -118,18 +121,25 @@ export default function Sessions() {
   }
 
   const handleDayClick = (d: DayWithProgress, dayIndex: number) => {
-    if (!isPremium && dayIndex > 0) { navigate('/paywall'); return }
+    // Free users: any Day 2+ tap → paywall (must stay enabled — disabled kills onClick)
+    if (!isPremium && dayIndex > 0) {
+      navigate('/paywall')
+      return
+    }
     if (d.isLocked) return
     if (!d.day.id) return
     gateSessionAccess(() => navigate(`/sessions/${d.day.id}`))
   }
 
+  const showUpgradeOverlay = needsDay2Upgrade(isPremium, currentSession?.current_day)
+
   const shell = 'h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden relative bg-[#F4FBFF]'
   const wash = (
     <div
-      className="pointer-events-none absolute inset-x-0 top-0 h-48"
+      className="pointer-events-none absolute inset-0"
       style={{
-        background: 'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(139, 205, 232, 0.35), transparent 70%)',
+        background:
+          'radial-gradient(ellipse 80% 50% at 20% 0%, rgba(139, 205, 232, 0.4), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 90%, rgba(246, 184, 132, 0.32), transparent 50%), radial-gradient(ellipse 40% 30% at 70% 30%, rgba(110, 164, 143, 0.14), transparent 50%)',
       }}
       aria-hidden
     />
@@ -160,7 +170,9 @@ export default function Sessions() {
           {header}
           <div className="flex flex-col items-center justify-center pt-24 gap-4">
             <Mascot size="lg" pulse className="w-24 h-24 sm:w-32 sm:h-32" />
-            <p className="text-[#0E2538]/55 text-sm">Loading sessions...</p>
+            <p className="text-[#0E2538]/55 text-sm">
+              <TranslatedText text="Loading sessions..." />
+            </p>
           </div>
         </div>
         <BottomNavigation />
@@ -171,18 +183,24 @@ export default function Sessions() {
   return (
     <div className={shell}>
       {wash}
-      <div className="flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin pb-28 relative z-10">
+      <div
+        className={`flex-1 overflow-y-auto px-4 safe-area-top scrollbar-thin relative z-10 ${
+          showUpgradeOverlay ? 'pb-40' : 'pb-28'
+        }`}
+      >
         {header}
 
-        <p className="text-center text-sm text-[#0E2538]/50 mb-4 -mt-1">30-Day Program</p>
+        <p className="text-center text-sm text-[#0E2538]/50 mb-4 -mt-1">
+          <TranslatedText text="30-Day Program" />
+        </p>
 
         <div className="space-y-2">
           {daysWithProgress.map((d, i) => {
             const isCompleted = d.status === SessionStatus.COMPLETED
             const isInProgress = d.status === SessionStatus.IN_PROGRESS
             const isFreemiumLocked = !isPremium && i > 0
-            const effectiveLocked = d.isLocked || isFreemiumLocked
-            const showAsLocked = effectiveLocked && !isInProgress && !isCompleted
+            const sequenceLocked = d.isLocked && !isFreemiumLocked && !isInProgress && !isCompleted
+            const showAsLocked = (sequenceLocked || isFreemiumLocked) && !isInProgress && !isCompleted
             const subtitle = sessionSubtitle(d, isFreemiumLocked, showAsLocked)
 
             return (
@@ -193,13 +211,15 @@ export default function Sessions() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.45) }}
                 onClick={() => handleDayClick(d, i)}
-                disabled={showAsLocked}
-                className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition-colors ${
+                disabled={sequenceLocked}
+                className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition-[transform,background-color,border-color,opacity] duration-100 active:scale-[0.98] ${
                   isInProgress && !isFreemiumLocked
-                    ? 'border-[#3F8DD2]/45 bg-[#3F8DD2]/8 hover:bg-[#3F8DD2]/12'
-                    : showAsLocked
-                    ? 'border-white/40 bg-white/50 opacity-60 cursor-not-allowed'
-                    : 'border-[#3F8DD2]/15 bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] hover:bg-white'
+                    ? 'border-[#3F8DD2]/45 bg-[#3F8DD2]/8'
+                    : isFreemiumLocked
+                    ? 'border-white/50 bg-white/55 backdrop-blur-[12px] opacity-80'
+                    : sequenceLocked
+                    ? 'border-white/40 bg-white/50 opacity-55 cursor-not-allowed'
+                    : 'border-[#3F8DD2]/15 bg-white/80 backdrop-blur-[8px] shadow-[0_4px_16px_rgba(63,141,210,0.06)]'
                 }`}
               >
                 <div
@@ -220,24 +240,26 @@ export default function Sessions() {
 
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-[#0E2538]/55' : 'text-[#0E2538]'}`}>
-                    {formatDayTitle(d.day.title)}
+                    <TranslatedText text={formatDayTitle(d.day.title)} />
                   </p>
-                  <p className="text-xs text-[#0E2538]/45 mt-0.5">{subtitle}</p>
+                  <p className="text-xs text-[#0E2538]/45 mt-0.5">
+                    <TranslatedText text={subtitle} />
+                  </p>
                 </div>
 
                 {isCompleted && !isFreemiumLocked && (
                   <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600">
-                    Done
+                    <TranslatedText text="Done" />
                   </span>
                 )}
                 {isInProgress && !isFreemiumLocked && (
                   <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3F8DD2]/15 text-[#3F8DD2]">
-                    Now
+                    <TranslatedText text="Now" />
                   </span>
                 )}
                 {isFreemiumLocked && (
                   <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600">
-                    Pro
+                    <TranslatedText text="Pro" />
                   </span>
                 )}
               </motion.button>
@@ -245,6 +267,15 @@ export default function Sessions() {
           })}
         </div>
       </div>
+
+      {/* Glass unlock bar over the list — content scrolls underneath */}
+      {showUpgradeOverlay && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-40 px-4">
+          <div className="pointer-events-auto upgrade-glass-overlay max-w-md mx-auto">
+            <UpgradePrompt variant="overlay" />
+          </div>
+        </div>
+      )}
 
       <BottomNavigation />
       <KycRequiredModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} />

@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "J9L2PD2Z4G.app.smono.quit",
+        "paths": ["/claim-payment*", "/subscription-confirmed*", "/oauth-callback*"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["J9L2PD2Z4G.app.smono.quit"]
+  }
+}

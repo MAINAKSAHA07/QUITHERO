@@ -1,0 +1,7 @@
+# App subdomain — marketing content lives on www.smono.app
+User-agent: *
+Disallow: /
+
+# Prefer the marketing site for discovery
+# Sitemap: https://www.smono.app/sitemap.xml
+# llms.txt: https://www.smono.app/llms.txt

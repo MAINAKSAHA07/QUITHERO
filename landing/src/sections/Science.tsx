@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Science() {
   return (
     <>
@@ -165,7 +166,7 @@ export function Science() {
           <div className="science-disclaimer">
             <strong>Note:</strong> Smono is a behavioural change and psychological support program. If you have a medical condition, use medication, are pregnant, or need clinical support, speak to a qualified healthcare professional.
           </div>
-          <div className="section-cta"><button className="btn-primary js-start-app">See My Personal Quit Path <span>→</span></button></div>
+          <div className="section-cta"><a href={appStartHref()} className="btn-primary js-start-app">See My Personal Quit Path <span>→</span></a></div>
         </div>
 
       </div>

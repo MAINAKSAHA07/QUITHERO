@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Home, ArrowRight } from 'lucide-react'
 import GlassButton from './GlassButton'
@@ -16,6 +16,7 @@ interface CompletionModalProps {
   stepsCompleted: number
   hasNextDay: boolean
   onNextDay?: () => void
+  nextCtaLabel?: string
 }
 
 const confetti = Array.from({ length: 30 }, (_, i) => ({
@@ -36,8 +37,10 @@ export default function CompletionModal({
   stepsCompleted,
   hasNextDay,
   onNextDay,
+  nextCtaLabel = 'Next Day',
 }: CompletionModalProps) {
   const navigate = useNavigate()
+  const reduce = useReducedMotion()
 
   if (!isOpen) return null
 
@@ -64,21 +67,21 @@ export default function CompletionModal({
         >
           <div className="p-8 text-center bg-white rounded-2xl shadow-2xl border border-gray-200 relative">
             {/* Confetti particles */}
-            {confetti.map(p => (
+            {!reduce && confetti.map(p => (
               <motion.div
                 key={p.id}
-                initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}
+                initial={{ x: 0, y: 0, opacity: 1, scale: 0.85 }}
                 animate={{ x: p.x, y: p.y, opacity: 0, scale: p.scale, rotate: p.rotate }}
-                transition={{ duration: 2, delay: p.delay, ease: 'easeOut' }}
+                transition={{ duration: 1.6, delay: p.delay, ease: [0.23, 1, 0.32, 1] }}
                 className="absolute left-1/2 top-1/3 w-2 h-2 rounded-sm pointer-events-none"
                 style={{ backgroundColor: p.color }}
               />
             ))}
 
             <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.1 }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9, rotate: -12 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 24, delay: reduce ? 0 : 0.08 }}
               className="mb-6 flex flex-col items-center gap-2"
             >
               <Mascot size="lg" />
@@ -150,7 +153,7 @@ export default function CompletionModal({
                   className="py-4 bg-gradient-to-r from-brand-primary to-brand-accent text-white font-semibold shadow-lg"
                 >
                   <span className="flex items-center justify-center gap-2">
-                    Next Day <ArrowRight className="w-5 h-5" />
+                    {nextCtaLabel} <ArrowRight className="w-5 h-5" />
                   </span>
                 </GlassButton>
               )}

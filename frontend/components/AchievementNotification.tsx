@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Trophy, X } from 'lucide-react'
 import GlassCard from './GlassCard'
 import { Achievement } from '../types/models'
@@ -9,6 +9,7 @@ interface AchievementNotificationProps {
 }
 
 export default function AchievementNotification({ achievement, onClose }: AchievementNotificationProps) {
+  const reduce = useReducedMotion()
   if (!achievement) return null
 
   const getTierColor = (tier: string) => {
@@ -29,17 +30,18 @@ export default function AchievementNotification({ achievement, onClose }: Achiev
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -100 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -100 }}
+        initial={reduce ? { opacity: 0 } : { opacity: 0, y: -24 }}
+        animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+        exit={reduce ? { opacity: 0 } : { opacity: 0, y: -16 }}
+        transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
         className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4"
       >
         <GlassCard className="p-6 bg-gradient-to-br from-brand-primary/20 to-brand-accent/20 border-2 border-brand-primary/50">
           <div className="flex items-start gap-4">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', delay: 0.2 }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 28, delay: reduce ? 0 : 0.08 }}
               className="w-16 h-16 rounded-full bg-brand-primary/20 flex items-center justify-center flex-shrink-0"
             >
               <Trophy className={`w-8 h-8 ${getTierColor(achievement.tier || 'bronze')}`} />
@@ -63,4 +65,3 @@ export default function AchievementNotification({ achievement, onClose }: Achiev
     </AnimatePresence>
   )
 }
-

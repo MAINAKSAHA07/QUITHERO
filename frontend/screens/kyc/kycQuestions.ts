@@ -34,16 +34,6 @@ export const kycQuestions: KYCQuestion[] = [
     whyWeAsk: 'Your name is only used to personalize your daily modules and reminders.'
   },
   {
-    id: 'phone',
-    group: 'A',
-    question: 'What is your phone number?',
-    support: 'Optional — so we can reach you if you need support.',
-    type: 'text',
-    required: false,
-    profileField: 'phone',
-    whyWeAsk: 'Used only for account recovery and support. You can skip this and add it later in Profile.'
-  },
-  {
     id: 'country',
     group: 'A',
     question: 'What country do you live in?',
@@ -52,6 +42,16 @@ export const kycQuestions: KYCQuestion[] = [
     required: true,
     profileField: 'country',
     whyWeAsk: 'Cost calculations are based on standard local cigarette prices.'
+  },
+  {
+    id: 'phone',
+    group: 'A',
+    question: 'What is your phone number?',
+    support: 'Include your country code — we need this for account support.',
+    type: 'text',
+    required: true,
+    profileField: 'phone',
+    whyWeAsk: 'Used for account recovery and support. Saved with your country dial code.'
   },
   {
     id: 'age',
@@ -87,7 +87,7 @@ export const kycQuestions: KYCQuestion[] = [
     options: KYC_LANGUAGE_OPTIONS,
     required: true,
     profileField: 'language',
-    whyWeAsk: 'You can change your language settings anytime in your profile.'
+    whyWeAsk: 'Skipped if you already chose a language earlier. You can change it anytime in Profile.'
   },
 
   // ================= GROUP B: Nicotine Profile =================

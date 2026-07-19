@@ -33,9 +33,12 @@
 
   body {
     @apply text-foreground font-sans antialiased;
-    background: radial-gradient(circle at 10% 20%, rgba(168, 212, 234, 0.18), transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(253, 180, 123, 0.18), transparent 40%),
-                linear-gradient(to bottom, #f4f8fa, #e5ecef);
+    /* Match landing: sky + peach atmosphere, not flat white-blue */
+    background:
+      radial-gradient(ellipse 80% 50% at 10% 0%, rgba(139, 205, 232, 0.45), transparent 55%),
+      radial-gradient(ellipse 70% 45% at 100% 100%, rgba(246, 184, 132, 0.35), transparent 50%),
+      radial-gradient(ellipse 50% 40% at 80% 20%, rgba(110, 164, 143, 0.12), transparent 45%),
+      linear-gradient(120deg, #F4FBFF, #ffffff 46%, #FFF1E6);
     min-height: 100vh;
     min-height: 100dvh;
     background-attachment: fixed;
@@ -56,19 +59,28 @@
   }
   
   .glass-button-primary {
-    @apply glass bg-gradient-to-r from-brand-primary to-brand-accent text-white font-semibold;
-    @apply hover:shadow-glow transition-all duration-200 active:scale-[0.98];
+    @apply glass text-white font-semibold;
+    background-image: linear-gradient(135deg, #3F8DD2 0%, #6EA48F 100%);
+    @apply hover:shadow-glow transition-[transform,box-shadow,opacity] duration-150 ease-out active:scale-[0.97];
   }
   
   .glass-button-secondary {
     @apply glass bg-white/20 text-text-primary font-medium;
-    @apply hover:border-white/40 hover:shadow-glass transition-all duration-200 active:scale-[0.98];
+    @apply hover:border-white/40 hover:shadow-glass transition-[transform,box-shadow,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   
   .glass-input {
     @apply glass bg-white/15 border-white/25 px-4 py-3;
     @apply focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/30 focus:bg-white/20;
     @apply placeholder:text-text-primary/50;
+    @apply transition-[border-color,background-color,box-shadow] duration-100 ease-out;
+    /* Kill iOS default blue glow — we own focus chrome */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .glass-input:focus {
+    outline: none;
   }
   
   .text-gradient {
@@ -76,10 +88,40 @@
   }
 }
 
+/* Capacitor WKWebView: backdrop-blur is expensive — solid-ish glass instead */
+html.native-app .glass,
+html.native-app .glass-strong,
+html.native-app .glass-subtle,
+html.native-app .glass-button-primary,
+html.native-app .glass-button-secondary,
+html.native-app .glass-input {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Session unlock bar: frosted on web, solid on native (blur is expensive in WKWebView) */
+html.native-app .upgrade-glass-overlay button {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: rgba(255, 248, 242, 0.96) !important;
+  background-image: none !important;
+}
+html.native-app .glass {
+  background-color: rgba(255, 255, 255, 0.88);
+}
+html.native-app .glass-strong {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+html.native-app .glass-subtle {
+  background-color: rgba(255, 255, 255, 0.78);
+}
+html.native-app {
+  scroll-behavior: auto;
+}
+
 /* Smooth scrolling + match body bg in iOS safe areas / overscroll */
 html {
   scroll-behavior: smooth;
-  background: #f4f8fa;
+  background: #F4FBFF;
   min-height: 100%;
   min-height: 100dvh;
 }
@@ -119,13 +161,29 @@ html {
   display: none;
 }
 
-/* Safe area for mobile */
+/* Safe area for mobile — use max() so non-notch devices still get breathing room */
 .safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 .safe-area-top {
-  padding-top: env(safe-area-inset-top);
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+/* Native: fill the WebView edge-to-edge (contentInset never) */
+html.native-app,
+html.native-app body {
+  height: 100%;
+  height: 100dvh;
+  background: #f4f8fa;
+  overscroll-behavior: none;
+}
+
+html.native-app #root {
+  min-height: 100%;
+  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
 }
 
 /* App shell — ensures proper centering on tablets/desktop while full-width on mobile */
@@ -162,13 +220,20 @@ html {
   min-width: 44px;
 }
 
-/* Accessibility: reduce motion for users who prefer it */
+/* Accessibility: gentler motion — Framer hooks handle component-level; CSS kills looping/large moves */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+  /* Short opacity/color feedback still OK; drop transform-heavy defaults */
+  .transition-transform,
+  [class*="active:scale"],
+  [class*="hover:-translate"] {
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 

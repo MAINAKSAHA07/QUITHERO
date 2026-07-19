@@ -1,4 +1,7 @@
+import { appStartHref } from '../lib/appUrl'
+
 export function Hero() {
+  const startHref = appStartHref()
   return (
     <>
 <section className="hero">
@@ -9,14 +12,14 @@ export function Hero() {
     <div className="container hero-content">
       <div className="hero-text">
         <span className="hero-pill">🌿 10-Day Quit · 20-Day Support</span>
-        <h1 className="hero-headline">Quit Smoking in 10 Days Without Feeling Like You&apos;re Giving Up Your Life</h1>
-        <p className="hero-sub">Remove the desire to smoke — not just the cigarette. A guided psychological program that fits real life, without guilt, patches, or willpower wars.</p>
+        <h1 className="hero-headline">A Guided 10-Day Path to Your Quit Day</h1>
+        <p className="hero-sub">Remove the desire to smoke — not just the cigarette. A guided 30-day path (10-day quit + 20-day support) that fits real life, without guilt, patches, or willpower wars.</p>
         <p className="hero-about" id="about-smono">
           <strong>What is Smono?</strong> Smono is a quit smoking app that uses cognitive behavioural therapy (CBT), mindfulness, and relapse prevention to help you stop smoking without willpower battles. The program is a {`10-day quit path with 20 days of smoke-free support`} (30 days total), available on web and mobile.
         </p>
         <div className="hero-ctas">
-          <button className="btn-primary js-start-app">Start My 10-Day Quit Program <span>→</span></button>
-          <button className="btn-ghost">▷ See How Smono Works</button>
+          <a href={startHref} className="btn-primary js-start-app">Start My 10-Day Quit Program <span>→</span></a>
+          <a href="#reset-story" className="btn-ghost">▷ See How Smono Works</a>
         </div>
         <p className="hero-micro">You can continue smoking during the early part of the program. Smono guides you step by step until your final cigarette.</p>
         <ul className="hero-bullets">
@@ -28,6 +31,7 @@ export function Hero() {
           <span className="trust-chip">10-Day Quit</span>
           <span className="trust-chip">20-Day Support</span>
           <span className="trust-chip">CBT-Based</span>
+          <span className="trust-chip">9 Languages</span>
           <span className="trust-chip">Trigger Mapping</span>
           <span className="trust-chip">Relapse Prevention</span>
         </div>
@@ -57,8 +61,6 @@ export function Hero() {
       </div>
     </div>
   </section>
-
-  {/* Section 1: The Real Problem */}
     </>
   )
 }

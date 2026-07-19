@@ -1,6 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
+import { CreditCard, LayoutDashboard,
   Users,
   FileText,
   MessageSquare,
@@ -11,6 +10,7 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
+  Tag,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -63,6 +63,8 @@ const navItems: NavItem[] = [
       { icon: BarChart3, label: 'Engagement', path: '/analytics/engagement' },
       { icon: BarChart3, label: 'Program Performance', path: '/analytics/programs' },
       { icon: BarChart3, label: 'Retention', path: '/analytics/retention' },
+      { icon: CreditCard, label: 'Payments', path: '/analytics/payments' },
+      { icon: Tag, label: 'Coupons', path: '/analytics/coupons' },
       { icon: BarChart3, label: 'Custom Reports', path: '/analytics/custom' },
     ],
   },

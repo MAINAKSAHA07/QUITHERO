@@ -12,6 +12,8 @@ const HAS_CREATED = new Set([
   'account_deletion_requests',
   'support_tickets',
   'support_ticket_messages',
+  'payment_events',
+  'coupons',
 ])
 export const recentSort = (collection: string) =>
   HAS_CREATED.has(collection) ? '-created' : '-id'
@@ -196,10 +198,14 @@ export const adminCollectionHelpers = {
    */
   async update(collectionName: string, id: string, data: any) {
     try {
+      assertAuthed()
       const record = await pb.collection(collectionName).update(id, data)
       return { success: true, data: record }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      if ((error as { status?: number })?.status === 401 || (error as { status?: number })?.status === 403) {
+        pb.authStore.clear()
+      }
+      return { success: false, error: pbErrorMessage(error) }
     }
   },
 

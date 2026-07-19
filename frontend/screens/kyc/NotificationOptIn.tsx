@@ -32,17 +32,17 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
   ]
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background relative border-x border-white/5 p-4 justify-center">
+    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-[#F4FBFF] relative p-4 justify-center safe-area-top safe-area-bottom">
       <div className="overflow-y-auto max-h-full py-4 scrollbar-thin">
-        <GlassCard className="p-6 sm:p-8 border-white/10 shadow-glow text-center bg-background-card/45 backdrop-blur-xl">
-          <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mx-auto mb-6">
-            <Bell className="w-8 h-8 text-brand-primary" />
+        <GlassCard className="p-6 sm:p-8 text-center" borderGlow={false}>
+          <div className="w-16 h-16 rounded-2xl bg-[#3F8DD2]/10 border border-[#3F8DD2]/20 flex items-center justify-center mx-auto mb-6">
+            <Bell className="w-8 h-8 text-[#3F8DD2]" />
           </div>
 
-          <h1 className="text-2xl font-bold text-text-primary mb-3">
+          <h1 className="text-2xl font-bold text-[#0E2538] mb-3 tracking-tight">
             Stay supported, every day
           </h1>
-          <p className="text-sm text-text-primary/70 mb-8 leading-relaxed">
+          <p className="text-sm text-[#0E2538]/55 mb-8 leading-relaxed">
             Enable reminders for daily modules, craving support prompts, progress nudges, and encouragement when you need it most.
           </p>
 
@@ -51,14 +51,14 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
               const Icon = b.icon
               return (
                 <div key={i} className="flex gap-4 items-start">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Icon className="w-4 h-4 text-brand-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-[#0E2538]/[0.04] border border-[#0E2538]/08 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon className="w-4 h-4 text-[#3F8DD2]" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-text-primary">
+                    <h3 className="text-sm font-semibold text-[#0E2538]">
                       {b.title}
                     </h3>
-                    <p className="text-xs text-text-primary/60 mt-0.5 leading-normal">
+                    <p className="text-xs text-[#0E2538]/50 mt-0.5 leading-normal">
                       {b.desc}
                     </p>
                   </div>
@@ -74,13 +74,14 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
                 onContinue(true)
               }}
               fullWidth
-              className="py-4 text-sm font-bold shadow-glow"
+              className="py-4 text-sm font-bold"
             >
               Enable Support Reminders
             </GlassButton>
             <button
+              type="button"
               onClick={() => onContinue(false)}
-              className="w-full text-center text-text-primary/50 hover:text-text-primary text-sm font-semibold py-2 transition-all"
+              className="w-full text-center text-[#0E2538]/45 text-sm font-semibold py-2.5 rounded-xl active:scale-[0.98] active:text-[#0E2538]/70 active:bg-[#0E2538]/[0.04] transition-[transform,color,background-color] duration-100"
             >
               Maybe Later
             </button>

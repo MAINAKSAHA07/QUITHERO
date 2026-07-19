@@ -9,6 +9,7 @@ import ArchetypeReveal from './ArchetypeReveal'
 import { BeliefAssessment } from '../../components/BeliefAssessment'
 import { PersonalizationLoader } from '../../components/PersonalizationLoader'
 import { useApp } from '../../context/AppContext'
+import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { profileService } from '../../services/profile.service'
 import { sessionService } from '../../services/session.service'
 import { analyticsService } from '../../services/analytics.service'
@@ -18,7 +19,8 @@ import { assignDetailedQuitArchetype, getArchetypeInfo } from '../../utils/arche
 import { isKycComplete } from '../../utils/kyc'
 import { localDateISO } from '../../utils/smokeFreeDays'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
-import { LANGUAGE_BY_KYC_LABEL } from '../../constants/languages'
+import { LANGUAGE_BY_KYC_LABEL, APP_LANGUAGES } from '../../constants/languages'
+import { hasChosenLanguage, markLanguageChosen } from '../../utils/languageChoice'
 
 export default function KYCFlow() {
   const [currentStep, setCurrentStep] = useState<
@@ -38,8 +40,8 @@ export default function KYCFlow() {
   const [assignedArchetype, setAssignedArchetype] = useState<QuitArchetype | null>(null)
   const [profileChecked, setProfileChecked] = useState(false)
   const navigate = useNavigate()
-  const { user, userProfile, profileLoading, updateUserProfile } = useApp()
-
+  const { user, userProfile, profileLoading, updateUserProfile, setLanguage, language } = useApp()
+  const { fade, springUi } = useMotionPrefs()
   // Already finished — never show KYC again
   useEffect(() => {
     let cancelled = false
@@ -187,9 +189,11 @@ export default function KYCFlow() {
     return index <= 16
   }
 
-  // Check showIf condition
+  // Check showIf + skip language if already chosen at signup/start
   const shouldShowQuestion = (index: number) => {
     const q = kycQuestions[index]
+    if (!q) return false
+    if (q.id === 'language' && hasChosenLanguage()) return false
     if (!q.showIf) return true
     const targetValue = answers[q.showIf.field]
     return q.showIf.values.includes(targetValue)
@@ -270,15 +274,31 @@ export default function KYCFlow() {
 
   // Opt-in complete
   const handleOptIn = (enabled: boolean) => {
-    setAnswers((prev) => ({ ...prev, enable_reminders: enabled }))
+    setAnswers((prev) => {
+      const next: Record<string, any> = { ...prev, enable_reminders: enabled }
+      // Carry forward language already chosen so KYC skip still saves it
+      if (hasChosenLanguage() && !next.language) {
+        const code = language || 'en'
+        const label = APP_LANGUAGES.find((l) => l.code === code)?.kycLabel
+        if (label) next.language = label
+      }
+      return next
+    })
     setCurrentStep('questions_pre')
-    setQuestionIndex(0)
+    // Skip any hidden questions at the start (e.g. language already chosen)
+    let start = 0
+    while (start < kycQuestions.length && !shouldShowQuestion(start)) start++
+    setQuestionIndex(start)
   }
 
   // Clean up localStorage upon completion to prevent stale data
   const handleFinalRedirect = async () => {
     if (user?.id) {
-      await sessionService.getOrCreateCurrentSession(user.id, 'en')
+      const lang =
+        language ||
+        (answers.language && LANGUAGE_BY_KYC_LABEL[answers.language]) ||
+        'en'
+      await sessionService.getOrCreateCurrentSession(user.id, lang)
       await analyticsService.trackOnboardingCompleted(user.id)
       if (answers.enable_reminders) {
         await setupRemindersForUser({
@@ -339,15 +359,26 @@ export default function KYCFlow() {
       <AnimatePresence mode="wait">
         <motion.div
           key={questionIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.25 }}
+          {...fade}
+          transition={springUi}
         >
           <KYCQuestionScreen
             question={activeQuestion}
             value={answers[activeQuestion.id]}
-            onChange={(val) => setAnswers((prev) => ({ ...prev, [activeQuestion.id]: val }))}
+            countryCode={answers.country}
+            onChange={(val) => {
+              setAnswers((prev) => ({ ...prev, [activeQuestion.id]: val }))
+              if (activeQuestion.id === 'language' && typeof val === 'string') {
+                const mapped = LANGUAGE_BY_KYC_LABEL[val]
+                if (mapped) {
+                  setLanguage(mapped)
+                  markLanguageChosen(mapped)
+                  void import('../../services/translation.service').then(({ translationService }) => {
+                    translationService.clearCache()
+                  })
+                }
+              }
+            }}
             onNext={handleNextQuestion}
             onBack={handleBackQuestion}
             step={questionIndex + 1}

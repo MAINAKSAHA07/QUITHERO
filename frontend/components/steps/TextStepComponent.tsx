@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Step } from '../../types/models'
 import { TextStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
@@ -5,10 +6,12 @@ import { useApp } from '../../context/AppContext'
 import { sanitizeStepText } from '../../utils/stepContentFormat'
 import { usesHandwritingFont } from '../../utils/handwritingLang'
 import { isEmbedVideoUrl, resolveMediaUrl } from '../../utils/mediaUrl'
+import { useLiveTranslation } from '../../hooks/useTranslation'
+import TranslatedText from '../TranslatedText'
 
 interface TextStepComponentProps {
   step: Step
-  onNext: () => void
+  onNext: () => void | Promise<boolean | void>
 }
 
 function formatRichText(text: string) {
@@ -75,6 +78,9 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
   const handwriting = usesHandwritingFont(language)
   const imageUrl = resolveMediaUrl(content.image_url)
   const videoUrl = resolveMediaUrl(content.video_url)
+  const title = useLiveTranslation(content.title || '')
+  const body = useLiveTranslation(sanitizeStepText(content.text || ''))
+  const [busy, setBusy] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -109,35 +115,42 @@ export default function TextStepComponent({ step, onNext }: TextStepComponentPro
           handwriting ? 'font-handwriting' : 'font-sans'
         }`}
       >
-        {content.title && (
+        {title ? (
           <h3
             className={`text-lg sm:text-xl font-bold text-text-primary leading-snug ${
               handwriting ? 'session-paper__prompt' : ''
             }`}
           >
-            {content.title}
+            {title}
           </h3>
-        )}
+        ) : null}
         <div
           className={`text-text-primary/90 leading-relaxed space-y-3 sm:space-y-4 ${
             handwriting ? 'text-[1.05rem] sm:text-[1.125rem]' : 'text-sm sm:text-[15px]'
           }`}
         >
-          {formatText(sanitizeStepText(content.text || ''))}
+          {formatText(body)}
         </div>
       </div>
       <div className="pt-3 sm:pt-4">
         <GlassButton
-          onClick={(e?: React.MouseEvent) => {
+          onClick={async (e?: React.MouseEvent) => {
             e?.preventDefault()
             e?.stopPropagation()
-            onNext()
+            if (busy) return
+            setBusy(true)
+            try {
+              await onNext()
+            } finally {
+              setBusy(false)
+            }
           }}
+          disabled={busy}
           fullWidth
           className="py-3.5 sm:py-4 touch-target"
           type="button"
         >
-          Continue
+          <TranslatedText text={busy ? 'Saving…' : 'Continue'} />
         </GlassButton>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import PocketBase from 'pocketbase'
+import PocketBase, { AsyncAuthStore } from 'pocketbase'
+import { Capacitor } from '@capacitor/core'
 import {
   buildOAuthStartUrl,
   getOAuthBaseUrl,
@@ -6,14 +7,46 @@ import {
   stashOAuthSession,
   type OAuthProvider,
 } from './oauth'
+import { getPocketBaseUrl } from '../utils/apiOrigin'
 
-// In production (Vercel), use the serverless proxy to avoid Mixed Content errors
-// In development, connect directly to PocketBase
-const PB_URL = import.meta.env.PROD
-  ? '/api/pocketbase'  // Use Vercel proxy in production
-  : import.meta.env.VITE_POCKETBASE_URL || 'http://localhost:8096'
+const AUTH_KEY = 'pocketbase_auth'
 
-export const pb = new PocketBase(PB_URL)
+const PB_URL = getPocketBaseUrl()
+
+/**
+ * Web: default LocalAuthStore (localStorage) — unchanged.
+ * Native: Capacitor Preferences (Keychain / EncryptedSharedPreferences).
+ */
+function createAuthStore() {
+  if (!Capacitor.isNativePlatform()) return undefined
+
+  return new AsyncAuthStore({
+    save: async (serialized) => {
+      const { Preferences } = await import('@capacitor/preferences')
+      await Preferences.set({ key: AUTH_KEY, value: serialized })
+    },
+    clear: async () => {
+      const { Preferences } = await import('@capacitor/preferences')
+      await Preferences.remove({ key: AUTH_KEY })
+    },
+    initial: (async () => {
+      const { Preferences } = await import('@capacitor/preferences')
+      const { value } = await Preferences.get({ key: AUTH_KEY })
+      return value
+    })(),
+  })
+}
+
+export const pb = new PocketBase(PB_URL, createAuthStore())
+
+/** Call early on native boot if Capacitor was late — ensure absolute API host. */
+export function ensureNativePocketBaseUrl() {
+  if (!Capacitor.isNativePlatform()) return
+  const url = getPocketBaseUrl()
+  if (pb.baseUrl !== url) {
+    pb.baseUrl = url
+  }
+}
 
 export type AppUser = {
   id: string
@@ -53,6 +86,32 @@ if (import.meta.env.DEV) {
 // Enable auto cancellation for all pending requests
 pb.autoCancellation(false)
 
+/** PocketBase puts field errors at error.data.data.<field>.message */
+function formatAuthError(error: any, fallback: string): string {
+  const fields = error?.data?.data
+  if (fields && typeof fields === 'object') {
+    for (const key of ['email', 'password', 'passwordConfirm', 'name']) {
+      const msg = fields[key]?.message
+      if (typeof msg === 'string' && msg) {
+        if (fields[key]?.code === 'validation_not_unique' || /already|unique/i.test(msg)) {
+          return 'An account with this email already exists. Try logging in instead.'
+        }
+        if (key === 'password' && /at least \d+/i.test(msg)) {
+          return 'Password must be at least 8 characters.'
+        }
+        return msg
+      }
+    }
+    const first = Object.values(fields).find(
+      (f: any) => f && typeof f === 'object' && typeof f.message === 'string'
+    ) as { message?: string } | undefined
+    if (first?.message) return first.message
+  }
+  if (typeof error?.data?.message === 'string' && error.data.message) return error.data.message
+  if (typeof error?.message === 'string' && error.message) return error.message
+  return fallback
+}
+
 // Auth helpers for frontend users
 export const authHelpers = {
   async register(email: string, password: string, data: Record<string, any> = {}) {
@@ -67,28 +126,7 @@ export const authHelpers = {
       await pb.collection('users').authWithPassword(email, password)
       return { success: true, data: { record } }
     } catch (error: any) {
-      
-      // Extract detailed error information
-      let errorMessage = 'Registration failed'
-      
-      if (error?.status && error?.data) {
-        const data = error.data
-        if (data.email && typeof data.email === 'object' && data.email.message) {
-          errorMessage = data.email.message
-        } else if (data.password && typeof data.password === 'object' && data.password.message) {
-          errorMessage = data.password.message
-        } else if (data.message) {
-          errorMessage = data.message
-        } else if (typeof data === 'string') {
-          errorMessage = data
-        } else if (error.message) {
-          errorMessage = error.message
-        }
-      } else if (error?.message) {
-        errorMessage = error.message
-      }
-      
-      return { success: false, error: errorMessage }
+      return { success: false, error: formatAuthError(error, 'Registration failed') }
     }
   },
   async login(email: string, password: string) {
@@ -96,50 +134,18 @@ export const authHelpers = {
       const result = await pb.collection('users').authWithPassword(email, password)
       return { success: true, data: result }
     } catch (error: any) {
-      let errorMessage = 'Login failed'
-      
-      // PocketBase ClientResponseError has a specific structure
-      // Check if it's a ClientResponseError (has status, data, response properties)
-      if (error?.status && error?.data) {
-        const data = error.data
-        
-        // Check for field-specific errors (common PocketBase error format)
-        if (data.email && typeof data.email === 'object' && data.email.message) {
-          errorMessage = data.email.message
-        } else if (data.password && typeof data.password === 'object' && data.password.message) {
-          errorMessage = data.password.message
-        } else if (data.message) {
-          errorMessage = data.message
-        } else if (typeof data === 'string') {
-          errorMessage = data
-        } else if (data.code) {
-          errorMessage = data.code
-        }
-        
-        // Use the error message if available and we haven't found a specific message
-        if (error.message && errorMessage === 'Login failed') {
-          errorMessage = error.message
-        }
-      } else if (error?.response) {
-        // Fallback for other error types
-        const responseData = error.response
-        if (responseData.data) {
-          errorMessage = responseData.data.message || responseData.data || errorMessage
-        } else if (responseData.message) {
-          errorMessage = responseData.message
-        }
-      } else if (error?.message) {
-        errorMessage = error.message
-      }
-      
+      let errorMessage = formatAuthError(error, 'Login failed')
+
       // Provide user-friendly messages for common errors
-      if (errorMessage.includes('Failed to authenticate') || 
-          errorMessage.includes('Invalid login') ||
-          errorMessage.includes('400') ||
-          error?.status === 400) {
+      if (
+        errorMessage.includes('Failed to authenticate') ||
+        errorMessage.includes('Invalid login') ||
+        errorMessage.includes('400') ||
+        error?.status === 400
+      ) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.'
       }
-      
+
       // Log detailed error for debugging
       if (import.meta.env.DEV) {
         console.error('Login error details:', {
@@ -149,11 +155,17 @@ export const authHelpers = {
           fullError: error,
         })
       }
-      
+
       return { success: false, error: errorMessage }
     }
   },
   async loginWithGoogle() {
+    return this.loginWithOAuthProvider('google')
+  },
+  async loginWithApple() {
+    return this.loginWithOAuthProvider('apple')
+  },
+  async loginWithOAuthProvider(providerName: 'google' | 'apple') {
     try {
       const oauthBaseUrl = getOAuthBaseUrl()
 
@@ -166,16 +178,21 @@ export const authHelpers = {
       }
       const methods = await methodsRes.json()
       const provider = methods?.oauth2?.providers?.find(
-        (p: OAuthProvider) => p.name === 'google'
+        (p: OAuthProvider) => p.name === providerName
       ) as OAuthProvider | undefined
       if (!provider) {
-        throw new Error('Google sign-in is not enabled on the server.')
+        throw new Error(
+          providerName === 'apple'
+            ? 'Apple sign-in is not enabled on the server yet.'
+            : 'Google sign-in is not enabled on the server.'
+        )
       }
 
       const redirectURL = getOAuthRedirectUrl(oauthBaseUrl)
 
       // Production proxies (Netlify/nginx) cannot stream PocketBase realtime/SSE.
       // Use full-page redirect + oauth-callback.html instead of authWithOAuth2 popup.
+      // Native Capacitor should use ASAuthorization / Google Sign-In plugins later.
       if (import.meta.env.PROD) {
         stashOAuthSession(provider, redirectURL)
         window.location.href = buildOAuthStartUrl(provider, redirectURL)
@@ -183,12 +200,13 @@ export const authHelpers = {
       }
 
       const result = await pb.collection('users').authWithOAuth2({
-        provider: 'google',
+        provider: providerName,
         url: oauthBaseUrl,
       })
       return { success: true, data: result }
     } catch (error: any) {
-      return { success: false, error: error.message || 'Google authentication failed' }
+      const label = providerName === 'apple' ? 'Apple' : 'Google'
+      return { success: false, error: error.message || `${label} authentication failed` }
     }
   },
   logout() {
@@ -205,4 +223,3 @@ export const authHelpers = {
 // ponytail: users.lastActive removed — backoffice uses indexed app events only
 
 export default pb
-

@@ -4,6 +4,8 @@ import { OpenStepContent } from '../../types/models'
 import GlassButton from '../GlassButton'
 import HandwrittenJournal from '../HandwrittenJournal'
 import { splitReflectionPrompts, sanitizeStepText } from '../../utils/stepContentFormat'
+import { useLiveTranslation } from '../../hooks/useTranslation'
+import TranslatedText from '../TranslatedText'
 
 export type ReflectionAnswer = { prompt: string; answer: string }
 
@@ -82,12 +84,14 @@ export default function OpenQuestionComponent({
   const currentPrompt = readOnly
     ? reviewList[promptIndex]?.prompt || prompts[promptIndex] || content.question || ''
     : prompts[promptIndex] || content.question || ''
+  const translatedPrompt = useLiveTranslation(currentPrompt)
   const isLastPrompt = promptIndex >= total - 1
 
   const stepPlaceholder = content.placeholder?.trim()
-  const cleanPlaceholder = removeEmojis(
+  const cleanPlaceholderEn = removeEmojis(
     stepPlaceholder || 'Write a few sentences in your own words…'
   )
+  const cleanPlaceholder = useLiveTranslation(cleanPlaceholderEn)
 
   const wordCount = answer.trim() ? answer.trim().split(/\s+/).length : 0
   const mindfulTarget = 10
@@ -144,7 +148,7 @@ export default function OpenQuestionComponent({
       <HandwrittenJournal
         value={answer}
         onChange={readOnly ? () => {} : setAnswer}
-        prompt={currentPrompt}
+        prompt={translatedPrompt}
         placeholder={readOnly ? '' : cleanPlaceholder}
         minRows={7}
         textareaProps={readOnly ? { readOnly: true } : undefined}
@@ -172,15 +176,19 @@ export default function OpenQuestionComponent({
           fullWidth
           className="py-3.5 sm:py-4 font-bold"
         >
-          {isSaving
-            ? 'Saving…'
-            : readOnly
-              ? isLastPrompt
-                ? 'Continue'
-                : 'Next'
-              : isLastPrompt
-                ? 'Save & Continue'
-                : 'Next Question'}
+          {isSaving ? (
+            <TranslatedText text="Saving…" />
+          ) : readOnly ? (
+            isLastPrompt ? (
+              <TranslatedText text="Continue" />
+            ) : (
+              <TranslatedText text="Next" />
+            )
+          ) : isLastPrompt ? (
+            <TranslatedText text="Save & Continue" />
+          ) : (
+            <TranslatedText text="Next Question" />
+          )}
         </GlassButton>
       </div>
     </div>

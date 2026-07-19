@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { deleteUserAndRelated } from '../../lib/deleteUser'
 import { AlertCircle, CheckCircle, Clock, Trash2, XCircle, User, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -55,12 +56,23 @@ export const AccountDeletionRequests = () => {
       const adminNotes = notes[request.id]?.trim() || ''
 
       if (action === 'complete') {
-        await adminCollectionHelpers.delete('users', request.user)
-        await adminCollectionHelpers.update('account_deletion_requests', request.id, {
+        const email = request.expand?.user?.email || request.user
+        // Detach required user relation first, keep an audit trail on this row
+        const detach = await adminCollectionHelpers.update('account_deletion_requests', request.id, {
           status: 'completed',
           processed_at: now,
-          admin_notes: adminNotes,
+          admin_notes: [adminNotes, email ? `Deleted account: ${email}` : ''].filter(Boolean).join('\n'),
+          user: '',
         })
+        if (!detach.success) {
+          // Schema may still require user — delete the request, then purge user data
+          await adminCollectionHelpers.delete('account_deletion_requests', request.id)
+        }
+
+        const deleted = await deleteUserAndRelated(request.user)
+        if (!deleted.success) {
+          throw new Error(deleted.error || 'Failed to delete user and related data')
+        }
         return
       }
 
@@ -73,6 +85,9 @@ export const AccountDeletionRequests = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['account_deletion_requests'] })
       queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (err: Error) => {
+      alert(err.message || 'Failed to process deletion request')
     },
   })
 

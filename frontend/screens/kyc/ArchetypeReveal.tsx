@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import GlassButton from '../../components/GlassButton'
+import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { QuitArchetype } from '../../types/enums'
 
 interface ArchetypeRevealProps {
@@ -12,61 +13,48 @@ interface ArchetypeRevealProps {
 }
 
 export default function ArchetypeReveal({ name, description, icon, characteristics, onContinue }: ArchetypeRevealProps) {
+  const { fade, springUi, reduce } = useMotionPrefs()
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-6 bg-[#F4FBFF] safe-area-top safe-area-bottom">
       <motion.div
-        initial={{ scale: 0, rotate: -180 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-        className="w-24 h-24 rounded-full glass flex items-center justify-center mb-6"
+        {...(reduce
+          ? { initial: { opacity: 0 }, animate: { opacity: 1 } }
+          : { initial: { opacity: 0, scale: 0.92 }, animate: { opacity: 1, scale: 1 } })}
+        transition={springUi}
+        className="w-24 h-24 rounded-full bg-white border border-[#0E2538]/06 shadow-sm flex items-center justify-center mb-6"
       >
-        <span className="text-5xl">{icon}</span>
+        <span className="text-5xl" aria-hidden>{icon}</span>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="text-center mb-8"
-      >
-        <p className="text-sm text-brand-primary font-medium mb-1 uppercase tracking-wider">
+      <motion.div {...fade} transition={{ ...springUi, delay: reduce ? 0 : 0.05 }} className="text-center mb-8">
+        <p className="text-sm text-[#3F8DD2] font-semibold mb-1 tracking-wide">
           Your Smono Type
         </p>
-        <h1 className="text-3xl font-bold text-text-primary mb-3">{name}</h1>
-        <p className="text-text-primary/70 text-sm max-w-xs mx-auto">{description}</p>
+        <h1 className="text-3xl font-bold text-[#0E2538] mb-3 tracking-tight">{name}</h1>
+        <p className="text-[#0E2538]/55 text-sm max-w-xs mx-auto leading-relaxed">{description}</p>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.9 }}
-        className="w-full max-w-sm space-y-3 mb-10"
-      >
+      <div className="w-full max-w-sm space-y-3 mb-10">
         {characteristics.map((trait, i) => (
           <motion.div
             key={i}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 1.0 + i * 0.15 }}
-            className="glass p-4 rounded-xl flex items-start gap-3"
+            {...fade}
+            transition={{ ...springUi, delay: reduce ? 0 : 0.04 * i }}
+            className="bg-white/80 border border-[#0E2538]/06 p-4 rounded-xl flex items-start gap-3"
           >
-            <div className="w-6 h-6 rounded-full bg-brand-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-brand-primary text-xs font-bold">{i + 1}</span>
+            <div className="w-6 h-6 rounded-full bg-[#3F8DD2]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-[#3F8DD2] text-xs font-bold">{i + 1}</span>
             </div>
-            <p className="text-sm text-text-primary/80">{trait}</p>
+            <p className="text-sm text-[#0E2538]/75 leading-relaxed">{trait}</p>
           </motion.div>
         ))}
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.6 }}
-      >
-        <GlassButton onClick={onContinue} className="px-10 py-4">
-          Start My Journey
-        </GlassButton>
-      </motion.div>
+      {/* CTA immediately available — never gate on staggered animation */}
+      <GlassButton onClick={onContinue} className="px-10 py-4">
+        Start My Journey
+      </GlassButton>
     </div>
   )
 }

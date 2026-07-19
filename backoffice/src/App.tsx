@@ -7,6 +7,7 @@ import { Dashboard } from './pages/dashboard/Dashboard'
 import { AllUsers } from './pages/users/AllUsers'
 import { UserDetail } from './pages/users/UserDetail'
 import { UserSegments } from './pages/users/UserSegments'
+import AddAppUser from './pages/users/AddAppUser'
 import { Programs } from './pages/content/Programs'
 import { ProgramDays } from './pages/content/ProgramDays'
 import { Steps } from './pages/content/Steps'
@@ -21,6 +22,8 @@ import { UserAnalytics } from './pages/analytics/UserAnalytics'
 import { EngagementMetrics } from './pages/analytics/EngagementMetrics'
 import { ProgramPerformance } from './pages/analytics/ProgramPerformance'
 import { RetentionReports } from './pages/analytics/RetentionReports'
+import { Payments } from './pages/analytics/Payments'
+import { Coupons } from './pages/analytics/Coupons'
 import { CustomReports } from './pages/analytics/CustomReports'
 import { AllAchievements } from './pages/achievements/AllAchievements'
 import { AchievementLogs } from './pages/achievements/AchievementLogs'
@@ -52,9 +55,10 @@ function App() {
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     
-                    {/* User Management */}
+                    {/* User Management — /users/add must be before /users/:id */}
                     <Route path="/users" element={<AllUsers />} />
                     <Route path="/users/segments" element={<UserSegments />} />
+                    <Route path="/users/add" element={<AddAppUser />} />
                     <Route path="/users/:id" element={<UserDetail />} />
                     
                     {/* Content Management */}
@@ -76,6 +80,8 @@ function App() {
                     <Route path="/analytics/engagement" element={<EngagementMetrics />} />
                     <Route path="/analytics/programs" element={<ProgramPerformance />} />
                     <Route path="/analytics/retention" element={<RetentionReports />} />
+                    <Route path="/analytics/payments" element={<Payments />} />
+                    <Route path="/analytics/coupons" element={<Coupons />} />
                     <Route path="/analytics/custom" element={<CustomReports />} />
                     
                     {/* Achievements */}

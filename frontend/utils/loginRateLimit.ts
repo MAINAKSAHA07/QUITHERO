@@ -99,6 +99,25 @@ export function recordLoginSuccess(email: string) {
   clearEntry(email)
 }
 
+const RETURNING_KEY = 'smono_returning_user'
+
+/** True after at least one successful login on this device. */
+export function isReturningLoginUser(): boolean {
+  try {
+    return localStorage.getItem(RETURNING_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markReturningLoginUser() {
+  try {
+    localStorage.setItem(RETURNING_KEY, '1')
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 /** Progressive delay after failed attempts to slow automated retries. */
 export function getLoginRetryDelayMs(failures: number): number {
   return Math.min(3000, failures * 600)

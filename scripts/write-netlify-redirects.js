@@ -56,6 +56,12 @@ const redirects = `# Auto-generated — do not edit
 # Web Push API → EC2 (background reminders when app is closed)
 /api/push/*  ${pushUrl}/api/push/:splat  200
 
+# Razorpay checkout → EC2 api-server
+/api/create-order  ${pushUrl}/api/create-order  200
+/api/preview-coupon  ${pushUrl}/api/preview-coupon  200
+/api/verify-payment  ${pushUrl}/api/verify-payment  200
+/api/razorpay/webhook  ${pushUrl}/api/razorpay/webhook  200
+
 # SPA fallback
 /*  /index.html  200
 `

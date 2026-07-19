@@ -53,6 +53,7 @@ ${context.personalizationRules}
 TASK: Generate personalized content insertions for Day ${context.dayNumber}.
 
 HARD RULES:
+- Write ALL user-facing strings in the user's Preferred language from onboardingContext (if missing, use English). Keep JSON keys in English.
 - Never mention "archetype", "CBT", "personalization", or any system internals to the user
 - Never quote back their own words verbatim — translate into insight
 - Non-stigmatizing and trauma-informed at all times
@@ -131,6 +132,7 @@ NOTIFICATION CONTEXT:
 TASK: Generate ONE notification for trigger type "${context.triggerType}".
 
 HARD RULES:
+- Write title and body in the user's Preferred language from onboardingContext (English if missing)
 - NEVER use guilt or shame
 - NEVER mention "archetype" or system internals
 ${slipLine}

@@ -25,6 +25,8 @@ const configs = [
     update: `${adminRule} || @request.auth.id = id`,
     // Only admin_users can delete users
     delete: adminRule,
+    // Required so backoffice can read/edit emails (emailVisibility=false otherwise hides them)
+    manage: adminRule,
   },
   // user-owned collections — admins can read/write all for backoffice dashboards
   { name: 'user_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
@@ -43,7 +45,7 @@ const configs = [
   { name: 'user_behavior_profiles', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'notification_events', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   { name: 'smoke_check_ins', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
-  { name: 'account_deletion_requests', list: adminOrOwner('user'), view: adminOrOwner('user'), create: '@request.auth.id = user', update: adminRule, delete: adminRule },
+  { name: 'account_deletion_requests', list: adminOrOwner('user'), view: adminOrOwner('user'), create: '@request.auth.id != "" && @request.body.user = @request.auth.id', update: adminRule, delete: adminRule },
   { name: 'belief_assessments', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
   // push — API uses superuser; Retention UI lists as admin_users; app users own rows
   { name: 'push_subscriptions', list: adminOrOwner('user'), view: adminOrOwner('user'), create: adminOrOwner('user'), update: adminOrOwner('user'), delete: adminRule },
@@ -66,7 +68,7 @@ const configs = [
   { name: 'admin_users', list: adminRule, view: adminRule, create: adminRule, update: adminRule, delete: adminRule },
 ]
 
-const applyRule = async (name, { list, view, create, update, delete: del, rule }) => {
+const applyRule = async (name, { list, view, create, update, delete: del, manage, rule }) => {
   const col = await pb.collections.getOne(name)
   const payload = {
     listRule: list ?? rule,
@@ -75,6 +77,7 @@ const applyRule = async (name, { list, view, create, update, delete: del, rule }
     updateRule: update ?? rule,
     deleteRule: del ?? rule,
   }
+  if (manage !== undefined) payload.manageRule = manage
   await pb.collections.update(col.id, payload)
   console.log(`✔ rules set for ${name}`)
 }

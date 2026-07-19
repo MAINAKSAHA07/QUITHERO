@@ -3,6 +3,7 @@ import { Header } from './sections/Header'
 import { Hero } from './sections/Hero'
 import { Problem } from './sections/Problem'
 import { Journey } from './sections/Journey'
+import { Languages } from './sections/Languages'
 import { HowItFails } from './sections/HowItFails'
 import { AppPreview } from './sections/AppPreview'
 import { Showcase } from './sections/Showcase'
@@ -18,15 +19,23 @@ import { Pricing } from './sections/Pricing'
 import { Faq } from './sections/Faq'
 import { FinalCta } from './sections/FinalCta'
 import { Footer } from './sections/Footer'
+import { usePageSeo } from './hooks/usePageSeo'
+import { SEO_DESCRIPTION, SEO_TITLE } from './lib/seo.config'
 
 export function LandingPage() {
   useLandingInteractions()
+  usePageSeo({
+    title: SEO_TITLE,
+    description: SEO_DESCRIPTION,
+    canonicalPath: '/',
+  })
   return (
     <main id="main-content">
       <Header />
       <Hero />
       <Problem />
       <Journey />
+      <Languages />
       <HowItFails />
       <AppPreview />
       <Showcase />

@@ -1,19 +1,25 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { deleteUserAndRelated } from '../../lib/deleteUser'
 import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fmt, recordTypeColor, JsonBlock, TimeAgo, KYC_FIELDS, buildRecentActivityEvents } from '../../components/users/userDetailHelpers'
 import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
+import EditAppUserModal from './EditAppUserModal'
 
 type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity' | 'ai_insights'
 
 export const UserDetail = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [showEdit, setShowEdit] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: ['user', id],
@@ -160,6 +166,37 @@ export const UserDetail = () => {
   const [expandedMemoryId, setExpandedMemoryId] = useState<string | null>(null)
   const [showKyc, setShowKyc] = useState(false)
 
+  useEffect(() => {
+    if (searchParams.get('edit') === '1') {
+      setShowEdit(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('edit')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  const openEdit = () => setShowEdit(true)
+
+  const handleDeleteUser = async () => {
+    if (!id || !user) return
+    const label = user.email || user.name || id
+    if (!window.confirm(`Permanently delete ${label} and all linked data? This cannot be undone.`)) {
+      return
+    }
+    setDeleting(true)
+    try {
+      const result = await deleteUserAndRelated(id)
+      if (!result.success) {
+        alert(result.error || 'Failed to delete user')
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      navigate('/users')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const user = userData?.data
   const profile = profileData
   const sessions = sessionsData?.data || []
@@ -229,6 +266,7 @@ export const UserDetail = () => {
   const slips = cravings.filter((c: any) => c.type === 'slip').length
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -262,17 +300,22 @@ export const UserDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn-secondary flex items-center gap-2">
+          <button className="btn-secondary flex items-center gap-2" type="button" disabled title="Coming soon">
             <Mail className="w-4 h-4" />
             Send Message
           </button>
-        <button className="btn-primary flex items-center gap-2">
-          <Edit className="w-4 h-4" />
-          Edit User
-        </button>
-          <button className="btn-danger flex items-center gap-2">
+          <button type="button" onClick={openEdit} className="btn-primary flex items-center gap-2">
+            <Edit className="w-4 h-4" />
+            Edit User
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteUser}
+            disabled={deleting}
+            className="btn-danger flex items-center gap-2 disabled:opacity-50"
+          >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -310,7 +353,9 @@ export const UserDetail = () => {
           <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Personal Information</h2>
-                  <button className="text-primary text-sm hover:underline">Edit</button>
+                  <button type="button" onClick={openEdit} className="text-primary text-sm hover:underline">
+                    Edit
+                  </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -342,7 +387,9 @@ export const UserDetail = () => {
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Addiction Details</h2>
-                  <button className="text-primary text-sm hover:underline">Edit</button>
+                  <button type="button" onClick={openEdit} className="text-primary text-sm hover:underline">
+                    Edit
+                  </button>
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -376,7 +423,9 @@ export const UserDetail = () => {
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Personalization & Archetype</h2>
-                  <button className="text-primary text-sm hover:underline">Edit</button>
+                  <button type="button" onClick={openEdit} className="text-primary text-sm hover:underline">
+                    Edit
+                  </button>
                 </div>
                 <div className="space-y-4">
                   {/* Quit Archetype */}
@@ -492,7 +541,9 @@ export const UserDetail = () => {
               <div className="bg-white rounded-lg shadow-card p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Settings</h2>
-                  <button className="text-primary text-sm hover:underline">Edit</button>
+                  <button type="button" onClick={openEdit} className="text-primary text-sm hover:underline">
+                    Edit
+                  </button>
                 </div>
                 <div className="space-y-3">
                   <div>
@@ -1186,5 +1237,14 @@ export const UserDetail = () => {
         })()}
       </div>
     </div>
+
+    {showEdit && user && (
+      <EditAppUserModal
+        user={user as { id: string; name?: string; email?: string }}
+        profile={(profile as any) || null}
+        onClose={() => setShowEdit(false)}
+      />
+    )}
+    </>
   )
 }

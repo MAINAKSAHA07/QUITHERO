@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Calendar, Plus, Trophy, User } from 'lucide-react'
-import { motion } from 'framer-motion'
 import TranslatedText from './TranslatedText'
 
 const ACTIVE_COLORS: Record<string, string> = {
@@ -32,7 +31,7 @@ export default function BottomNavigation() {
       className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto safe-area-bottom bg-white border-t border-[#0E2538]/10 shadow-[0_-4px_20px_rgba(14,37,56,0.06)] rounded-t-3xl"
       aria-label="Main navigation"
     >
-      <div className="relative grid grid-cols-5 items-center gap-0 px-2 pt-2 pb-2">
+      <div className="relative grid grid-cols-5 items-center gap-0 px-2 pt-2 pb-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)
@@ -47,17 +46,16 @@ export default function BottomNavigation() {
                   aria-label={item.label}
                   data-tour-id="craving"
                 >
-                  <motion.div
-                    className="w-14 h-14 rounded-full flex items-center justify-center"
+                  {/* Press feedback only — no hover scale on high-frequency nav */}
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center transition-transform duration-100 ease-out active:scale-[0.97]"
                     style={{
                       background: 'linear-gradient(135deg, #F6B884 0%, #E8894A 100%)',
                       boxShadow: '0 6px 20px rgba(246, 184, 132, 0.4)',
                     }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.94 }}
                   >
                     <Icon className="w-6 h-6 text-white" strokeWidth={2.5} />
-                  </motion.div>
+                  </div>
                 </Link>
               </div>
             )
@@ -78,7 +76,7 @@ export default function BottomNavigation() {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center gap-0.5 h-12 touch-target"
+              className="flex flex-col items-center justify-center gap-0.5 h-12 touch-target transition-transform duration-100 ease-out active:scale-[0.97]"
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
               data-tour-id={tourId}

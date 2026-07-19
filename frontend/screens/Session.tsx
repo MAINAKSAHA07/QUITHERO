@@ -7,6 +7,7 @@ import Mascot from '../components/Mascot'
 import GlassCard from '../components/GlassCard'
 import GlassButton from '../components/GlassButton'
 import CompletionModal from '../components/CompletionModal'
+import UpgradePrompt from '../components/UpgradePrompt'
 import SessionStatCard from '../components/SessionStatCard'
 import TriggerCheckMCQ from '../components/TriggerCheckMCQ'
 import ComprehensionCheck from '../components/ComprehensionCheck'
@@ -29,6 +30,8 @@ import { BeliefAssessment } from '../components/BeliefAssessment'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
 import { withStoredQuestion } from '../utils/stepResponse'
 import { formatDayTitle } from '../utils/formatDayTitle'
+import { needsDay2Upgrade } from '../utils/upgradePrompt'
+import { useLiveTranslation } from '../hooks/useTranslation'
 import { StepType, SessionStatus } from '../types/enums'
 import { ProgramDay, Step, SessionProgress, PersonalizedContent } from '../types/models'
 import {
@@ -66,6 +69,7 @@ export default function Session() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const savingLockRef = useRef(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [completedDurationSeconds, setCompletedDurationSeconds] = useState(0)
   const [personalizedContent, setPersonalizedContent] = useState<PersonalizedContent | null>(null)
@@ -95,6 +99,8 @@ export default function Session() {
   }
 
   const dayNumber = programDay?.day_number || 1
+  const dayTitle = useLiveTranslation(formatDayTitle(programDay?.title || ''))
+  const daySubtitle = useLiveTranslation(programDay?.subtitle || '')
   const isReviewMode = sessionProgress?.status === SessionStatus.COMPLETED
 
   useEffect(() => {
@@ -393,13 +399,14 @@ export default function Session() {
 
   const proceedToNextStepIndex = async (): Promise<boolean> => {
     if (!user?.id || !dayId) return false
+    if (savingLockRef.current) return false
 
     if (currentStepIndex === steps.length - 1) {
       if (isReviewMode) {
         navigate('/sessions')
         return true
       }
-      await completeSession()
+      await runCompleteSession()
       return true
     }
 
@@ -415,6 +422,7 @@ export default function Session() {
 
   const advanceFromStep = async (stepResponse?: unknown): Promise<boolean> => {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return false
+    if (savingLockRef.current) return false
 
     if (isReviewMode) {
       return proceedToNextStepIndex()
@@ -432,6 +440,7 @@ export default function Session() {
       }
     }
 
+    savingLockRef.current = true
     setIsSaving(true)
     try {
       const currentStep = steps[currentStepIndex]
@@ -476,7 +485,7 @@ export default function Session() {
       }
 
       if (currentStepIndex === steps.length - 1) {
-        await completeSession()
+        await runCompleteSession({ alreadyLocked: true })
         return true
       }
 
@@ -491,12 +500,14 @@ export default function Session() {
       alert('Failed to move to next step. Please try again.')
       return false
     } finally {
+      savingLockRef.current = false
       setIsSaving(false)
     }
   }
 
   const moveToNextStep = async (stepResponse?: unknown): Promise<boolean> => {
     if (!user?.id || !dayId || !steps[currentStepIndex]) return false
+    if (savingLockRef.current || isSaving) return false
 
     const needsTriggerCheck =
       currentStepIndex === 0 &&
@@ -562,7 +573,7 @@ export default function Session() {
     await advanceFromStep()
   }
 
-  const completeSession = async () => {
+  const runCompleteSession = async (opts?: { alreadyLocked?: boolean }) => {
     if (isReviewMode) {
       navigate('/sessions')
       return
@@ -571,8 +582,11 @@ export default function Session() {
       console.warn('Cannot complete session: missing required data', { user: user?.id, dayId })
       return
     }
-
-    setIsSaving(true)
+    if (!opts?.alreadyLocked) {
+      if (savingLockRef.current) return
+      savingLockRef.current = true
+      setIsSaving(true)
+    }
     try {
       if (dayId) pauseSessionSegment(dayId)
       const totalSeconds = dayId ? getSessionElapsedSeconds(dayId) : 0
@@ -585,7 +599,6 @@ export default function Session() {
       if (result.success) {
         await achievementService.checkAndUnlock(user.id)
         await refreshProgress()
-        // Heal Home "Day X of 30" — completeSession writes PB but context was left stale
         await fetchCurrentSession()
         await analyticsService.trackSessionCompleted(
           user.id,
@@ -596,12 +609,16 @@ export default function Session() {
         setShowCompletionModal(true)
       } else {
         console.error('Failed to complete session:', result.error)
+        alert(result.error || 'Failed to complete session. Please try again.')
       }
     } catch (error) {
       console.error('Failed to complete session:', error)
       alert('Failed to complete session. Please try again.')
     } finally {
-      setIsSaving(false)
+      if (!opts?.alreadyLocked) {
+        savingLockRef.current = false
+        setIsSaving(false)
+      }
     }
   }
 
@@ -747,9 +764,10 @@ export default function Session() {
   }
 
   const isLastStep = currentStepIndex === steps.length - 1
+  const showUpgradeOverlay = needsDay2Upgrade(isPremium, currentSession?.current_day)
 
   return (
-    <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background">
+    <div className="relative h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-background">
       <TopNavigation
         left="back"
         center={`Day ${programDay.day_number}: Step ${currentStepIndex + 1}/${steps.length}`}
@@ -758,7 +776,13 @@ export default function Session() {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto app-container px-3 sm:px-4 pt-4 sm:pt-6 pb-8 scrollbar-thin"
+        className={`flex-1 min-h-0 overflow-y-auto app-container px-3 sm:px-4 pt-4 sm:pt-6 scrollbar-thin ${
+          showUpgradeOverlay
+            ? 'pb-28'
+            : !showTriggerCheck && !stepRequiresInput
+              ? 'pb-4'
+              : 'pb-[max(1.25rem,env(safe-area-inset-bottom))]'
+        }`}
         {...swipeHandlers}
       >
         <div className="mb-4 sm:mb-6">
@@ -826,11 +850,11 @@ export default function Session() {
             )}
             <div className="mb-3 sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-1">
-                {formatDayTitle(programDay.title)}
+                {dayTitle}
               </h2>
-              {programDay.subtitle && (
-                <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{programDay.subtitle}</p>
-              )}
+              {daySubtitle ? (
+                <p className="text-xs sm:text-sm text-text-primary/60 mb-2 sm:mb-3">{daySubtitle}</p>
+              ) : null}
               <div className="inline-flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full glass-subtle">
                 <span className="text-[11px] sm:text-xs font-medium text-text-primary/70">
                   {currentStep.type === StepType.TEXT && 'Reading'}
@@ -848,9 +872,16 @@ export default function Session() {
           </GlassCard>
           </div>
         )}
+      </div>
 
-        {!showTriggerCheck && (
-          <div className={`flex gap-3 w-full ${showComprehensionCheck ? 'pointer-events-none opacity-40' : ''}`}>
+      {/* Back/Next chrome — only when step doesn't own its Continue (avoids orphan arrow bar) */}
+      {!showTriggerCheck && !stepRequiresInput && (
+        <div
+          className={`flex-shrink-0 app-container px-3 sm:px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[#0E2538]/06 bg-background ${
+            showComprehensionCheck ? 'pointer-events-none opacity-40' : ''
+          }`}
+        >
+          <div className="flex gap-3 w-full">
             <GlassButton
               variant="secondary"
               onClick={() => {
@@ -864,7 +895,7 @@ export default function Session() {
             >
               <ArrowLeft className="w-5 h-5" />
             </GlassButton>
-            {!isLastStep && !stepRequiresInput && (
+            {!isLastStep && (
               <GlassButton
                 onClick={() => moveToNextStep()}
                 disabled={isSaving}
@@ -880,8 +911,23 @@ export default function Session() {
               </GlassButton>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Glass unlock bar floats over session content — parallel, no scrim */}
+      {showUpgradeOverlay && (
+        <div
+          className={`pointer-events-none absolute inset-x-0 z-40 px-3 sm:px-4 ${
+            !showTriggerCheck && !stepRequiresInput
+              ? 'bottom-[4.75rem]'
+              : 'bottom-[max(1rem,env(safe-area-inset-bottom))]'
+          }`}
+        >
+          <div className="pointer-events-auto upgrade-glass-overlay">
+            <UpgradePrompt variant="overlay" />
+          </div>
+        </div>
+      )}
 
       <CompletionModal
         isOpen={showCompletionModal}
@@ -890,11 +936,36 @@ export default function Session() {
         timeSpentSeconds={completedDurationSeconds}
         stepsCompleted={steps.length}
         hasNextDay={(programDay.day_number || 0) < 30}
+        nextCtaLabel={!isPremium ? 'Unlock Day 2' : 'Next Day'}
         onNextDay={() => {
           setShowCompletionModal(false)
+          // Free users finish Day 1 → paywall before Day 2
+          if (!isPremium) {
+            navigate('/paywall')
+            return
+          }
           navigate('/sessions')
         }}
       />
+
+      {isSaving && (
+        <div
+          className="fixed inset-0 z-[90] bg-[#0E2538]/35 backdrop-blur-[2px] flex items-center justify-center px-6"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="w-full max-w-xs rounded-3xl bg-white shadow-xl border border-[#0E2538]/08 px-6 py-7 flex flex-col items-center gap-3">
+            <div className="w-9 h-9 rounded-full border-2 border-[#3F8DD2] border-t-transparent animate-spin" />
+            <p className="text-[15px] font-semibold text-[#0E2538] text-center">
+              {currentStepIndex >= steps.length - 1 && !isReviewMode
+                ? 'Completing your day…'
+                : 'Saving…'}
+            </p>
+            <p className="text-xs text-[#0E2538]/45 text-center">Please wait — don’t tap again</p>
+          </div>
+        </div>
+      )}
       <KycRequiredModal
         isOpen={showKycModal}
         onClose={() => {

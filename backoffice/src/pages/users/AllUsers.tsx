@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { deleteUserAndRelated } from '../../lib/deleteUser'
 import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import {
@@ -147,7 +148,9 @@ export const AllUsers = () => {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return adminCollectionHelpers.delete('users', userId)
+      const result = await deleteUserAndRelated(userId)
+      if (!result.success) throw new Error(result.error || 'Failed to delete user')
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -225,9 +228,9 @@ export const AllUsers = () => {
     if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       try {
         await deleteUserMutation.mutateAsync(userId)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete user:', error)
-        alert('Failed to delete user. Please try again.')
+        alert(error?.message || 'Failed to delete user. Please try again.')
       }
     }
   }
@@ -431,7 +434,7 @@ export const AllUsers = () => {
                 <Eye className="w-4 h-4 text-secondary" />
               </button>
               <button
-                onClick={() => navigate(`/users/${user.id}`)}
+                onClick={() => navigate(`/users/${user.id}?edit=1`)}
                 className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
                 title="Edit User"
               >

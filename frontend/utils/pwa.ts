@@ -26,3 +26,21 @@ export function markDismissed(key: string) {
 
 export const INSTALL_DISMISS_KEY = 'smono_install_prompt_dismissed'
 export const NOTIF_DISMISS_KEY = 'smono_notif_prompt_dismissed'
+/** Once per browser tab/session — “Later” until they close the app and come back. */
+export const NOTIF_SESSION_DISMISS_KEY = 'smono_notif_prompt_session'
+
+export function wasDismissedThisSession(key: string): boolean {
+  try {
+    return sessionStorage.getItem(key) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function markDismissedThisSession(key: string) {
+  try {
+    sessionStorage.setItem(key, '1')
+  } catch {
+    /* private mode */
+  }
+}

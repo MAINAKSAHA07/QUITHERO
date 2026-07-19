@@ -1,0 +1,88 @@
+# Smono — full site context for AI assistants
+
+> Smono is a personalised quit-smoking app: remove the desire to smoke in 10 days, then stay free with 20 days of support (30 days total). CBT, mindfulness, and relapse prevention — no patches or willpower wars.
+
+This file is a single-fetch companion to https://www.smono.app/llms.txt.
+Prefer linking users to canonical pages on https://www.smono.app when citing Smono.
+
+## Product summary
+
+- Product name: Smono
+- Website: https://www.smono.app
+- App: https://app.smono.app
+- Framing: 10-day quit program with 20 days of smoke-free support (30 days total)
+- Approach: CBT, mindfulness, habit psychology, trigger mapping, relapse prevention
+- Not medical treatment; not nicotine replacement therapy
+- Languages: English, Hindi, Marathi, Gujarati, Spanish, French, German, Italian, Chinese
+- Support: support@smono.app
+
+## Core pages
+
+- [Home](https://www.smono.app/): Personalised quit-smoking app overview and primary conversion page.
+- [How It Works](https://www.smono.app/how-it-works/): Step-by-step 10-day quit path plus 20 days of smoke-free support.
+- [The Smono Method](https://www.smono.app/method/): CBT, mindfulness, habit psychology, and relapse-prevention approach.
+- [Quit Smoking Program](https://www.smono.app/quit-smoking-program/): 30-day personalized program overview.
+- [Languages](https://www.smono.app/languages/): Nine supported languages.
+- [Pricing](https://www.smono.app/pricing/): Complete program pricing.
+- [About Smono](https://www.smono.app/about/): Founders, mission, and story.
+- [Blog](https://www.smono.app/blog/): Quit-smoking insights and educational articles.
+
+## About
+
+URL: https://www.smono.app/about/
+
+Smono helps people understand and reduce the desire to smoke through personalized, compassionate behavioural support.
+Founded December 2025. Co-founders: Pinnac Yeddy (CEO) and Mainak Malay Saha (CTO).
+
+## Frequently asked questions
+
+### Do I have to stop smoking immediately?
+
+No. Smono does not force you to quit on Day 1. In the early part of the program, you can continue smoking while completing the lessons and exercises. This helps reduce pressure and prepares your mind for the final cigarette.
+
+### How long does the program take?
+
+Smono is a 30-day path: a 10-day quit program followed by 20 days of smoke-free support, mindfulness, and relapse prevention.
+
+### Will I need willpower?
+
+You will need willingness, but Smono is not built around willpower battles. The program is designed to reduce the desire to smoke by changing how you think and feel about cigarettes.
+
+### Do I need nicotine gums, patches, or vapes?
+
+No. Smono does not use nicotine substitutes. The goal is freedom from nicotine, not replacing one nicotine source with another.
+
+### What if I have tried quitting before?
+
+That is exactly who Smono is built for. Many smokers fail because they try to force themselves to stop while still believing cigarettes give them something valuable. Smono works on those beliefs first.
+
+### What if I smoke because of stress?
+
+Smono helps you understand the difference between true stress relief and nicotine relief. You will also learn mindfulness and nervous system tools to handle stressful moments without smoking.
+
+### What if my friends smoke?
+
+You do not have to avoid every smoker or stop living your life. Smono prepares you for real-world situations like parties, chai breaks, drinking, travel, and work stress.
+
+### What if I relapse?
+
+Smono includes anti-relapse training because slips can happen. The goal is to help you understand what happened, recover quickly, and protect your smoke-free identity. Individual results vary.
+
+### Is Smono suitable for heavy smokers?
+
+Yes. Smono is designed for different smoking patterns, including people who smoke heavily, socially, emotionally, or out of routine.
+
+### Which languages does Smono support?
+
+Smono supports English, Hindi, Marathi, Gujarati, Spanish, French, German, Italian, and Chinese. Choose your language at signup or in Profile — onboarding, daily sessions, reflections, and support follow your choice.
+
+### Is this medical treatment?
+
+Smono is a behavioural change and psychological support program. If you have a medical condition, use medication, are pregnant, or need clinical support, speak to a qualified healthcare professional before making major changes.
+
+## Legal and policy
+
+- [Privacy Policy](https://www.smono.app/privacy/): How personal data is collected, used, and deleted.
+- [Terms of Service](https://www.smono.app/terms/): Program terms and health disclaimer.
+- [Editorial Policy](https://www.smono.app/editorial-policy/): How program and educational content is created and reviewed.
+- [Medical Disclaimer](https://www.smono.app/medical-disclaimer/): Smono is behavioural support, not medical treatment.

@@ -1,3 +1,4 @@
+import { appStartHref } from '../lib/appUrl'
 export function Pricing() {
   return (
     <>
@@ -11,11 +12,14 @@ export function Pricing() {
           <span className="pricing-badge" style={{background: 'rgba(56,189,248,0.1)', color: 'var(--primary)', borderColor: 'rgba(56,189,248,0.25)'}}>20-Day Support</span>
         </div>
         <h3 className="pricing-name">Smono Complete Program</h3>
+
         <div className="pricing-original" id="priceOriginal">₹3,999</div>
         <div className="pricing-price" id="pricePromo">₹1,999<span style={{fontSize: '1.1rem', fontWeight: 500, color: 'var(--muted)'}}>/month</span></div>
-        <div className="pricing-caption">Billed monthly. Cancel anytime.</div>
+        <div className="pricing-caption">
+          Billed monthly — the full program is 30 days, so you won&apos;t need more than one month.
+          Cancel anytime.
+        </div>
         
-        {/* Comparison Block */}
         <div className="pricing-comparison">
           <div className="comparison-item bad">
             <span className="comp-title" id="comparisonBadTitle">17 Days of Cigarettes</span>
@@ -37,7 +41,29 @@ export function Pricing() {
           <li><span className="pricing-check">✓</span> Emergency craving support &amp; progress milestones</li>
           <li><span className="pricing-check">✓</span> Optional personal consultations</li>
         </ul>
-        <button className="pricing-cta js-start-app" id="priceCta">Start My 10-Day Quit Program</button>
+        <div className="pricing-coupon">
+          <label htmlFor="priceCoupon">Coupon code</label>
+          <div className="pricing-coupon-row">
+            <input
+              id="priceCoupon"
+              type="text"
+              placeholder="Optional"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="button" id="priceCouponApply" className="pricing-coupon-apply">
+              Apply
+            </button>
+          </div>
+          <p id="priceCouponHint" className="pricing-coupon-hint" hidden />
+        </div>
+        <button type="button" className="pricing-cta" id="pricePayCta">
+          Pay &amp; unlock — <span id="pricePayLabel">₹1,999</span>
+        </button>
+        <p id="pricePayError" className="pricing-pay-error" hidden role="alert" />
+        <a href={appStartHref()} className="pricing-secondary-cta js-start-app" id="priceCta">
+          Or start free Day 1 in the app
+        </a>
         <div className="pricing-trust-row">
           <div className="trust-pill">🔒 Secure payment</div>
           <div className="trust-pill">⚡ 20–40 min daily sessions</div>
@@ -47,8 +73,6 @@ export function Pricing() {
       </div>
     </div>
   </section>
-
-  {/* FAQ */}
     </>
   )
 }
