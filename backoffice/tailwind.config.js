@@ -7,33 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#5699BD',
-        secondary: '#FDB47B',
-        success: '#4CAF50',
-        warning: '#FED2B2',
+        // Align with landing / app brand
+        primary: '#3F8DD2',
+        secondary: '#F6B884',
+        sage: '#6EA48F',
+        sky: '#8BCDE8',
+        success: '#6EA48F',
+        warning: '#F6B884',
         danger: '#E63946',
         neutral: {
-          dark: '#2B2B2B',
-          light: '#F5F5F5',
+          dark: '#0E2538',
+          light: '#F4FBFF',
         },
         bg: {
-          default: '#FAFAFA',
+          default: '#F4FBFF',
           card: '#FFFFFF',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
-        'card': '0 2px 8px rgba(0, 0, 0, 0.1)',
-        'card-lg': '0 4px 16px rgba(0, 0, 0, 0.15)',
+        'card': '0 4px 16px rgba(90, 130, 150, 0.08)',
+        'card-lg': '0 8px 32px rgba(90, 130, 150, 0.12)',
       },
     },
   },
   plugins: [],
 }
-
-
-
-
-

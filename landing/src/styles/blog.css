@@ -350,6 +350,10 @@
 
 .blog-article-inner {
   max-width: 40rem;
+  /* Reading gutter — phones need more than the default page pad */
+  padding-left: max(1.35rem, var(--page-pad, 20px), env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(1.35rem, var(--page-pad, 20px), env(safe-area-inset-right, 0px)) !important;
+  box-sizing: border-box;
 }
 
 .blog-article-inner--full {
@@ -371,16 +375,72 @@
   display: none !important;
 }
 
-/* Article ships its own .wrap padding — avoid double gutters */
+/*
+  Full HTML posts use .wrap as the reading column.
+  Never force padding to 0 — that put standfirst/tables flush to the phone edge.
+*/
 .blog-article--full .blog-content .wrap {
-  max-width: none;
-  padding-left: 0;
-  padding-right: 0;
-  margin: 0;
+  max-width: none !important;
+  width: 100% !important;
+  margin-inline: 0 !important;
+  box-sizing: border-box !important;
+  /* Floor inset even when CMS uses padding:0 !important */
+  padding-left: max(0.25rem, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(0.25rem, env(safe-area-inset-right, 0px)) !important;
 }
 
 .blog-article--full .blog-content .article-head {
   padding-top: 0.5rem;
+  padding-inline: 0;
+  max-width: 100%;
+}
+
+.blog-article--full .blog-content .lede,
+.blog-article--full .blog-content .standfirst,
+.blog-article--full .blog-content .dek,
+.blog-article--full .blog-content .eyebrow,
+.blog-article--full .blog-content .kicker {
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-inline: 0;
+  overflow-wrap: break-word;
+}
+
+/* Comparison tables / type cards — cells need air, not edge-flush headers */
+.blog-article--full .blog-content table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.25rem 0;
+}
+
+.blog-article--full .blog-content thead,
+.blog-article--full .blog-content tbody,
+.blog-article--full .blog-content tr {
+  width: 100%;
+}
+
+.blog-article--full .blog-content th,
+.blog-article--full .blog-content td {
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.blog-article--full .blog-content .card,
+.blog-article--full .blog-content .panel,
+.blog-article--full .blog-content .callout,
+.blog-article--full .blog-content .compare,
+.blog-article--full .blog-content .type-grid,
+.blog-article--full .blog-content [class*='compare'],
+.blog-article--full .blog-content [class*='type-table'] {
+  box-sizing: border-box;
+  padding-inline: max(1rem, 0.9rem);
+  max-width: 100%;
 }
 
 .blog-article--full .blog-content .hero-art,

@@ -13,22 +13,7 @@ import {
 } from '../../lib/analyticsHelpers'
 import { buildWinBackEmail, sendUserPushNotification } from '../../lib/sendPush'
 import { TrendingDown, Users, Download, AlertCircle, Bell, Mail } from 'lucide-react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts'
-
-const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
-
+import { D3MultiLineChart, D3Donut, ENGAGE_COLORS } from '../../components/charts/D3EngageCharts'
 export const RetentionReports = () => {
   // Horizon for curve + inactive / win-back threshold
   const [inactiveDays, setInactiveDays] = useState<30 | 60 | 90 | 180>(30)
@@ -272,70 +257,40 @@ export const RetentionReports = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Retention curve</h2>
-        <p className="text-sm text-neutral-500 mb-4">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+        <h2 className="text-lg font-semibold tracking-tight mb-4 text-[#0E2538]">Retention curve</h2>
+        <p className="text-sm text-[#4A6574] mb-4">
           Of users old enough to reach day N, % whose latest activity is on or after day N since
           signup. (Survivorship-style — not same-calendar-day industry D7.)
         </p>
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={retentionData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="days"
-              label={{ value: 'Days since registration', position: 'insideBottom', offset: -5 }}
-            />
-            <YAxis
-              label={{ value: 'Retention %', angle: -90, position: 'insideLeft' }}
-              domain={[0, 100]}
-            />
-            <Tooltip
-              formatter={(value: number, name: string) =>
-                name === 'User Retention' ? [`${value}%`, name] : value
-              }
-              labelFormatter={(days) => `Day ${days}`}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="retention"
-              stroke="#F58634"
-              strokeWidth={2}
-              name="User Retention"
-              dot={{ r: 4 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <D3MultiLineChart
+          data={retentionData.map((d: { days: number; retention: number }) => ({
+            days: `D${d.days}`,
+            retention: d.retention,
+          }))}
+          xKey="days"
+          height={360}
+          yDomain={[0, 100]}
+          ySuffix="%"
+          series={[{ key: 'retention', label: 'User Retention', color: '#3F8DD2' }]}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Account deletion reasons</h2>
-          <p className="text-sm text-neutral-500 mb-4">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+          <h2 className="text-lg font-semibold tracking-tight mb-4 text-[#0E2538]">Account deletion reasons</h2>
+          <p className="text-sm text-[#4A6574] mb-4">
             Exit survey from deletion requests — not the same as inactive users above.
           </p>
           {deletionReasonsData ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={deletionReasonsData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {deletionReasonsData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <D3Donut
+              data={deletionReasonsData}
+              height={300}
+              colors={ENGAGE_COLORS}
+              centerLabel="Reasons"
+            />
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-neutral-500">
+            <div className="flex items-center justify-center h-[300px] text-[#4A6574]">
               <p className="text-sm">No account deletion reasons yet.</p>
             </div>
           )}

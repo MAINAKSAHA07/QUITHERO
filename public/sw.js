@@ -1,9 +1,9 @@
-// ponytail: minimal service worker for PWA installability + offline shell
-const CACHE = 'smono-v4'
+// ponytail: PWA SW — push + offline shell. Never cache HTML/navigations (stale deploys blank home-screen apps).
+const CACHE = 'smono-v5'
 const SHELL = ['/', '/index.html']
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)))
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => undefined))
   self.skipWaiting()
 })
 
@@ -16,6 +16,15 @@ self.addEventListener('activate', (e) => {
   self.clients.claim()
 })
 
+function isHashedAsset(url) {
+  try {
+    const u = new URL(url)
+    return u.origin === self.location.origin && u.pathname.startsWith('/assets/')
+  } catch {
+    return false
+  }
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return
   if (!e.request.url.startsWith('http')) return
@@ -23,33 +32,56 @@ self.addEventListener('fetch', (e) => {
 
   const isNavigate = e.request.mode === 'navigate'
 
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (res && res.status === 200 && e.request.url.startsWith(self.location.origin)) {
-          const clone = res.clone()
-          caches.open(CACHE).then((c) => c.put(e.request, clone))
-        }
-        return res
-      })
-      .catch(() =>
-        caches.match(e.request).then((cached) => {
-          if (cached) return cached
-          if (isNavigate) {
-            return caches.match('/index.html').then(
-              (html) =>
-                html ||
-                new Response('Offline', {
-                  status: 503,
-                  headers: { 'Content-Type': 'text/html' },
-                })
-            )
-          }
-          // Don't invent a fake 408 for failed GETs — let the page see a network error
-          return Response.error()
-        })
+  // HTML navigations: always network. Offline → shell only.
+  if (isNavigate) {
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        caches.match('/index.html').then(
+          (html) =>
+            html ||
+            new Response('Offline — open smono when you have a connection.', {
+              status: 503,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            })
+        )
       )
+    )
+    return
+  }
+
+  // Fingerprinted JS/CSS: network-first, cache for offline
+  if (isHashedAsset(e.request.url)) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const clone = res.clone()
+            caches.open(CACHE).then((c) => c.put(e.request, clone))
+          }
+          return res
+        })
+        .catch(() =>
+          caches.match(e.request).then((cached) => cached || Response.error())
+        )
+    )
+    return
+  }
+
+  // Icons / misc: network, optional cache fill — never used as SPA shell
+  e.respondWith(
+    fetch(e.request).catch(() =>
+      caches.match(e.request).then((cached) => cached || Response.error())
+    )
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+  if (event.data?.type === 'support_viewing') {
+    viewingSupportTicketId = event.data.ticketId || null
+  }
 })
 
 self.addEventListener('push', (event) => {
@@ -64,7 +96,6 @@ self.addEventListener('push', (event) => {
 
       const ticketId = supportTicketIdFromPush(data)
 
-      // Wake open tabs so SupportInbox can poll even if we skip the banner
       try {
         const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
         for (const client of list) {
@@ -78,7 +109,6 @@ self.addEventListener('push', (event) => {
         /* ignore */
       }
 
-      // User is already reading this thread — skip the banner.
       if (ticketId && viewingSupportTicketId === ticketId) return
 
       const body = data.message || data.body || ''
@@ -108,12 +138,6 @@ function supportTicketIdFromPush(data) {
     return null
   }
 }
-
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'support_viewing') {
-    viewingSupportTicketId = event.data.ticketId || null
-  }
-})
 
 function absoluteUrl(path) {
   if (!path) return self.location.origin + '/'

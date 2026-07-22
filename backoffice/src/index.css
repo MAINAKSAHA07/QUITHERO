@@ -8,12 +8,26 @@
   }
   
   body {
-    @apply bg-bg-default text-neutral-dark antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply text-neutral-dark antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background:
+      radial-gradient(ellipse 70% 40% at 0% 0%, rgba(139, 205, 232, 0.35), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(246, 184, 132, 0.28), transparent 50%),
+      #F4FBFF;
+    min-height: 100vh;
   }
 
   h1, h2, h3 {
     text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  input, select, textarea, button {
+    @apply transition-[transform,box-shadow,background-color,border-color,opacity] duration-100 ease-out;
+  }
+
+  button:not(:disabled):active {
+    transform: scale(0.98);
   }
 }
 
@@ -25,27 +39,63 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  button:not(:disabled):active {
+    transform: none;
+  }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-card;
+    @apply bg-white/85 backdrop-blur-sm border border-white/50 shadow-card rounded-2xl;
   }
   
   .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+    @apply bg-primary text-white font-medium px-4 py-2.5 rounded-xl
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
+      disabled:opacity-50 disabled:pointer-events-none;
   }
   
   .btn-secondary {
-    @apply bg-neutral-light hover:bg-neutral-light/80 text-neutral-dark font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+    @apply bg-white text-neutral-dark font-medium px-4 py-2.5 rounded-xl border border-neutral-dark/10
+      hover:bg-neutral-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+  .btn-secondary:active {
+    transform: scale(0.98);
   }
   
   .btn-danger {
-    @apply bg-danger hover:bg-danger/90 text-white font-medium px-4 py-2 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger;
+    @apply bg-danger text-white font-medium px-4 py-2.5 rounded-xl
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger;
+  }
+  .btn-danger:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .bo-input {
+    @apply w-full px-4 py-2.5 rounded-xl border border-neutral-dark/10 bg-white
+      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40;
+  }
+
+  /* Soften legacy card shells without rewriting every page */
+  main .bg-white.rounded-lg.shadow-card {
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 }
 
-
-
-
-
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card,
+  main .bg-white.rounded-lg.shadow-card {
+    background: #fff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

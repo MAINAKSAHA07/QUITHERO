@@ -4,6 +4,7 @@ import GlassButton from './GlassButton'
 import SmonoLogo from './SmonoLogo'
 import Mascot from './Mascot'
 import { analyticsService } from '../services/analytics.service'
+import { hardReloadApp } from '../utils/swUpdate'
 
 interface Props {
   children: ReactNode
@@ -36,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null })
-    window.location.href = '/home'
+    void hardReloadApp('/')
   }
 
   render() {
@@ -61,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </details>
             )}
             <GlassButton onClick={this.handleReset} fullWidth className="py-4">
-              Go to Home
+              Reload app
             </GlassButton>
           </GlassCard>
         </div>

@@ -15,6 +15,7 @@ import { analyticsService } from '../../services/analytics.service'
 import { profileService } from '../../services/profile.service'
 import { postAuthPath } from '../../utils/kyc'
 import { hasChosenLanguage, markLanguageChosen } from '../../utils/languageChoice'
+import AppReloadLink from '../../components/AppReloadLink'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -344,6 +345,9 @@ export default function SignUp() {
               </svg>
               Continue with Google
             </GlassButton>
+          </div>
+          <div className="text-center pb-2">
+            <AppReloadLink />
           </div>
         </motion.div>
       </div>

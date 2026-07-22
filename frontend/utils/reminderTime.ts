@@ -18,3 +18,18 @@ export function preferenceToReminderTime(preference?: string): string {
   if (!preference) return '09:00'
   return PREFERENCE_TO_TIME[preference] ?? '09:00'
 }
+
+/** Match Home greeting buckets — hour is local 0–23. */
+export function greetingForHour(h: number): string {
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+/** Push title from reminder HH:MM (not wall-clock “now”, so catch-up stays honest). */
+export function reminderNotificationTitle(timeHHMM: string): string {
+  const h = parseInt(String(timeHHMM).split(':')[0], 10)
+  if (!Number.isFinite(h)) return 'Your daily quote'
+  const base = greetingForHour(h)
+  return h < 12 ? `${base} ☀️` : base
+}

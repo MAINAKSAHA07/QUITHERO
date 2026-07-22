@@ -8,9 +8,7 @@ import {
 import { cohortRetentionPct, distinctUsers, localDayKey } from '../../lib/analyticsHelpers'
 import { fetchActivityByUser, fetchActivityRecords } from '../../lib/fetchActivityByUser'
 import { Users, TrendingUp, Calendar } from 'lucide-react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-
-// const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
+import { D3MultiLineChart, D3HorizontalBars } from '../../components/charts/D3EngageCharts'
 
 export const UserAnalytics = () => {
   const [dateRange, setDateRange] = useState<'30' | '90' | '180' | '365'>('30')
@@ -225,41 +223,35 @@ export const UserAnalytics = () => {
       </div>
 
       {/* User Growth Chart */}
-      <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">User Growth</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={growthData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="total" stroke="#F58634" strokeWidth={2} name="Total Users" />
-            <Line type="monotone" dataKey="activeUsers" stroke="#2A72B5" strokeWidth={2} name="Active Users" />
-            <Line type="monotone" dataKey="newUsers" stroke="#4CAF50" strokeWidth={2} name="New Registrations" />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+        <h2 className="text-lg font-semibold tracking-tight mb-4 text-[#0E2538]">User Growth</h2>
+        <D3MultiLineChart
+          data={growthData}
+          xKey="date"
+          height={300}
+          series={[
+            { key: 'total', label: 'Total Users', color: '#F6B884' },
+            { key: 'activeUsers', label: 'Active Users', color: '#3F8DD2' },
+            { key: 'newUsers', label: 'New Registrations', color: '#6EA48F' },
+          ]}
+        />
       </div>
 
       {/* User Segmentation Funnel */}
-      <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">User Segmentation Funnel</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={funnelData} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="stage" type="category" width={120} />
-            <Tooltip />
-            <Bar dataKey="value" fill="#F58634" />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+        <h2 className="text-lg font-semibold tracking-tight mb-4 text-[#0E2538]">User Segmentation Funnel</h2>
+        <D3HorizontalBars
+          data={funnelData.map((s) => ({ label: s.stage, value: s.value }))}
+          height={300}
+          color="#3F8DD2"
+        />
         <div className="mt-4 space-y-2">
           {funnelData.map((stage, idx) => (
             <div key={idx} className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">{stage.stage}</span>
+              <span className="text-[#4A6574]">{stage.stage}</span>
               <div className="flex items-center gap-4">
-                <span className="font-medium">{stage.value} users</span>
-                <span className="text-neutral-500">({stage.percentage}%)</span>
+                <span className="font-medium text-[#0E2538]">{stage.value} users</span>
+                <span className="text-[#4A6574]">({stage.percentage}%)</span>
               </div>
             </div>
           ))}

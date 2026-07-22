@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { adminCollectionHelpers } from '../../lib/pocketbase'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-
-// const COLORS = ['#F58634', '#2A72B5', '#4CAF50', '#FFD08A', '#E63946']
+import { D3ColumnChart } from '../../components/charts/D3EngageCharts'
 
 export const ProgramPerformance = () => {
   const { data: programsData } = useQuery({
@@ -214,17 +212,18 @@ export const ProgramPerformance = () => {
       </div>
 
       {/* Completion Rate Chart */}
-      <div className="bg-white rounded-lg shadow-card p-6">
-        <h2 className="text-lg font-semibold mb-4">Completion Rate by Day</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={dayCompletionData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip />
-            <Bar dataKey="completionRate" fill="#F58634" />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+        <h2 className="text-lg font-semibold tracking-tight mb-4 text-[#0E2538]">Completion Rate by Day</h2>
+        <D3ColumnChart
+          data={dayCompletionData.map((d) => ({
+            label: d.day.replace(/^Day /, 'D'),
+            value: d.completionRate,
+          }))}
+          height={300}
+          color="#3F8DD2"
+          max={100}
+          valueSuffix="%"
+        />
       </div>
     </div>
   )

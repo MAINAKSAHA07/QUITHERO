@@ -47,20 +47,33 @@ export default function KYCFlow() {
     let cancelled = false
     async function gate() {
       if (!user?.id) return
+      // Wait until profile fetch settles — early return used to strand us on "checking"
+      // because this effect only re-ran on user.id (profileLoading flip never retried).
       if (profileLoading && !userProfile) return
 
       let profile = userProfile
       if (!isKycComplete(profile)) {
-        const result = await profileService.getByUserId(user.id)
-        if (cancelled) return
-        if (result.success && result.data) {
-          profile = result.data
-          if (result.data.id) updateUserProfile?.(result.data)
+        try {
+          const result = await Promise.race([
+            profileService.getByUserId(user.id),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ])
+          if (cancelled) return
+          if (result && result.success && result.data) {
+            profile = result.data
+            if (result.data.id) updateUserProfile?.(result.data)
+          }
+        } catch {
+          /* proceed to KYC */
         }
       }
 
       if (isKycComplete(profile)) {
-        try { localStorage.removeItem('kyc_answers') } catch { /* ignore */ }
+        try {
+          localStorage.removeItem('kyc_answers')
+        } catch {
+          /* ignore */
+        }
         navigate('/home', { replace: true })
         return
       }
@@ -70,9 +83,21 @@ export default function KYCFlow() {
         setCurrentStep((s) => (s === 'checking' ? 'optin' : s))
       }
     }
-    gate()
-    return () => { cancelled = true }
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+    void gate()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, profileLoading, userProfile]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escape hatch: never leave home-screen users on a blank spinner forever
+  useEffect(() => {
+    if (profileChecked) return
+    const t = window.setTimeout(() => {
+      setProfileChecked(true)
+      setCurrentStep((s) => (s === 'checking' ? 'optin' : s))
+    }, 10000)
+    return () => window.clearTimeout(t)
+  }, [profileChecked])
   // Save answers to localStorage dynamically
   useEffect(() => {
     try {
@@ -317,9 +342,19 @@ export default function KYCFlow() {
 
   if (currentStep === 'checking' || !profileChecked) {
     return (
-      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col items-center justify-center bg-background gap-4">
+      <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col items-center justify-center bg-background gap-4 px-6">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-primary/20 border-t-brand-primary"></div>
         <p className="text-sm text-text-primary/60">Loading…</p>
+        <button
+          type="button"
+          className="mt-4 text-sm text-text-primary/50 underline underline-offset-2"
+          onClick={() => {
+            setProfileChecked(true)
+            setCurrentStep('optin')
+          }}
+        >
+          Continue
+        </button>
       </div>
     )
   }

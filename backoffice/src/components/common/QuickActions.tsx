@@ -14,20 +14,21 @@ export const QuickActions = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-card p-6">
-      <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-      <div className="space-y-3">
-        {actions.map((action, index) => {
+      <h2 className="text-lg font-semibold tracking-tight mb-4 text-neutral-dark">Quick Actions</h2>
+      <div className="space-y-2">
+        {actions.map((action) => {
           const Icon = action.icon
           return (
             <button
-              key={index}
+              key={action.path}
+              type="button"
               onClick={() => navigate(action.path)}
-              className="w-full flex items-center gap-4 p-4 hover:bg-neutral-50 rounded-lg transition-colors text-left border border-neutral-200"
+              className="w-full flex items-center gap-4 p-3.5 hover:bg-[#F4FBFF] rounded-xl transition-colors text-left border border-[#0E2538]/08 active:scale-[0.99]"
             >
-              <div className={`p-3 rounded-lg ${action.color} text-white`}>
+              <div className={`p-2.5 rounded-xl ${action.color} text-white`}>
                 <Icon className="w-5 h-5" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="font-medium text-neutral-dark">{action.label}</p>
                 <p className="text-sm text-neutral-500">{action.subtitle}</p>
               </div>
@@ -38,8 +39,3 @@ export const QuickActions = () => {
     </div>
   )
 }
-
-
-
-
-

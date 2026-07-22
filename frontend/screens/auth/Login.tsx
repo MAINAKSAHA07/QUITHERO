@@ -23,6 +23,7 @@ import {
   isReturningLoginUser,
   markReturningLoginUser,
 } from '../../utils/loginRateLimit'
+import AppReloadLink from '../../components/AppReloadLink'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -184,37 +185,6 @@ export default function Login() {
     }
   }
 
-  const handleAppleLogin = async () => {
-    setError('')
-    setLoading(true)
-    try {
-      const result = await authHelpers.loginWithApple()
-      if (result.redirecting) return
-      if (result.success && result.data) {
-        const record = result.data.record
-        markReturningLoginUser()
-        setIsAuthenticated(true)
-        const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
-        if (mapped) setUser(mapped)
-        await analyticsService.trackEvent('login', { method: 'apple' }, record.id)
-
-        const from = fromState?.from
-        if (from?.pathname && from.pathname !== '/login' && from.pathname !== '/signup' && from.pathname !== '/onboarding') {
-          navigate(`${from.pathname}${from.search || ''}`, { replace: true })
-        } else {
-          const profileResult = await profileService.getByUserId(record.id)
-          navigate(postAuthPath(profileResult.data), { replace: true })
-        }
-      } else {
-        setError(result.error || 'Apple login failed')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Apple login failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-[100dvh] w-full max-w-md mx-auto bg-[#F4FBFF] pb-20 safe-area-bottom safe-area-top">
       <div className="app-container px-3 sm:px-4 pt-8">
@@ -340,19 +310,9 @@ export default function Login() {
               </svg>
               Continue with Google
             </GlassButton>
-
-            <GlassButton
-              variant="secondary"
-              fullWidth
-              className="py-3 flex items-center justify-center gap-2"
-              onClick={handleAppleLogin}
-              disabled={loading}
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.96-3.24-1.5-1.84-.78-2.9-1.22-3.24-2.02-.3-.7-.19-1.73.1-2.78l.93-3.2c.05-.2-.02-.4-.16-.54L5.5 9.5c-.3-.3-.4-.7-.25-1.1.15-.4.5-.7.9-.8 1.5-.3 2.9-.6 3.9-1.1.5-.3 1-.6 1.5-1 .5-.4.9-.8 1.3-1.2.3-.3.6-.5 1-.6.4-.1.8-.1 1.2 0 .4.1.7.3 1 .6.4.4.8.8 1.3 1.2.5.4 1 .7 1.5 1 1 .5 2.4.8 3.9 1.1.4.1.75.4.9.8.15.4.05.8-.25 1.1l-2.12 2.06c-.14.14-.21.34-.16.54l.93 3.2c.29 1.05.4 2.08.1 2.78-.34.8-1.4 1.24-3.24 2.02-1.16.54-2.15 1-3.24 1.5-1.03.48-2.1.55-3.08-.4z" />
-              </svg>
-              Continue with Apple
-            </GlassButton>
+          </div>
+          <div className="text-center mt-4 pb-2">
+            <AppReloadLink />
           </div>
         </motion.div>
       </div>

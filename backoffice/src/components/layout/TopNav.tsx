@@ -223,14 +223,14 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
 
   return (
     <>
-      <header className="shrink-0 z-40 bg-white border-b border-neutral-200 h-14 flex items-stretch shadow-sm">
+      <header className="shrink-0 z-40 h-14 flex items-stretch bg-white/75 backdrop-blur-xl border-b border-white/50 shadow-[0_1px_0_rgba(14,37,56,0.06)]">
         {/* Brand aligns with sidebar width so the shell never drifts */}
         <div
-          className={`shrink-0 flex items-center gap-2 px-4 border-r border-neutral-200 transition-[width] duration-200 ease-out ${
+          className={`shrink-0 flex items-center gap-2 px-4 border-r border-[#0E2538]/08 transition-[width] duration-200 ease-out ${
             collapsed ? 'w-16 justify-center px-0' : 'w-60'
           }`}
         >
-          <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary font-bold text-sm flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-primary/15 text-primary font-bold text-sm flex items-center justify-center">
             S
           </div>
           {!collapsed && (
@@ -246,7 +246,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
             <button
               type="button"
               onClick={() => setShowSearchModal(true)}
-              className="w-full flex items-center gap-3 px-3 py-2 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors text-left bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="w-full flex items-center gap-3 px-3 py-2 border border-[#0E2538]/10 rounded-xl hover:border-primary/30 transition-colors text-left bg-white/70 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <Search className="w-4 h-4 text-neutral-400 shrink-0" />
               <span className="flex-1 text-sm text-neutral-500 truncate">
@@ -267,7 +267,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
                 setShowNotifications(!showNotifications)
                 setShowProfileMenu(false)
               }}
-            className="relative p-2 hover:bg-neutral-100 rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="relative p-2 hover:bg-white/80 rounded-xl transition-colors active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <Bell className="w-5 h-5 text-neutral-600" />
               {unreadCount > 0 && (
@@ -280,7 +280,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
                   className="fixed inset-0 z-40"
                   onClick={() => setShowNotifications(false)}
                 />
-                <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-neutral-200 z-50">
+                <div className="absolute right-0 mt-2 w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-card-lg border border-white/70 z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Notifications</h3>
                     {unreadCount > 0 && (
@@ -346,7 +346,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
                 setShowProfileMenu(!showProfileMenu)
                 setShowNotifications(false)
               }}
-            className="flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+            className="flex items-center gap-2 p-2 hover:bg-white/80 rounded-xl transition-colors active:scale-[0.98]"
           >
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-medium">
               {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
@@ -361,7 +361,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
                   className="fixed inset-0 z-40"
                   onClick={() => setShowProfileMenu(false)}
                 />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white/95 backdrop-blur-xl rounded-2xl shadow-card-lg border border-white/70 z-50 overflow-hidden">
               <div className="px-4 py-2 border-b border-neutral-200">
                 <p className="text-sm font-medium">{user?.name || 'Admin'}</p>
                 <p className="text-xs text-neutral-500">{user?.email}</p>
@@ -411,12 +411,12 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
       {showSearchModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
           <div
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-[#0E2538]/40 backdrop-blur-sm"
             onClick={() => setShowSearchModal(false)}
           />
-          <div className="relative w-full max-w-2xl mx-4 bg-white rounded-lg shadow-2xl border border-neutral-200">
+          <div className="relative w-full max-w-2xl mx-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-card-lg border border-white/70">
             {/* Search Input */}
-            <div className="p-4 border-b border-neutral-200">
+            <div className="p-4 border-b border-[#0E2538]/08">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-5 h-5" />
                 <input
@@ -424,7 +424,7 @@ export const TopNav = ({ collapsed = false }: { collapsed?: boolean }) => {
                   placeholder="Search users, content, programs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-lg"
+                  className="w-full pl-10 pr-10 py-3 border border-[#0E2538]/12 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/35 text-lg"
                   autoFocus
                 />
                 <button

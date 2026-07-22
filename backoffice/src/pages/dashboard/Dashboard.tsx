@@ -275,19 +275,19 @@ export const Dashboard = () => {
     if (total === 0) {
       return [
         { name: 'Not Started', value: 0, color: '#9ca3af' },
-        { name: `Days 1-${third}`, value: 0, color: '#FFD08A' },
-        { name: `Days ${third + 1}-${twoThird}`, value: 0, color: '#F58634' },
-        { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: 0, color: '#D45A1C' },
-        { name: 'Completed', value: 0, color: '#4CAF50' },
+        { name: `Days 1-${third}`, value: 0, color: '#8BCDE8' },
+        { name: `Days ${third + 1}-${twoThird}`, value: 0, color: '#3F8DD2' },
+        { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: 0, color: '#F6B884' },
+        { name: 'Completed', value: 0, color: '#6EA48F' },
       ]
     }
 
     return [
       { name: 'Not Started', value: notStarted, color: '#9ca3af' },
-      { name: `Days 1-${third}`, value: early, color: '#FFD08A' },
-      { name: `Days ${third + 1}-${twoThird}`, value: mid, color: '#F58634' },
-      { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: late, color: '#D45A1C' },
-      { name: 'Completed', value: completed, color: '#4CAF50' },
+      { name: `Days 1-${third}`, value: early, color: '#8BCDE8' },
+      { name: `Days ${third + 1}-${twoThird}`, value: mid, color: '#3F8DD2' },
+      { name: `Days ${twoThird + 1}-${maxProgramDay}`, value: late, color: '#F6B884' },
+      { name: 'Completed', value: completed, color: '#6EA48F' },
     ]
   }
 
@@ -297,11 +297,11 @@ export const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-neutral-dark">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-neutral-dark tracking-tight">Dashboard</h1>
       </div>
 
       {(fetchFailed || usersError) && (
-        <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           Could not load dashboard data — your session may have expired.{' '}
           {(usersData as { error?: string })?.error || (usersErr as Error)?.message || 'Sign out and sign in again.'}
         </div>
@@ -345,14 +345,14 @@ export const Dashboard = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-card p-6">
-            <h2 className="text-lg font-semibold mb-4">User Growth</h2>
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+            <h2 className="text-lg font-semibold tracking-tight mb-4 text-neutral-dark">User Growth</h2>
             <UserGrowthChart data={userGrowthData} />
           </div>
         </div>
         <div>
-          <div className="bg-white rounded-lg shadow-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Program Progress</h2>
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-6">
+            <h2 className="text-lg font-semibold tracking-tight mb-4 text-neutral-dark">Program Progress</h2>
             <ProgramProgressChart data={programProgressData} />
           </div>
         </div>

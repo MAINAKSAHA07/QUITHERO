@@ -2,6 +2,8 @@
  * Browser notifications — foreground reminders + SW-backed alerts (PWA / iOS standalone).
  */
 
+import { reminderNotificationTitle } from './reminderTime'
+
 const REMINDER_STORAGE_KEY = 'smono_next_reminder'
 const DEFAULT_REMINDER_BODY = 'Start your smoke-free day with intention.'
 let activeReminderTimeout: number | null = null
@@ -143,7 +145,7 @@ export class NotificationService {
       void (async () => {
         const message = await resolveReminderBody(body)
         const day = new Date().toISOString().slice(0, 10)
-        this.triggerNativeNotification('Good morning ☀️', message, '/home', {
+        this.triggerNativeNotification(reminderNotificationTitle(time), message, '/home', {
           tag: `daily-quote-${day}`,
         })
         callback?.()
@@ -167,7 +169,7 @@ export class NotificationService {
       if (Date.now() >= nextAt) {
         const message = await resolveReminderBody(body)
         const day = new Date().toISOString().slice(0, 10)
-        this.triggerNativeNotification('Good morning ☀️', message, '/home', {
+        this.triggerNativeNotification(reminderNotificationTitle(time), message, '/home', {
           tag: `daily-quote-${day}`,
         })
         this.scheduleDailyReminder(time, body)

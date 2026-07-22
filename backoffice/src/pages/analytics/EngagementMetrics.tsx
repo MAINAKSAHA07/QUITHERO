@@ -231,7 +231,7 @@ export const EngagementMetrics = () => {
           data={sessionCompletionData}
           max={100}
           valueSuffix="%"
-          color="#F58634"
+          color="#3F8DD2"
           height={320}
         />
         <p className="mt-3 text-sm text-neutral-500">
@@ -286,7 +286,7 @@ export const EngagementMetrics = () => {
           {achievementChartData.length === 0 ? (
             <p className="text-sm text-neutral-500 py-16 text-center">No unlocks in this range.</p>
           ) : (
-            <D3HorizontalBars data={achievementChartData} height={280} color="#F58634" />
+            <D3HorizontalBars data={achievementChartData} height={280} color="#3F8DD2" />
           )}
         </div>
       </div>

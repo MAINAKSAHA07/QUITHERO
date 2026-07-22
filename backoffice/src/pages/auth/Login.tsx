@@ -29,19 +29,30 @@ export const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 20% 0%, rgba(139, 205, 232, 0.45), transparent 55%), radial-gradient(ellipse 70% 45% at 100% 90%, rgba(246, 184, 132, 0.35), transparent 50%), #F4FBFF',
+        }}
+        aria-hidden
+      />
+      <div className="relative w-full max-w-md bg-white/85 backdrop-blur-md border border-white/70 rounded-3xl shadow-card-lg p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
-            <LogIn className="w-8 h-8 text-white" />
+          <div
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 text-white shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #3F8DD2, #6EA48F)' }}
+          >
+            <LogIn className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-neutral-dark">smono Admin</h1>
-          <p className="text-neutral-500 mt-2">Sign in to continue</p>
+          <h1 className="text-2xl font-bold text-neutral-dark tracking-tight">Smono Admin</h1>
+          <p className="text-[#4A6574] mt-2 text-sm">Sign in to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-lg text-sm">
+            <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-xl text-sm" role="alert">
               {error}
             </div>
           )}
@@ -56,7 +67,8 @@ export const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              autoComplete="username"
+              className="bo-input"
               placeholder="admin@backoffice.com"
             />
           </div>
@@ -71,25 +83,17 @@ export const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              autoComplete="current-password"
+              className="bo-input"
               placeholder="••••••••"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
+          <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-[15px]">
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
     </div>
   )
 }
-
-
-
-
-

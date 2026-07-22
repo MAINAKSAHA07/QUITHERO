@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
             'ui-vendor': ['lucide-react'],
             'query-vendor': ['@tanstack/react-query'],
             'table-vendor': ['@tanstack/react-table'],
-            'chart-vendor': ['recharts'],
+            'chart-vendor': ['d3'],
           },
         },
       },

@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [])
 
   return (
-    <div className="h-screen flex flex-col bg-bg-default overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden">
       <TopNav collapsed={collapsed} />
       <div className="flex flex-1 min-h-0">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />

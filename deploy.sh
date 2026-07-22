@@ -809,7 +809,22 @@ append_nginx_app_api_locations() {
         try_files \$uri =404;
     }
 
+    # Home-screen PWA must pick up new deploys — never long-cache the shell / SW
+    location = /sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        try_files \$uri =404;
+    }
+    location = /manifest.json {
+        add_header Cache-Control "no-cache, must-revalidate";
+        try_files \$uri =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+        try_files \$uri =404;
+    }
+
     location / {
+        add_header Cache-Control "no-cache, must-revalidate";
         try_files \$uri \$uri/ /index.html;
     }
 EOF
@@ -863,7 +878,21 @@ append_nginx_admin_api_locations() {
         try_files \$uri =404;
     }
 
+    location = /sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        try_files \$uri =404;
+    }
+    location = /manifest.json {
+        add_header Cache-Control "no-cache, must-revalidate";
+        try_files \$uri =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+        try_files \$uri =404;
+    }
+
     location / {
+        add_header Cache-Control "no-cache, must-revalidate";
         try_files \$uri \$uri/ /index.html;
     }
 EOF

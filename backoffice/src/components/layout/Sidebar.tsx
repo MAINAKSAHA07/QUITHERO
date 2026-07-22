@@ -128,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
   return (
     <aside
-      className={`shrink-0 h-full flex flex-col bg-[#1A2332] text-white transition-[width] duration-200 ease-out ${
+      className={`shrink-0 h-full flex flex-col bg-[#0E2538] text-white transition-[width] duration-200 ease-out ${
         collapsed ? 'w-16' : 'w-60'
       }`}
       aria-label="Main navigation"
@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 to={item.path}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-100 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                     isActive
                       ? 'bg-primary text-white'
                       : 'text-white/75 hover:bg-white/10 hover:text-white'
@@ -166,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 type="button"
                 onClick={() => (collapsed ? onToggle() : toggleExpand(item.path))}
                 title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-100 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                   isSection ? 'bg-white/10 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
                 } ${collapsed ? 'justify-center px-0' : ''}`}
                 aria-expanded={!collapsed && isExpanded}
@@ -191,12 +191,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                       to={child.path}
                       end={child.path === '/users' || child.path === '/achievements'}
                       className={({ isActive }) =>
-                        `flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                        `flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors duration-100 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                           isActive
                             ? 'bg-primary text-white'
                             : 'text-white/65 hover:bg-white/10 hover:text-white'
-                        }`
-                      }
+                        }`}
                     >
                       <span className="truncate">{child.label}</span>
                     </NavLink>

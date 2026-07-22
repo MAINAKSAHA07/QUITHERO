@@ -40,6 +40,15 @@ function localHHMM(timezone) {
   }
 }
 
+/** Title from reminder HH:MM — was hardcoded "Good morning" for evening slots too. */
+function reminderTitle(timeHHMM) {
+  const h = parseInt(String(timeHHMM).split(':')[0], 10)
+  if (!Number.isFinite(h)) return 'Your daily quote'
+  if (h < 12) return 'Good morning ☀️'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function startReminderScheduler() {
   if (!isPushReady()) return
 
@@ -72,13 +81,13 @@ export function startReminderScheduler() {
 
       const quoteBody = await getDailyQuoteText(token, profile.language || 'en')
       const result = await notifyUserPush(userId, {
-        title: 'Good morning ☀️',
+        title: reminderTitle(reminderTime),
         body: quoteBody,
         url: '/home',
         tag: `daily-quote-${day}`,
       })
       if (result.sent > 0) {
-        console.log(`[Reminder] Sent morning quote to ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'})`)
+        console.log(`[Reminder] Sent quote to ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'} @ ${reminderTime})`)
       }
     }
 

@@ -29,6 +29,7 @@ import { profileService } from './services/profile.service'
 import { postAuthPath } from './utils/kyc'
 import { installDeepLinkHandler } from './utils/deepLinks'
 import { bootNativeShell } from './utils/nativeBoot'
+import { hardReloadApp } from './utils/swUpdate'
 
 const LANDING_TERMS_URL = 'https://www.smono.app/terms/'
 const LANDING_PRIVACY_URL = 'https://www.smono.app/privacy/'
@@ -75,6 +76,10 @@ function RootRedirect() {
       return
     }
     let cancelled = false
+    const failSafe = window.setTimeout(() => {
+      if (!cancelled) setPath('/home')
+    }, 8000)
+
     profileService
       .getByUserId(user.id)
       .then((result) => {
@@ -84,15 +89,25 @@ function RootRedirect() {
         // Network / API miss must not leave a blank screen
         if (!cancelled) setPath('/home')
       })
+      .finally(() => window.clearTimeout(failSafe))
+
     return () => {
       cancelled = true
+      window.clearTimeout(failSafe)
     }
   }, [isAuthenticated, user?.id])
 
   if (!path) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 bg-background px-6">
         <div className="w-8 h-8 rounded-full border-2 border-[#3F8DD2] border-t-transparent animate-spin" />
+        <button
+          type="button"
+          className="text-sm text-[#4A6574] underline underline-offset-2"
+          onClick={() => void hardReloadApp('/')}
+        >
+          Stuck? Reload app
+        </button>
       </div>
     )
   }

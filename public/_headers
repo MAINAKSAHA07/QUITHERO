@@ -1,0 +1,15 @@
+/*
+  Cache-Control for Netlify publishes (app dist/).
+  Hashed /assets/* stay immutable via Netlify defaults; shell must revalidate.
+*/
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache, must-revalidate
+
+/
+  Cache-Control: no-cache, must-revalidate

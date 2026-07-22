@@ -28,31 +28,28 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`bg-gradient-to-br ${gradient} rounded-lg shadow-card p-6 border ${
-        alert ? alertColors[alert] : 'border-transparent'
+      className={`bg-gradient-to-br ${gradient} rounded-2xl shadow-card p-6 border active:scale-[0.99] transition-transform duration-100 ${
+        alert ? alertColors[alert] : 'border-white/40'
       }`}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-lg bg-white/50`}>
+        <div className="p-3 rounded-xl bg-white/60 backdrop-blur-sm">
           <Icon className="w-6 h-6 text-primary" />
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-sm ${trendUp ? 'text-success' : 'text-danger'}`}>
+          <div className={`flex items-center gap-1 text-sm font-medium ${trendUp ? 'text-success' : 'text-danger'}`}>
             <span>{trend}</span>
             {trendUp ? '↑' : '↓'}
           </div>
         )}
       </div>
       <div>
-        <p className="text-3xl font-bold text-neutral-dark mb-1">{value.toLocaleString()}</p>
-        <p className="text-sm text-neutral-500">{title}</p>
-        {subtitle && <p className="text-xs text-neutral-400 mt-1">{subtitle}</p>}
+        <p className="text-3xl font-bold text-neutral-dark tracking-tight mb-1">
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+        <p className="text-sm text-[#4A6574] font-medium">{title}</p>
+        {subtitle && <p className="text-xs text-[#4A6574]/80 mt-1">{subtitle}</p>}
       </div>
     </div>
   )
 }
-
-
-
-
-

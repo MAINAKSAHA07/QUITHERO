@@ -33,13 +33,9 @@ import UpgradePrompt from '../components/UpgradePrompt'
 import { useKycGate } from '../hooks/useKycGate'
 import { needsDay2Upgrade } from '../utils/upgradePrompt'
 
-const MILESTONE_DAYS = [3, 7, 14, 30]
+import { greetingForHour } from '../utils/reminderTime'
 
-function greetingForHour(h: number) {
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
+const MILESTONE_DAYS = [3, 7, 14, 30]
 
 function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
   const stroke = 10
