@@ -7,13 +7,23 @@ import { initBarAnimations } from '../lib/barAnimations'
 
 const PAYWALL_DAILY_CIGS = 10
 
+type LandingInteractionOpts = {
+  /** When true, .js-start-app opens Razorpay instead of the app. */
+  buyMode?: boolean
+}
+
 /**
  * Wires DOM interactions for the marketing page (nav, FAQ, pricing, CTAs, light canvas).
  * ponytail: event delegation over per-button React handlers — markup stays section-split without prop drilling.
  */
-export function useLandingInteractions() {
+export function useLandingInteractions(opts: LandingInteractionOpts = {}) {
+  const buyMode = Boolean(opts.buyMode)
+
   useEffect(() => {
     const cleanups: Array<() => void> = []
+    // Filled once pricing/checkout module loads — buyMode CTAs call this
+    let openBuyCheckout: (() => Promise<void>) | null = null
+    let buyCheckoutBusy = false
 
     // App CTAs + deep links (rewrite href for local→:5175 vs prod app host)
     document.querySelectorAll<HTMLElement>('[data-app-link]').forEach((el) => {
@@ -21,25 +31,34 @@ export function useLandingInteractions() {
       if (path && el instanceof HTMLAnchorElement) el.href = appHref(path)
     })
     document.querySelectorAll<HTMLAnchorElement>('a.js-start-app').forEach((el) => {
-      el.href = appHref(APP_START_PATH)
+      // Buy funnel: same markup, href falls back to pricing if JS fails mid-load
+      el.href = buyMode ? '#pricing' : appHref(APP_START_PATH)
     })
 
     const onStartClick = (e: Event) => {
       const target = (e.target as HTMLElement | null)?.closest('.js-start-app')
       if (!target) return
       e.preventDefault()
+      if (buyMode) {
+        if (buyCheckoutBusy) return
+        if (openBuyCheckout) {
+          void openBuyCheckout()
+          return
+        }
+        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
       goToApp(APP_START_PATH)
     }
     document.addEventListener('click', onStartClick)
     cleanups.push(() => document.removeEventListener('click', onStartClick))
 
-    // Quit coach mailto (buttons); anchors with mailto: work natively
+    // Quit coach — open landing AI chat (mailto kept as no-JS fallback)
     const onCoach = (e: Event) => {
       const target = (e.target as HTMLElement | null)?.closest('.nav-coach')
       if (!target) return
-      if (target instanceof HTMLAnchorElement && target.href.startsWith('mailto:')) return
       e.preventDefault()
-      window.location.href = 'mailto:support@smono.app'
+      window.dispatchEvent(new CustomEvent('smono:open-coach'))
     }
     document.addEventListener('click', onCoach)
     cleanups.push(() => document.removeEventListener('click', onCoach))
@@ -183,7 +202,8 @@ export function useLandingInteractions() {
     let selectedCountry = 'IN'
     ;(async () => {
       const { detectCountryCode, formatMoney, getCountryConfig } = await import('../lib/pricing')
-      const { startLandingCheckout, previewLandingCoupon } = await import('../lib/payment')
+      const { startLandingCheckout, startLandingGiftCheckout, previewLandingCoupon } =
+        await import('../lib/payment')
 
       const code = await detectCountryCode()
       if (cancelled) return
@@ -211,10 +231,11 @@ export function useLandingInteractions() {
         set('priceComparisonGood', promo)
         set('priceSavingsText', `Less than ${equivalentDays} days of cigarettes. Pays for itself in a week.`)
         set('pricePayLabel', promo)
+        set('giftPayLabel', listPromo)
 
         const promoEl = document.getElementById('pricePromo')
         if (promoEl) {
-          promoEl.innerHTML = `${promo}<span style="font-size:1.1rem;font-weight:500;color:var(--muted)">/month</span>`
+          promoEl.innerHTML = `${promo}<span style="font-size:1.1rem;font-weight:500;color:var(--muted)"> one-time</span>`
         }
       }
 
@@ -305,6 +326,105 @@ export function useLandingInteractions() {
       payBtn?.addEventListener('click', onPay)
       cleanups.push(() => payBtn?.removeEventListener('click', onPay))
 
+      if (buyMode) {
+        openBuyCheckout = async () => {
+          if (buyCheckoutBusy) return
+          buyCheckoutBusy = true
+          try {
+            const coupon = couponEl?.value?.trim() || appliedCoupon || ''
+            await startLandingCheckout(selectedCountry, coupon)
+          } catch (err: any) {
+            const msg = String(err?.message || 'Payment failed')
+            if (msg !== 'Payment cancelled') {
+              if (errEl) {
+                errEl.hidden = false
+                errEl.textContent = msg
+              }
+              document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })
+            }
+          } finally {
+            buyCheckoutBusy = false
+          }
+        }
+      }
+
+      const giftForm = document.getElementById('giftForm') as HTMLFormElement | null
+      const giftPayBtn = document.getElementById('giftPayCta') as HTMLButtonElement | null
+      const giftError = document.getElementById('giftPayError')
+      const giftSuccess = document.getElementById('giftPaySuccess')
+      const giftSuccessBody = document.getElementById('giftPaySuccessBody')
+      const giftValue = (id: string) =>
+        (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)?.value.trim() || ''
+      const onGiftPay = async (event: Event) => {
+        event.preventDefault()
+        if (!giftForm?.reportValidity() || !giftPayBtn || giftPayBtn.disabled) return
+        const buyerEmail = giftValue('giftBuyerEmail').toLowerCase()
+        const recipientEmail = giftValue('giftRecipientEmail').toLowerCase()
+        const recipientName = giftValue('giftRecipientName')
+        if (buyerEmail === recipientEmail) {
+          if (giftError) {
+            giftError.hidden = false
+            giftError.textContent = 'Use a different email for the person receiving the gift.'
+          }
+          return
+        }
+        if (giftError) {
+          giftError.hidden = true
+          giftError.textContent = ''
+        }
+        if (giftSuccess) giftSuccess.hidden = true
+        giftPayBtn.disabled = true
+        giftPayBtn.textContent = 'Opening secure checkout…'
+        try {
+          const result = await startLandingGiftCheckout(
+            selectedCountry,
+            {
+              buyerName: giftValue('giftBuyerName'),
+              buyerEmail,
+              recipientName,
+              recipientEmail,
+              message: giftValue('giftMessage'),
+            },
+            giftValue('giftCoupon')
+          )
+          if (giftSuccess && giftSuccessBody) {
+            giftSuccessBody.textContent = `An invitation is on its way to ${result.recipientName} (${result.recipientEmail}). Only they can claim and unlock Smono.`
+            giftSuccess.hidden = false
+          }
+          giftForm?.reset()
+        } catch (err: any) {
+          const message = String(err?.message || 'Payment failed')
+          if (message !== 'Payment cancelled' && giftError) {
+            giftError.hidden = false
+            giftError.textContent = message
+          }
+        } finally {
+          giftPayBtn.disabled = false
+          const config = getCountryConfig(selectedCountry)
+          giftPayBtn.innerHTML = `Gift Smono — <span id="giftPayLabel">${formatMoney(config.subscriptionPrice, config)}</span>`
+        }
+      }
+      giftForm?.addEventListener('submit', onGiftPay)
+      cleanups.push(() => giftForm?.removeEventListener('submit', onGiftPay))
+
+      // Return-to-form CTAs: land under sticky header + soft form arrive flash.
+      const onGiftAnchor = (event: Event) => {
+        const gift = document.getElementById('gift')
+        if (!gift) return
+        event.preventDefault()
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        gift.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
+        history.replaceState(null, '', '#gift')
+        if (!giftForm || reducedMotion) return
+        giftForm.classList.remove('gift-form--arrive')
+        void giftForm.offsetWidth
+        giftForm.classList.add('gift-form--arrive')
+        window.setTimeout(() => giftForm.classList.remove('gift-form--arrive'), 280)
+      }
+      const giftAnchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href="#gift"]'))
+      giftAnchors.forEach((a) => a.addEventListener('click', onGiftAnchor))
+      cleanups.push(() => giftAnchors.forEach((a) => a.removeEventListener('click', onGiftAnchor)))
+
       if (!cancelled) mockupCleanup = initInteractiveMockup(getCountryConfig(selectedCountry))
     })()
 
@@ -320,5 +440,5 @@ export function useLandingInteractions() {
       mockupCleanup?.()
       cleanups.forEach((fn) => fn())
     }
-  }, [])
+  }, [buyMode])
 }

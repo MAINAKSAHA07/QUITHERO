@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react'
 import TopNavigation from '../../components/TopNavigation'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import TranslatedText from '../../components/TranslatedText'
 import { useApp } from '../../context/AppContext'
 import { profileService } from '../../services/profile.service'
 import { sessionService, programService } from '../../services'
@@ -103,10 +104,10 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
         </div>
 
         <h1 className="text-3xl font-bold text-text-primary mb-2">
-          Set your daily reminder
+          <TranslatedText text="Set your daily reminder" />
         </h1>
         <p className="text-text-primary/70 mb-8">
-          We'll help you stay on track with daily check-ins
+          <TranslatedText text="We'll help you stay on track with daily check-ins" />
         </p>
 
         <GlassCard className="p-6 space-y-6">
@@ -114,9 +115,11 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
             <div className="flex items-center gap-3">
               <Bell className="w-6 h-6 text-brand-primary" />
               <div>
-                <div className="font-medium text-text-primary">Enable daily reminders</div>
+                <div className="font-medium text-text-primary">
+                  <TranslatedText text="Enable daily reminders" />
+                </div>
                 <div className="text-sm text-text-primary/70">
-                  Get notified to check in with your progress
+                  <TranslatedText text="Get notified to check in with your progress" />
                 </div>
               </div>
             </div>
@@ -137,7 +140,7 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
           {remindersEnabled && (
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
-                Reminder time
+                <TranslatedText text="Reminder time" />
               </label>
               <input
                 type="time"
@@ -146,22 +149,24 @@ export default function ReminderSettings({ step, totalSteps, onBack }: ReminderS
                 className="glass-input w-full"
               />
               <p className="mt-2 text-sm text-text-primary/70">
-                We'll remind you at {reminderTime} every day
+                <TranslatedText text={`We'll remind you at ${reminderTime} every day`} />
               </p>
             </div>
           )}
         </GlassCard>
 
         {error && (
-          <p className="mt-4 text-sm text-error text-center">{error}</p>
+          <p className="mt-4 text-sm text-error text-center">
+            <TranslatedText text={error} />
+          </p>
         )}
 
         <div className="flex gap-3 mt-8 w-full">
           <GlassButton variant="secondary" onClick={onBack} className="flex-1 py-4 min-w-0" disabled={loading}>
-            Back
+            <TranslatedText text="Back" />
           </GlassButton>
           <GlassButton onClick={handleFinish} className="flex-1 py-4 min-w-0" disabled={loading}>
-            {loading ? 'Finishing...' : 'Finish Setup'}
+            <TranslatedText text={loading ? 'Finishing...' : 'Finish Setup'} />
           </GlassButton>
         </div>
       </div>

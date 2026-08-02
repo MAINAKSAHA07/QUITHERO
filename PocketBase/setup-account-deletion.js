@@ -31,6 +31,11 @@ const BASE_FIELDS = [
   { name: 'reason', type: 'text', required: false },
   { name: 'admin_notes', type: 'text', required: false },
   { name: 'processed_at', type: 'date', required: false },
+  // Contact snapshot kept 30 days after account purge (admin-only retention)
+  { name: 'contact_email', type: 'email', required: false },
+  { name: 'contact_name', type: 'text', required: false },
+  { name: 'contact_phone', type: 'text', required: false },
+  { name: 'retain_until', type: 'date', required: false },
 ]
 
 const AUTODATE_FIELDS = [
@@ -57,7 +62,8 @@ const AUTODATE_FIELDS = [
 const RULES = {
   listRule: adminOrOwner('user'),
   viewRule: adminOrOwner('user'),
-  createRule: '@request.auth.id != "" && @request.body.user = @request.auth.id',
+  // Users create their own request; admins create contact-retention rows after delete
+  createRule: `${adminRule} || (@request.auth.id != "" && @request.body.user = @request.auth.id)`,
   updateRule: adminRule,
   deleteRule: adminRule,
 }

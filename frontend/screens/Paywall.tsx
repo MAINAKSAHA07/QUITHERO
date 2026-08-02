@@ -21,6 +21,7 @@ import {
 } from '../services/payment.service'
 import { getNativeProductId, shouldUseNativeIap, verifyIapPurchase } from '../services/iap.service'
 import { profileService } from '../services/profile.service'
+import { trackMetaEvent } from '../lib/metaPixel'
 
 const FEATURES = [
   'All 30 CBT sessions unlocked',
@@ -145,6 +146,11 @@ export default function Paywall() {
           country: billingCountry,
         })
         await fetchUserProfile()
+        trackMetaEvent('Purchase', {
+          value: price,
+          currency: getCountryConfig(billingCountry).currency,
+          content_name: 'Smono 30-day program',
+        })
         navigate('/subscription-confirmed')
         return
       }
@@ -196,6 +202,11 @@ export default function Paywall() {
                 country: order.country,
               })
               await fetchUserProfile()
+              trackMetaEvent('Purchase', {
+                value: order.display_amount ?? order.amount / 100,
+                currency: order.currency,
+                content_name: 'Smono 30-day program',
+              })
               resolve()
             } catch (err: any) {
               reject(err)
@@ -210,6 +221,11 @@ export default function Paywall() {
           reject(new Error(resp?.error?.description || 'Payment failed'))
         })
 
+        trackMetaEvent('InitiateCheckout', {
+          value: order.display_amount ?? order.amount / 100,
+          currency: order.currency,
+          content_name: 'Smono 30-day program',
+        })
         rzp.open()
       })
 

@@ -43,6 +43,40 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-H4ZFZ7N46P"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []
+      function gtag() {
+        dataLayer.push(arguments)
+      }
+      window.gtag = gtag
+      gtag('js', new Date())
+      gtag('config', 'G-H4ZFZ7N46P', { send_page_view: true })
+      window.__smonoGaInited = true
+    </script>
+    <!-- Meta Pixel -->
+    <script>
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return
+        n = f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+        }
+        if (!f._fbq) f._fbq = n
+        n.push = n
+        n.loaded = !0
+        n.version = '2.0'
+        n.queue = []
+        t = b.createElement(e)
+        t.async = !0
+        t.src = v
+        s = b.getElementsByTagName(e)[0]
+        s.parentNode.insertBefore(t, s)
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js')
+      fbq('init', '2020960708540154')
+      fbq('track', 'PageView')
+      window.__smonoMetaPixelInited = true
+    </script>
     <style>
       .boot-loader {
         position: fixed;
@@ -127,6 +161,14 @@
     </style>
   </head>
   <body>
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        alt=""
+        src="https://www.facebook.com/tr?id=2020960708540154&ev=PageView&noscript=1"
+    /></noscript>
     <div id="boot-loader" class="boot-loader" aria-busy="true" aria-live="polite">
       <div class="boot-card" role="status" aria-label="Loading Smono">
         <img src="/mascot.png" alt="Smono phoenix mascot" width="82" height="82" />

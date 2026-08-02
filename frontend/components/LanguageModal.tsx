@@ -28,50 +28,36 @@ export default function LanguageModal({
   const [selectedLang, setSelectedLang] = useState<string>(currentLanguage || 'en')
   const [saving, setSaving] = useState(false)
 
-  // Update selected language when current language changes
   useEffect(() => {
-    if (currentLanguage) {
-      setSelectedLang(currentLanguage)
-    }
+    if (currentLanguage) setSelectedLang(currentLanguage)
   }, [currentLanguage])
 
-  const handleSave = async () => {
+  const applyLanguage = async (code: string) => {
+    if (!code || saving) return
+    setSelectedLang(code)
     setSaving(true)
     try {
-      setLanguage(selectedLang)
-      markLanguageChosen(selectedLang)
+      setLanguage(code)
+      markLanguageChosen(code)
 
-      // Clear translation cache when language changes
       const { translationService } = await import('../services/translation.service')
       translationService.clearCache()
 
-      // If user is logged in, save language to user profile
       if (user?.id) {
         try {
           const result = await profileService.updateProfile(user.id, {
-            language: selectedLang as Language,
+            language: code as Language,
           })
-
           if (result.success && result.data && updateUserProfile) {
             await updateUserProfile(result.data)
           }
-
-          // Track analytics
-          await analyticsService.trackEvent('language_changed', {
-            language: selectedLang,
-          }, user.id)
+          await analyticsService.trackEvent('language_changed', { language: code }, user.id)
         } catch (error) {
           console.error('Failed to save language to profile:', error)
-          // Don't block closing if profile update fails
         }
       }
 
-      // Call callback if provided
-      if (onLanguageSelected) {
-        onLanguageSelected(selectedLang)
-      }
-
-      // Close modal
+      onLanguageSelected?.(code)
       onClose()
     } catch (error) {
       console.error('Error changing language:', error)
@@ -81,10 +67,7 @@ export default function LanguageModal({
   }
 
   const handleSkip = () => {
-    // Set default language if not set
-    if (!currentLanguage) {
-      setLanguage('en')
-    }
+    if (!currentLanguage) setLanguage('en')
     onClose()
   }
 
@@ -92,7 +75,6 @@ export default function LanguageModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -101,7 +83,6 @@ export default function LanguageModal({
             onClick={showSkip ? handleSkip : undefined}
           />
 
-          {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -111,9 +92,9 @@ export default function LanguageModal({
               className="w-full max-w-md"
             >
               <GlassCard className="p-6 relative">
-                {/* Close button - only show if skip is allowed */}
                 {showSkip && (
                   <button
+                    type="button"
                     onClick={handleSkip}
                     className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
                   >
@@ -121,7 +102,6 @@ export default function LanguageModal({
                   </button>
                 )}
 
-                {/* Header */}
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 bg-gradient-to-br from-brand-primary to-brand-accent rounded-full flex items-center justify-center mx-auto mb-4">
                     <Globe className="w-8 h-8 text-white" />
@@ -134,14 +114,15 @@ export default function LanguageModal({
                   </p>
                 </div>
 
-                {/* Language options */}
-                <div className="space-y-2 mb-6 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto">
                   {APP_LANGUAGES.map((lang) => (
                     <motion.button
                       key={lang.code}
-                      onClick={() => setSelectedLang(lang.code)}
+                      type="button"
+                      onClick={() => void applyLanguage(lang.code)}
+                      disabled={saving}
                       whileTap={{ scale: 0.98 }}
-                      className={`w-full p-4 rounded-xl transition-all text-left ${
+                      className={`w-full p-4 rounded-xl transition-all text-left disabled:opacity-60 ${
                         selectedLang === lang.code
                           ? 'bg-brand-primary/10 ring-2 ring-brand-primary'
                           : 'glass-subtle hover:bg-white/5'
@@ -150,9 +131,7 @@ export default function LanguageModal({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{lang.flag}</span>
-                          <span className="font-medium text-text-primary">
-                            {lang.name}
-                          </span>
+                          <span className="font-medium text-text-primary">{lang.name}</span>
                         </div>
                         {selectedLang === lang.code && (
                           <motion.div
@@ -168,30 +147,22 @@ export default function LanguageModal({
                   ))}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-3">
-                  {showSkip && (
-                    <GlassButton
-                      variant="secondary"
-                      onClick={handleSkip}
-                      disabled={saving}
-                      className="flex-1 py-3"
-                    >
-                      <TranslatedText text="Skip" />
-                    </GlassButton>
-                  )}
+                {saving ? (
+                  <p className="text-center text-sm text-text-primary/50 mb-2">
+                    <TranslatedText text="Saving..." />
+                  </p>
+                ) : null}
+
+                {showSkip ? (
                   <GlassButton
-                    onClick={handleSave}
+                    variant="secondary"
+                    onClick={handleSkip}
                     disabled={saving}
-                    className={`${showSkip ? 'flex-1' : 'w-full'} py-3`}
+                    className="w-full py-3"
                   >
-                    {saving ? (
-                      <TranslatedText text="Saving..." />
-                    ) : (
-                      <TranslatedText text="Save" />
-                    )}
+                    <TranslatedText text="Skip" />
                   </GlassButton>
-                </div>
+                ) : null}
               </GlassCard>
             </motion.div>
           </div>

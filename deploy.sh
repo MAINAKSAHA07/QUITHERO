@@ -734,6 +734,19 @@ append_nginx_app_api_locations() {
         proxy_connect_timeout 5s;
     }
 
+    # AI Coach chat (sessions, human takeover)
+    location /api/coach/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/coach/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
     # Razorpay Standard Checkout
     location = /api/create-order {
         proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/create-order;
@@ -771,6 +784,29 @@ append_nginx_app_api_locations() {
         proxy_connect_timeout 5s;
     }
 
+    location = /api/finalize-gift {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/finalize-gift;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/claim-gift {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/claim-gift;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
     location = /api/razorpay/webhook {
         proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/razorpay/webhook;
         proxy_http_version 1.1;
@@ -794,6 +830,57 @@ append_nginx_app_api_locations() {
         proxy_set_header Authorization \$http_authorization;
         proxy_read_timeout 30s;
         proxy_connect_timeout 5s;
+    }
+
+    # Admin grant / revoke full program access
+    location = /api/admin/grant-access {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/admin/grant-access;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/admin/revoke-access {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/admin/revoke-access;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/admin/delete-user {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/admin/delete-user;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 5s;
+    }
+
+    location /api/email/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/email/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        # Bulk send ~1 email/sec; 50 recipients need >60s
+        proxy_read_timeout 180s;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 180s;
     }
 
     # Universal Links / App Links
@@ -869,6 +956,44 @@ append_nginx_admin_api_locations() {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Authorization \$http_authorization;
         proxy_read_timeout 15s;
+        proxy_connect_timeout 5s;
+    }
+
+    location /api/coach/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/coach/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location /api/email/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/email/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        # Bulk send ~1 email/sec; 50 recipients need >60s
+        proxy_read_timeout 180s;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 180s;
+    }
+
+    location = /api/admin/delete-user {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/admin/delete-user;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Authorization \$http_authorization;
+        proxy_read_timeout 120s;
         proxy_connect_timeout 5s;
     }
 
@@ -1070,6 +1195,39 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Authorization \$http_authorization;
         proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/finalize-gift {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/finalize-gift;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /api/payment-return {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/payment-return;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    location /api/landing-coach/ {
+        proxy_pass http://127.0.0.1:${AI_PROXY_PORT}/api/landing-coach/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 60s;
         proxy_connect_timeout 5s;
     }
 

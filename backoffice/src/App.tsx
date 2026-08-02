@@ -3,6 +3,7 @@ import { AdminAuthProvider } from './context/AdminAuthContext'
 import { ProtectedRoute } from './components/common/ProtectedRoute'
 import { Layout } from './components/layout/Layout'
 import { Login } from './pages/auth/Login'
+import { ForgotPassword, ConfirmPasswordReset } from './pages/auth/ForgotPassword'
 import { Dashboard } from './pages/dashboard/Dashboard'
 import { AllUsers } from './pages/users/AllUsers'
 import { UserDetail } from './pages/users/UserDetail'
@@ -15,6 +16,7 @@ import { Articles } from './pages/content/Articles'
 import { Quotes } from './pages/content/Quotes'
 import { MediaLibrary } from './pages/content/MediaLibrary'
 import { SupportTickets } from './pages/support/SupportTickets'
+import { CoachInbox } from './pages/support/CoachInbox'
 import { AccountDeletionRequests } from './pages/support/AccountDeletionRequests'
 import { FlaggedCravings } from './pages/support/FlaggedCravings'
 import { FlaggedJournals } from './pages/support/FlaggedJournals'
@@ -29,6 +31,7 @@ import { AllAchievements } from './pages/achievements/AllAchievements'
 import { AchievementLogs } from './pages/achievements/AchievementLogs'
 import { AppSettings } from './pages/settings/AppSettings'
 import { NotificationTemplates } from './pages/settings/NotificationTemplates'
+import { BulkEmail } from './pages/settings/BulkEmail'
 import { AdminUsers } from './pages/settings/AdminUsers'
 import { RolesPermissions } from './pages/settings/RolesPermissions'
 import { AuditLogs } from './pages/settings/AuditLogs'
@@ -46,6 +49,8 @@ function App() {
       <AdminAuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/confirm-password-reset" element={<ConfirmPasswordReset />} />
           <Route
             path="/*"
             element={
@@ -71,6 +76,7 @@ function App() {
                     
                     {/* Support & Engagement */}
                     <Route path="/support/tickets" element={<SupportTickets />} />
+                    <Route path="/support/coach" element={<CoachInbox />} />
                     <Route path="/support/account-deletions" element={<AccountDeletionRequests />} />
                     <Route path="/support/flagged-cravings" element={<FlaggedCravings />} />
                     <Route path="/support/flagged-journals" element={<FlaggedJournals />} />
@@ -91,6 +97,7 @@ function App() {
                     {/* Settings */}
                     <Route path="/settings/app" element={<AppSettings />} />
                     <Route path="/settings/templates" element={<NotificationTemplates />} />
+                    <Route path="/settings/send-email" element={<BulkEmail />} />
                     <Route path="/settings/admins" element={<AdminUsers />} />
                     <Route path="/settings/roles" element={<RolesPermissions />} />
                     <Route path="/settings/audit" element={<AuditLogs />} />

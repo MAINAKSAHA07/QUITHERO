@@ -98,9 +98,13 @@ export default function KYCQuestionScreen({
       }
     }
 
-    if (question.id === 'pack_cost' && Number(value) <= 0) {
-      setError('Cost must be greater than zero')
-      return
+    if (question.id === 'pack_cost') {
+      const cost = Number(value)
+      const minCost = question.min ?? 5
+      if (!Number.isFinite(cost) || cost < minCost) {
+        setError(`Cost must be at least ${minCost}`)
+        return
+      }
     }
 
     if (question.id === 'daily_consumption' && Number(value) <= 0) {
@@ -279,7 +283,11 @@ export default function KYCQuestionScreen({
                   min={question.min ?? 1}
                   max={question.max ?? 10}
                   step={question.step ?? 1}
-                  value={value ?? question.min ?? 1}
+                  value={
+                    typeof value === 'number' && Number.isFinite(value)
+                      ? value
+                      : question.min ?? 1
+                  }
                   onChange={(e) => onChange(Number(e.target.value))}
                   className="w-full h-2 bg-[#0E2538]/10 rounded-lg appearance-none cursor-pointer accent-[#3F8DD2]"
                 />
@@ -287,6 +295,46 @@ export default function KYCQuestionScreen({
                   <span>{question.min}</span>
                   <span>{question.max}</span>
                 </div>
+                {question.allowType && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-[#0E2538]/55 text-center">
+                      <TranslatedText text="Or type exact amount" />
+                    </label>
+                    <GlassInput
+                      type="number"
+                      inputMode="decimal"
+                      min={question.min}
+                      max={question.max}
+                      step={question.step && question.step < 1 ? 'any' : question.step ?? 'any'}
+                      value={value === undefined || value === null ? '' : value}
+                      placeholder={String(question.min ?? 5)}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        if (raw === '' || raw === '.' || raw === '-') {
+                          onChange(raw)
+                          return
+                        }
+                        // Allow mid-typing decimals like "5." / "12.5"
+                        if (/^\d*\.?\d*$/.test(raw)) {
+                          const n = Number(raw)
+                          onChange(Number.isFinite(n) && raw !== '' && !raw.endsWith('.') ? n : raw)
+                        }
+                      }}
+                      onBlur={() => {
+                        const n = Number(value)
+                        if (!Number.isFinite(n)) {
+                          onChange(question.min ?? 5)
+                          return
+                        }
+                        const min = question.min ?? 5
+                        const max = question.max ?? 2000
+                        const clamped = Math.min(max, Math.max(min, n))
+                        onChange(Math.round(clamped * 100) / 100)
+                      }}
+                      className="py-3 px-4 text-base text-center"
+                    />
+                  </div>
+                )}
               </div>
             )}
 

@@ -112,8 +112,8 @@ export default function SupportTicketModal({
           >
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-[#0E2538]/06 px-5 pt-4 pb-3 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-[#0E2538]">Contact Support</h3>
-                <p className="text-xs text-[#0E2538]/45 mt-0.5">We usually reply within a day</p>
+                <h3 className="text-lg font-bold text-[#0E2538]">Start a conversation</h3>
+                <p className="text-xs text-[#0E2538]/45 mt-0.5">We’ll reply in Messages</p>
               </div>
               <button
                 type="button"
@@ -132,9 +132,9 @@ export default function SupportTicketModal({
                   <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h4 className="text-base font-bold text-[#0E2538] mb-1">Ticket sent</h4>
+                  <h4 className="text-base font-bold text-[#0E2538] mb-1">Message sent</h4>
                   <p className="text-sm text-[#0E2538]/55">
-                    Thanks. You can follow replies under My Support Tickets.
+                    Thanks. You can follow replies under Messages.
                   </p>
                 </div>
               ) : (

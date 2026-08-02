@@ -19,13 +19,17 @@ function checkRateLimit(userId, requestType) {
   }
 
   const userLimits = rateLimits.get(key)
-  const typeLimit = requestType === 'session_content' ? 3 : 5
-  const totalLimit = 6
+  const isCoach =
+    requestType === 'coach_chat' || requestType === 'landing_coach_chat'
+  const typeLimit = requestType === 'session_content' ? 3 : isCoach ? 40 : 5
+  const totalLimit = isCoach ? 40 : 6
 
   const typeCount = userLimits.counts[requestType] || 0
   const totalCount = Object.values(userLimits.counts).reduce((a, b) => a + b, 0)
 
-  if (typeCount >= typeLimit || totalCount >= totalLimit) {
+  if (isCoach) {
+    if (typeCount >= typeLimit) return false
+  } else if (typeCount >= typeLimit || totalCount >= totalLimit) {
     return false
   }
 
@@ -151,6 +155,70 @@ Respond with ONLY valid JSON:
 }`
 }
 
+function buildCoachSystemPrompt(context) {
+  const history = Array.isArray(context.messages)
+    ? context.messages
+        .slice(-20)
+        .map((m) => `${m.role === 'assistant' || m.role === 'human' ? 'Coach' : 'User'}: ${String(m.content || '').slice(0, 500)}`)
+        .join('\n')
+    : ''
+
+  const langCode = String(context.languageCode || 'en').trim() || 'en'
+  const langName = String(context.languageName || 'English').trim() || 'English'
+
+  return `You are a real quit-smoking support person texting in a casual chat app (not an AI assistant, not a therapist).
+
+REPLY LANGUAGE (mandatory):
+- Write the entire "reply" ONLY in ${langName} (code: ${langCode}).
+- No language mixing. English only if ${langCode} is en.
+
+LEARNING CONTEXT (private notes for tone; never quote or list back to them):
+${context.learningContext || 'No journey context yet.'}
+
+DAY: ${context.dayNumber || 1}
+
+RECENT CHAT:
+${history || '(new conversation)'}
+
+HOW TO SOUND:
+- Like a caring friend texting. Short. Natural. Incomplete sentences OK.
+- Max 1 to 3 short sentences. Hard cap ~45 words.
+- One idea only. At most one gentle question, or none.
+- No bullet lists, no numbered steps, no "let us", no essay motivation speeches.
+- Do not restate their whole story. Do not sound like a prompt or a bot.
+- No clinical labels, archetype names, or system talk.
+
+IF HARD MOMENT: one warm line, then one tiny next step (breath, sip water, wait 2 minutes). Keep it brief.
+
+IF they ask for a human specialist or show crisis-level despair: suggest_specialist true, reply stays short and kind.
+
+PUNCTUATION: never use em dashes, en dashes, or -- . Use commas or periods.
+
+Respond with ONLY valid JSON:
+{
+  "reply": "...",
+  "mood_signal": "ok|low|craving|shame|mixed",
+  "suggest_specialist": false
+}`
+}
+
+/** Strip model dash artifacts from coach copy. */
+export function cleanCoachReply(text) {
+  let out = String(text || '')
+    .replace(/\u2014|\u2013/g, ', ')
+    .replace(/\s*--+\s*/g, ', ')
+    .replace(/\s+,/g, ',')
+    .replace(/,\s*,/g, ',')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+  // Soft cap: keep chat human-short if model ignores length rules
+  const words = out.split(/\s+/).filter(Boolean)
+  if (words.length > 55) {
+    out = `${words.slice(0, 55).join(' ')}…`
+  }
+  return out
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 export default async function handler(request) {
@@ -160,7 +228,7 @@ export default async function handler(request) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     })
   }
@@ -188,15 +256,17 @@ export default async function handler(request) {
   if (!userId || typeof userId !== 'string') {
     return Response.json({ error: 'invalid_request', details: 'userId required' }, { status: 400 })
   }
-  if (!['session_content', 'notification'].includes(requestType)) {
+  if (!['session_content', 'notification', 'coach_chat', 'landing_coach_chat'].includes(requestType)) {
     return Response.json({ error: 'invalid_request', details: 'Invalid requestType' }, { status: 400 })
   }
   if (!context || typeof context !== 'object') {
     return Response.json({ error: 'invalid_request', details: 'context object required' }, { status: 400 })
   }
-  if (!context.dayNumber || context.dayNumber < 1 || context.dayNumber > 30) {
+  const dayNumber = Number(context.dayNumber) || 1
+  if (dayNumber < 1 || dayNumber > 30) {
     return Response.json({ error: 'invalid_request', details: 'dayNumber must be 1-30' }, { status: 400 })
   }
+  context.dayNumber = dayNumber
 
   // ── Rate limiting ───────────────────────────────────────────────────────
   if (!checkRateLimit(userId, requestType)) {
@@ -205,10 +275,20 @@ export default async function handler(request) {
 
   console.error(`[AI] ${requestType} for user ${userId.slice(0, 8)}... day ${context.dayNumber}`)
 
+  const isCoachChat =
+    requestType === 'coach_chat' || requestType === 'landing_coach_chat'
+
   // ── Build prompt ────────────────────────────────────────────────────────
-  const systemPrompt = requestType === 'session_content'
-    ? buildSessionSystemPrompt(context)
-    : buildNotificationSystemPrompt(context)
+  const systemPrompt =
+    requestType === 'session_content'
+      ? buildSessionSystemPrompt(context)
+      : isCoachChat
+        ? buildCoachSystemPrompt(context)
+        : buildNotificationSystemPrompt(context)
+
+  const userTurn = isCoachChat
+    ? String(context.latestUserMessage || 'Continue supporting me.').slice(0, 2000)
+    : 'Generate the personalized content as specified.'
 
   // ── Call Claude ─────────────────────────────────────────────────────────
   try {
@@ -216,9 +296,9 @@ export default async function handler(request) {
 
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: MAX_TOKENS,
+      max_tokens: isCoachChat ? 180 : MAX_TOKENS,
       temperature: TEMPERATURE,
-      messages: [{ role: 'user', content: 'Generate the personalized content as specified.' }],
+      messages: [{ role: 'user', content: userTurn }],
       system: systemPrompt,
     })
 
@@ -230,6 +310,14 @@ export default async function handler(request) {
     } catch {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/)
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+    }
+
+    if (isCoachChat && !parsed.reply) {
+      parsed.reply =
+        "I'm here with you. Take one slow breath. We can take the next step together whenever you're ready."
+    }
+    if (isCoachChat && parsed.reply) {
+      parsed.reply = cleanCoachReply(parsed.reply)
     }
 
     return Response.json(parsed, {

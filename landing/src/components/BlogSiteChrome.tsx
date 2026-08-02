@@ -15,7 +15,7 @@ export function BlogSiteChrome({ children }: Props) {
       <header className="blog-site-header">
         <div className="container blog-site-header-inner">
           <a href="/" className="blog-site-logo" aria-label="Smono home">
-            <img src="/smonologo.webp?v=3" alt="Smono" className="blog-site-logo-img" />
+            <img src="/smonologo.webp?v=5" alt="Smono" className="blog-site-logo-img" />
           </a>
           <nav className="blog-site-nav" aria-label="Site navigation">
             <a href="/how-it-works/">How It Works</a>
@@ -33,7 +33,7 @@ export function BlogSiteChrome({ children }: Props) {
       <footer className="blog-site-footer">
         <div className="container blog-site-footer-inner">
           <a href="/" className="blog-site-logo" aria-label="Smono home">
-            <img src="/smonologo.webp?v=3" alt="Smono" className="blog-site-logo-img" />
+            <img src="/smonologo.webp?v=5" alt="Smono" className="blog-site-logo-img" />
           </a>
           <nav className="blog-site-footer-nav" aria-label="Footer">
             <a href="/how-it-works/">How It Works</a>
@@ -41,6 +41,7 @@ export function BlogSiteChrome({ children }: Props) {
             <a href="/quit-smoking-program/">Program</a>
             <a href="/languages/">Languages</a>
             <a href="/pricing/">Pricing</a>
+            <a href="/gift/">Gift</a>
             <a href="/about/">About</a>
             <a href="/blog/">Blog</a>
             <a href="/privacy/">Privacy</a>

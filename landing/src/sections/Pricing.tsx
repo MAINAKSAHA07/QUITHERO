@@ -1,5 +1,5 @@
 import { appStartHref } from '../lib/appUrl'
-export function Pricing() {
+export function Pricing({ buyMode = false }: { buyMode?: boolean } = {}) {
   return (
     <>
 <section className="pricing" id="pricing">
@@ -14,10 +14,10 @@ export function Pricing() {
         <h3 className="pricing-name">Smono Complete Program</h3>
 
         <div className="pricing-original" id="priceOriginal">₹3,999</div>
-        <div className="pricing-price" id="pricePromo">₹1,999<span style={{fontSize: '1.1rem', fontWeight: 500, color: 'var(--muted)'}}>/month</span></div>
+        <div className="pricing-price" id="pricePromo">₹1,999<span style={{fontSize: '1.1rem', fontWeight: 500, color: 'var(--muted)'}}> one-time</span></div>
         <div className="pricing-caption">
-          Billed monthly — the full program is 30 days, so you won&apos;t need more than one month.
-          Cancel anytime.
+          One payment. Lifetime access to Smono — the full 30-day program and everything that comes with it.
+          No subscription. No renewals.
         </div>
         
         <div className="pricing-comparison">
@@ -27,7 +27,7 @@ export function Pricing() {
           </div>
           <div className="comparison-divider">vs</div>
           <div className="comparison-item good">
-            <span className="comp-title">Smono — 1 month</span>
+            <span className="comp-title">Smono — lifetime</span>
             <span className="comp-cost" id="priceComparisonGood">₹1,999</span>
           </div>
         </div>
@@ -61,9 +61,11 @@ export function Pricing() {
           Pay &amp; unlock — <span id="pricePayLabel">₹1,999</span>
         </button>
         <p id="pricePayError" className="pricing-pay-error" hidden role="alert" />
-        <a href={appStartHref()} className="pricing-secondary-cta js-start-app" id="priceCta">
-          Or start free Day 1 in the app
-        </a>
+        {!buyMode && (
+          <a href={appStartHref()} className="pricing-secondary-cta js-start-app" id="priceCta">
+            Or start free Day 1 in the app
+          </a>
+        )}
         <div className="pricing-trust-row">
           <div className="trust-pill">🔒 Secure payment</div>
           <div className="trust-pill">⚡ 20–40 min daily sessions</div>

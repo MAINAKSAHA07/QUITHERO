@@ -79,6 +79,17 @@ export async function verifyPayment(payload: VerifyPaymentInput): Promise<{ succ
   return data
 }
 
+export async function claimGift(token: string): Promise<{ success: boolean }> {
+  const res = await fetch(apiUrl('/api/claim-gift'), {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ token }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `Could not claim gift (${res.status})`)
+  return data
+}
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => {

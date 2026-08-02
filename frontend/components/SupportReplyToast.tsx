@@ -16,8 +16,8 @@ export default function SupportReplyToast() {
       const d = (ev as CustomEvent).detail || {}
       setNotice({
         ticketId: d.ticketId || null,
-        title: d.title || 'Support replied',
-        body: d.body || 'You have a new support reply.',
+        title: d.title || 'New message',
+        body: d.body || 'You have a new message.',
       })
     }
     window.addEventListener('smono_support_reply', onReply)

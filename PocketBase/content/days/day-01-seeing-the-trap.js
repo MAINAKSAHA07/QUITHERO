@@ -102,15 +102,20 @@ Don't try to talk yourself out of them today. Just mark which ones feel true. Ov
   },
   {
     order: 5,
-    type: 'question_open',
+    type: 'question_mcq',
     module_key: 'day01_module_3_checkin',
     step_title: 'Denial self-check',
     slug: 'day-01-denial-self-check',
     content_role: 'reflection',
     content_json: {
-      question:
-        'Which of the four denial statements still feel true to you? List the numbers (1–4) and a sentence about why each one still has a grip.',
-      placeholder: 'e.g. 3 — I still feel calmer after a cigarette…',
+      question: 'Which of these still feel true to you? Select all that apply.',
+      allow_multiple: true,
+      options: [
+        '1. "Smoking hasn\'t really harmed me."',
+        '2. "I don\'t smoke that much — it\'s under control."',
+        '3. "It genuinely helps me relax, focus, and be social."',
+        '4. "I could stop any time I really wanted to."',
+      ],
     },
   },
   {
@@ -178,7 +183,7 @@ You're training a tiny gap between trigger and reaction — and that gap is wher
       question: `Write a few sentences tonight:
 
 1. When did you have your very first cigarette or vape, and did you ever decide to do this every day for years?
-2. Which of the four denial statements still feels true to you, and why?
+2. For the denial statements you selected, why does each one still have a grip?
 3. How did it feel to pause for five seconds before smoking?`,
       placeholder: 'Take your time. There are no wrong answers.',
     },

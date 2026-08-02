@@ -11,7 +11,8 @@ import {
   retentionCurvePoints,
   signupMonthCohorts,
 } from '../../lib/analyticsHelpers'
-import { buildWinBackEmail, sendUserPushNotification } from '../../lib/sendPush'
+import { buildWinBackEmail, sendUserAdminMessage } from '../../lib/sendPush'
+import { sendAdminEmail } from '../../lib/sendEmail'
 import { TrendingDown, Users, Download, AlertCircle, Bell, Mail } from 'lucide-react'
 import { D3MultiLineChart, D3Donut, ENGAGE_COLORS } from '../../components/charts/D3EngageCharts'
 export const RetentionReports = () => {
@@ -170,9 +171,29 @@ export const RetentionReports = () => {
     URL.revokeObjectURL(url)
   }
 
-  const sendEmail = (user: (typeof winBackUsers)[number]) => {
-    const { mailto } = buildWinBackEmail(user)
-    window.open(mailto, '_blank')
+  const sendEmail = async (user: (typeof winBackUsers)[number]) => {
+    const { subject, body, to, title, ctaLabel, ctaUrl, preheader } = buildWinBackEmail(user)
+    if (!to) {
+      setActionMsg('No email on file for this user')
+      return
+    }
+    setActionBusy(user.id)
+    setActionMsg(null)
+    const result = await sendAdminEmail({
+      to,
+      subject,
+      text: body,
+      title,
+      ctaLabel,
+      ctaUrl,
+      preheader,
+    })
+    setActionBusy(null)
+    setActionMsg(
+      result.ok
+        ? `Email sent to ${to}`
+        : `Email failed: ${result.error}`
+    )
   }
 
   const sendPush = async (user: (typeof winBackUsers)[number]) => {
@@ -180,19 +201,16 @@ export const RetentionReports = () => {
     const first = String(user.name || 'there').split(' ')[0]
     setActionBusy(user.id)
     setActionMsg(null)
-    const result = await sendUserPushNotification({
+    const result = await sendUserAdminMessage({
       userId: user.id,
       title: 'Your quit journey is waiting',
       body: `Hi ${first} — Day ${day} is still here when you're ready. Open the app to continue.`,
-      url: '/home',
-      tag: 'winback',
-      dayNumber: day,
     })
     setActionBusy(null)
     setActionMsg(
       result.ok
-        ? `Push sent to ${user.email || user.name} (${result.sent} device${result.sent === 1 ? '' : 's'})`
-        : `Push failed: ${result.error}`
+        ? `Message saved + push sent to ${user.email || user.name}`
+        : `Message failed: ${result.error}`
     )
   }
 
@@ -353,8 +371,8 @@ export const RetentionReports = () => {
       <div className="bg-white rounded-lg shadow-card p-6">
         <h2 className="text-lg font-semibold mb-4">Win-back campaign candidates</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Users with prior activity who have been quiet for {inactiveDays}+ days. Email opens your
-          mail client; push uses their Web Push subscription.
+          Users with prior activity who have been quiet for {inactiveDays}+ days. Email sends via
+          Smono SMTP; push uses their Web Push subscription.
         </p>
         {actionMsg && (
           <div className="mb-4 p-3 rounded-lg bg-neutral-50 text-sm text-neutral-700 border border-neutral-200">

@@ -2,7 +2,7 @@ import { appStartHref } from '../lib/appUrl'
 
 const startHref = appStartHref()
 
-export function Header() {
+export function Header({ buyMode = false }: { buyMode?: boolean } = {}) {
   return (
     <>
       <div className="noise-overlay" aria-hidden="true" />
@@ -17,8 +17,8 @@ export function Header() {
                 10-day quit · 9 languages · CBT-based.
               </span>
             </p>
-            <a href={startHref} className="announcement-cta js-start-app">
-              Start free →
+            <a href={buyMode ? '#pricing' : startHref} className="announcement-cta js-start-app">
+              {buyMode ? 'Buy now →' : 'Start free →'}
             </a>
           </div>
         </div>
@@ -26,7 +26,7 @@ export function Header() {
         <nav className="nav" role="navigation" aria-label="Main navigation">
           <div className="container">
             <a href="/" className="nav-logo" aria-label="Smono home">
-              <img src="/smonologo.webp?v=3" alt="Smono" className="landing-logo" />
+              <img src="/smonologo.webp?v=5" alt="Smono" className="landing-logo" />
             </a>
             <div className="nav-links">
               <a href="#reset-story">How It Works</a>

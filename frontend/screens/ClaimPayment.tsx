@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { useApp } from '../context/AppContext'
 import { verifyPayment } from '../services/payment.service'
 import { profileService } from '../services/profile.service'
+import { trackMetaEvent } from '../lib/metaPixel'
 
 /**
  * Landing checkout lands here after Razorpay success.
@@ -43,6 +44,10 @@ export default function ClaimPayment() {
           subscription_country: country,
         })
         await fetchUserProfile()
+        trackMetaEvent('Purchase', {
+          content_name: 'Smono 30-day program',
+          currency: country === 'IN' ? 'INR' : 'USD',
+        })
         if (!cancelled) navigate('/subscription-confirmed', { replace: true })
       } catch (err: any) {
         if (!cancelled) {

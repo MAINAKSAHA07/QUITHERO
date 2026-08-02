@@ -29,6 +29,26 @@ export default defineConfig(({ mode }) => {
       target: apiTarget,
       changeOrigin: true,
     },
+    '/api/finalize-gift': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/api/payment-return': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/api/landing-coach': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/api/ai/personalize': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
+    '/api/claim-gift': {
+      target: apiTarget,
+      changeOrigin: true,
+    },
   }
 
   return {

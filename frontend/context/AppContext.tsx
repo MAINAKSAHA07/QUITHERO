@@ -7,7 +7,6 @@ import { profileService } from '../services/profile.service'
 import { progressService } from '../services/progress.service'
 import { sessionService } from '../services/session.service'
 import { programService } from '../services/program.service'
-import { achievementService } from '../services/achievement.service'
 import { behaviorProfileService } from '../services/behavior-profile.service'
 import { behaviorTracker } from '../services/behavior-tracker.service'
 import {
@@ -243,7 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fetchUserProfile()
     fetchCurrentSession()
     refreshProgress()
-    achievementService.checkAndUnlock(user.id).catch(console.error)
+    // Achievements unlock + toast live on Home/Progress (not silent here)
     behaviorProfileService.refreshIfStale(user.id, 24).catch(() => {})
     behaviorTracker.init(user.id)
   }, [user?.id, isAuthenticated, fetchUserProfile, fetchCurrentSession, refreshProgress])

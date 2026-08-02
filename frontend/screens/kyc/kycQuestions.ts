@@ -19,6 +19,8 @@ export interface KYCQuestion {
     values: string[]
   }
   whyWeAsk?: string
+  /** Show a number field alongside the slider (decimals allowed when step < 1). */
+  allowType?: boolean
 }
 
 export const kycQuestions: KYCQuestion[] = [
@@ -131,12 +133,13 @@ export const kycQuestions: KYCQuestion[] = [
     id: 'pack_cost',
     group: 'B',
     question: 'What is the approximate cost of a pack of 20 cigarettes (or equivalent)?',
-    support: 'Enter the cost in your local currency.',
+    support: 'Enter the cost in your local currency. You can type an exact amount (decimals OK).',
     type: 'slider',
-    min: 10,
+    min: 5,
     max: 2000,
-    step: 10,
+    step: 0.5,
     required: true,
+    allowType: true,
     profileField: 'pack_cost',
     whyWeAsk: 'Enables us to track how much money you save on a daily basis.'
   },
@@ -307,21 +310,10 @@ export const kycQuestions: KYCQuestion[] = [
 
   // ================= GROUP E: Quit History =================
   {
-    id: 'tried_quitting_before',
-    group: 'E',
-    question: 'Have you tried quitting before?',
-    support: 'Past experience helps prepare this reset.',
-    type: 'single_select',
-    options: ['Yes, once', 'Yes, multiple times', 'No, this is my first time'],
-    required: true,
-    profileField: 'tried_quitting_before',
-    whyWeAsk: 'Each past attempt is a lesson, not a failure. We build on what you learned.'
-  },
-  {
     id: 'previous_attempt_difficulty',
     group: 'E',
     question: 'What made previous attempts difficult?',
-    support: 'Select the main barriers you encountered.',
+    support: 'Select the main barriers you encountered (or “I have not tried before”).',
     type: 'multi_select',
     options: [
       'Intense cravings & urges',
@@ -333,10 +325,6 @@ export const kycQuestions: KYCQuestion[] = [
     ],
     required: true,
     profileField: 'previous_attempt_difficulty',
-    showIf: {
-      field: 'tried_quitting_before',
-      values: ['Yes, once', 'Yes, multiple times']
-    },
     whyWeAsk: 'We address these specific obstacles in your daily module focus.'
   },
   {
@@ -348,10 +336,6 @@ export const kycQuestions: KYCQuestion[] = [
     options: ['Never, this is my first attempt', '1 to 3 times', '4 to 10 times', 'Lost count'],
     required: true,
     profileField: 'quit_attempt_count',
-    showIf: {
-      field: 'tried_quitting_before',
-      values: ['Yes, once', 'Yes, multiple times']
-    },
     whyWeAsk: 'Helps evaluate habit persistence and target cognitive strategies.'
   },
   {
@@ -465,16 +449,6 @@ export const kycQuestions: KYCQuestion[] = [
     profileField: 'quit_confidence',
     whyWeAsk: 'Nervousness is natural. We add extra reassurance modules if you feel anxious.'
   },
-  {
-    id: 'quit_reason',
-    group: 'F',
-    question: 'Tell us more about why you want to quit.',
-    support: 'Write a few lines for yourself. Optional.',
-    type: 'textarea',
-    required: false,
-    profileField: 'quit_reason',
-    whyWeAsk: 'We show you this note whenever you click the SOS Craving Rescue button.'
-  },
 
   // ================= GROUP G: Fears and Support Needs =================
   {
@@ -489,39 +463,6 @@ export const kycQuestions: KYCQuestion[] = [
     required: true,
     profileField: 'fear_index',
     whyWeAsk: 'A high fear index suggests we focus on health stats; a low one, on habit restructuring.'
-  },
-  {
-    id: 'cravings_worry',
-    group: 'G',
-    question: 'Are you worried about cravings?',
-    support: 'Cravings are temporary chemical signals.',
-    type: 'single_select',
-    options: ['Very worried', 'Slightly worried', 'Not worried'],
-    required: true,
-    profileField: 'cravings_worry',
-    whyWeAsk: 'If you are worried, we place the SOS craving widget prominently on your home screen.'
-  },
-  {
-    id: 'relapse_worry',
-    group: 'G',
-    question: 'Are you worried about relapse or slipping?',
-    support: 'A slip is a data point, not a failure.',
-    type: 'single_select',
-    options: ['Very worried', 'Slightly worried', 'Not worried'],
-    required: true,
-    profileField: 'relapse_worry',
-    whyWeAsk: 'Understanding worry helps us deliver non-punitive re-engagement modules.'
-  },
-  {
-    id: 'withdrawal_worry',
-    group: 'G',
-    question: 'Are you worried about physical withdrawal symptoms?',
-    support: 'Most physical symptoms fade in 72 hours.',
-    type: 'single_select',
-    options: ['Very worried', 'Slightly worried', 'Not worried'],
-    required: true,
-    profileField: 'withdrawal_worry',
-    whyWeAsk: 'We provide clear timelines for physical healing if this is a concern.'
   },
   {
     id: 'household_smokers',

@@ -31,3 +31,13 @@ export function appHref(path = APP_START_PATH): string {
 export function appStartHref(): string {
   return `${APP_URL}${APP_START_PATH}`
 }
+
+/** Razorpay redirect/UPI flow POSTs here (same origin as checkout). */
+export function paymentReturnCallbackUrl(country: string): string {
+  const cc = country.toUpperCase().slice(0, 2) || 'IN'
+  const origin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://www.smono.app'
+  return `${origin.replace(/\/$/, '')}/api/payment-return?country=${encodeURIComponent(cc)}`
+}

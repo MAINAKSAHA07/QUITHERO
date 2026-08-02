@@ -116,7 +116,15 @@ export async function notifyUserPush(userId, { title, body, url = '/home', tag }
     const records = await loadSubscriptionsForUser(userId)
     attempted += records.length
     for (const record of records) {
-      const sub = record.subscription
+      // PB json field is usually an object; tolerate double-encoded string.
+      let sub = record.subscription
+      if (typeof sub === 'string') {
+        try {
+          sub = JSON.parse(sub)
+        } catch {
+          continue
+        }
+      }
       if (!sub?.endpoint) continue
       try {
         await webpush.sendNotification(sub, JSON.stringify(payload))

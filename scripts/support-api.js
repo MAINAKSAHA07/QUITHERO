@@ -75,13 +75,19 @@ function decryptMessage(record) {
   }
 }
 
+const ADMIN_CHAT_SUBJECT = 'Message from Smono'
+
 /** Best-effort: push when support replies. Always leave an unopened inbox signal for the app. */
-async function notifyUserOfSupportReply(ticket) {
+async function notifyUserOfSupportReply(ticket, opts = {}) {
   const userId = typeof ticket?.user === 'string' ? ticket.user : ticket?.user?.id
   if (!userId) return
   const subject = String(ticket.subject || 'your ticket').slice(0, 80)
-  const title = 'Support replied'
-  const body = `New reply on “${subject}”`
+  const title = String(opts.title || 'Support replied').trim().slice(0, 80)
+  const body = String(
+    opts.body || `New reply on “${subject}”`
+  )
+    .trim()
+    .slice(0, 200)
   const url = `/profile?support=${encodeURIComponent(ticket.id)}`
 
   if (isPushReady()) {
@@ -118,6 +124,35 @@ async function notifyUserOfSupportReply(ticket) {
   } catch {
     /* ignore */
   }
+}
+
+/** Find or create the shared admin↔user Messages thread. */
+async function findOrCreateAdminChatTicket(userId, serviceToken) {
+  const filter = encodeURIComponent(
+    `user = "${userId}" && (status = "open" || status = "in_progress") && subject ~ "${ADMIN_CHAT_SUBJECT}"`
+  )
+  const list = await pbFetch(
+    `/api/collections/support_tickets/records?filter=${filter}&sort=-updated&perPage=1`,
+    { token: serviceToken }
+  )
+  const existing = list.ok ? list.data?.items?.[0] : null
+  if (existing) return existing
+
+  const created = await pbFetch(`/api/collections/support_tickets/records`, {
+    method: 'POST',
+    token: serviceToken,
+    body: {
+      user: userId,
+      subject: ADMIN_CHAT_SUBJECT,
+      message: '',
+      description: '',
+      status: 'open',
+      priority: 'medium',
+      category: 'other',
+    },
+  })
+  if (!created.ok) return null
+  return created.data
 }
 
 export async function handleSupportApi(req, res, pathname, searchParams, readBody, json) {
@@ -222,6 +257,64 @@ export async function handleSupportApi(req, res, pathname, searchParams, readBod
     }
 
     return json(res, 200, { ok: true, data: decryptMessage(created.data) })
+  }
+
+  // POST /api/support/admin-message — admin outreach lands in user Messages inbox
+  if (pathname === '/api/support/admin-message' && req.method === 'POST') {
+    if (caller.kind !== 'admin') {
+      return json(res, 403, { error: 'Admin only' })
+    }
+    let body
+    try {
+      body = JSON.parse((await readBody(req)).toString() || '{}')
+    } catch {
+      return json(res, 400, { error: 'Invalid JSON' })
+    }
+
+    const userId = String(body.userId || '').trim()
+    const title = String(body.title || ADMIN_CHAT_SUBJECT).trim().slice(0, 80)
+    const text = String(body.body || body.message || '').trim()
+    if (!userId) return json(res, 400, { error: 'userId required' })
+    if (!text) return json(res, 400, { error: 'body required' })
+
+    const ticket = await findOrCreateAdminChatTicket(userId, serviceToken)
+    if (!ticket?.id) {
+      return json(res, 500, { error: 'Failed to open Messages thread' })
+    }
+
+    if (ticket.status === 'open') {
+      await pbFetch(`/api/collections/support_tickets/records/${ticket.id}`, {
+        method: 'PATCH',
+        token: serviceToken,
+        body: { status: 'in_progress' },
+      })
+      ticket.status = 'in_progress'
+    }
+
+    const created = await pbFetch(`/api/collections/support_ticket_messages/records`, {
+      method: 'POST',
+      token: serviceToken,
+      body: {
+        ticket: ticket.id,
+        body: encryptSupportText(text),
+        sender_role: 'admin',
+        author_id: caller.id,
+      },
+    })
+    if (!created.ok) {
+      return json(res, created.status, {
+        error: created.data?.message || 'Failed to save message',
+      })
+    }
+
+    void notifyUserOfSupportReply(ticket, { title, body: text })
+
+    return json(res, 200, {
+      ok: true,
+      ticketId: ticket.id,
+      messageId: created.data?.id,
+      data: decryptMessage(created.data),
+    })
   }
 
   // POST /api/support/tickets — create ticket + encrypted first message

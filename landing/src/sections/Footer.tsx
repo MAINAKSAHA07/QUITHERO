@@ -6,7 +6,7 @@ export function Footer() {
     <div className="container">
       <div className="footer-content">
         <div className="footer-brand">
-          <img src="/smonologo.webp?v=3" alt="Smono" className="footer-logo-img" />
+          <img src="/smonologo.webp?v=5" alt="Smono" className="footer-logo-img" />
           <div>
             <p className="footer-tagline" style={{marginTop: '8px'}}>Remove the desire. Not just the cigarette.</p>
             <p style={{marginTop: '12px', fontSize: '0.9rem', color: 'var(--muted)', maxWidth: '320px', lineHeight: '1.6'}}>You are not giving up pleasure. You are giving up a cycle that kept asking to be fed.</p>

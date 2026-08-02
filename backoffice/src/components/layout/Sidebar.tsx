@@ -49,6 +49,7 @@ const navItems: NavItem[] = [
     path: '/support',
     children: [
       { icon: MessageSquare, label: 'Support Tickets', path: '/support/tickets' },
+      { icon: MessageSquare, label: 'Coach inbox', path: '/support/coach' },
       { icon: MessageSquare, label: 'Account Deletions', path: '/support/account-deletions' },
       { icon: MessageSquare, label: 'Flagged Cravings', path: '/support/flagged-cravings' },
       { icon: MessageSquare, label: 'Flagged Journals', path: '/support/flagged-journals' },
@@ -84,6 +85,7 @@ const navItems: NavItem[] = [
     children: [
       { icon: Settings, label: 'App Settings', path: '/settings/app' },
       { icon: Settings, label: 'Templates', path: '/settings/templates' },
+      { icon: Settings, label: 'Send Email', path: '/settings/send-email' },
       { icon: Settings, label: 'Admin Users', path: '/settings/admins' },
       { icon: Settings, label: 'Roles & Permissions', path: '/settings/roles' },
       { icon: Settings, label: 'Audit Logs', path: '/settings/audit' },

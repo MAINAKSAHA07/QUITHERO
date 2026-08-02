@@ -4,6 +4,10 @@ import { Capacitor } from '@capacitor/core'
 import App from './App.tsx'
 import './index.css'
 import { registerServiceWorker } from './utils/swUpdate'
+import { getFirebaseApp, initFirebaseAnalytics } from './lib/firebase'
+
+getFirebaseApp()
+void initFirebaseAnalytics()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

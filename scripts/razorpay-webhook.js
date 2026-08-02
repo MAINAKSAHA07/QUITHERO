@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { adminAuth, getPbUrl } from './pb-admin.js'
 import { redeemCouponForOrder } from './razorpay-api.js'
 import { activateSubscription } from './subscription-activate.js'
+import { markGiftPaid } from './gift-service.js'
 
 async function activateByUserId(userId, country) {
   if (!userId) return
@@ -30,15 +31,24 @@ function pickEntity(payload) {
   )
 }
 
-function extractFields(event, entity) {
-  const notes = entity?.notes && typeof entity.notes === 'object' ? entity.notes : {}
+export function extractRazorpayWebhookFields(event, entity) {
+  const orderEntity = event?.payload?.order?.entity
+  const entityNotes = entity?.notes && typeof entity.notes === 'object' ? entity.notes : {}
+  const orderNotes =
+    orderEntity?.notes && typeof orderEntity.notes === 'object' ? orderEntity.notes : {}
+  // payment.captured usually carries the order alongside the payment; order notes are authoritative.
+  const notes = { ...entityNotes, ...orderNotes }
   return {
     event_id: String(event?.id || ''),
     event: String(event?.event || ''),
     payment_id: entity?.id?.startsWith?.('pay_')
       ? entity.id
       : entity?.payment_id || notes.payment_id || '',
-    order_id: entity?.order_id || (entity?.id?.startsWith?.('order_') ? entity.id : '') || '',
+    order_id:
+      entity?.order_id ||
+      (entity?.id?.startsWith?.('order_') ? entity.id : '') ||
+      orderEntity?.id ||
+      '',
     refund_id: entity?.id?.startsWith?.('rfnd_') ? entity.id : '',
     status: entity?.status || '',
     amount: typeof entity?.amount === 'number' ? entity.amount : undefined,
@@ -138,7 +148,7 @@ export async function handleRazorpayWebhook(req, res, readBody, json) {
   }
 
   const entity = pickEntity(event)
-  const row = extractFields(event, entity || {})
+  const row = extractRazorpayWebhookFields(event, entity || {})
 
   try {
     await storeEvent(row, event)
@@ -149,7 +159,13 @@ export async function handleRazorpayWebhook(req, res, readBody, json) {
 
   // Activate subscription when money is captured / order paid
   const activateEvents = new Set(['payment.captured', 'order.paid', 'payment.authorized'])
-  if (activateEvents.has(row.event) && row.user) {
+  if (activateEvents.has(row.event) && row.notes?.kind === 'gift' && row.order_id) {
+    try {
+      await markGiftPaid(row.order_id, row.payment_id)
+    } catch (err) {
+      console.error('[razorpay/webhook] gift finalize', err?.message || err)
+    }
+  } else if (activateEvents.has(row.event) && row.user) {
     try {
       await activateByUserId(row.user, row.country)
     } catch (err) {

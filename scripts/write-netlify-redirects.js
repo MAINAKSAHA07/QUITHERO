@@ -60,7 +60,18 @@ const redirects = `# Auto-generated — do not edit
 /api/create-order  ${pushUrl}/api/create-order  200
 /api/preview-coupon  ${pushUrl}/api/preview-coupon  200
 /api/verify-payment  ${pushUrl}/api/verify-payment  200
+/api/claim-gift  ${pushUrl}/api/claim-gift  200
+/api/finalize-gift  ${pushUrl}/api/finalize-gift  200
+/api/payment-return  ${pushUrl}/api/payment-return  200
+/api/landing-coach/*  ${pushUrl}/api/landing-coach/:splat  200
 /api/razorpay/webhook  ${pushUrl}/api/razorpay/webhook  200
+
+# Admin grant / revoke full access → EC2 api-server
+/api/admin/grant-access  ${pushUrl}/api/admin/grant-access  200
+/api/admin/revoke-access  ${pushUrl}/api/admin/revoke-access  200
+
+# Promo / transactional email → EC2 api-server
+/api/email/*  ${pushUrl}/api/email/:splat  200
 
 # SPA fallback
 /*  /index.html  200

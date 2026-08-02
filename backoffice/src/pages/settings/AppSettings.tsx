@@ -381,27 +381,94 @@ const ContentSettings: React.FC<SettingsComponentProps> = ({ settings, onChange,
 const NotificationSettings: React.FC<SettingsComponentProps> = ({ settings, onChange, onSave, isSaving }) => {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Notification Settings</h2>
-        <p className="text-xs text-neutral-500 mt-1">
-          Global feature flags stored in app settings. Per-user delivery still follows each user’s
-          Profile toggles (reminders, craving alerts, achievements).
-        </p>
-        <button onClick={onSave} className="btn-primary flex items-center gap-2" disabled={isSaving}>
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Notification Settings</h2>
+          <p className="text-xs text-neutral-500 mt-1">
+            Email and push are independent. Deactivating email never stops push.
+          </p>
+        </div>
+        <button onClick={onSave} className="btn-primary flex items-center gap-2 shrink-0" disabled={isSaving}>
           <Save className="w-4 h-4" />
           {isSaving ? 'Saving...' : 'Save'}
         </button>
       </div>
-      <div className="space-y-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={settings.emailNotificationsEnabled}
-            onChange={(e) => onChange({ ...settings, emailNotificationsEnabled: e.target.checked })}
-            className="rounded border-neutral-300"
-          />
-          <span className="text-sm text-neutral-700">Email Notifications Enabled</span>
-        </label>
+
+      <div className="border border-neutral-200 rounded-lg p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-neutral-dark">Email notifications</p>
+            <p className="text-xs text-neutral-500">Purchase, reminders, promo, blog, segment emails</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${
+                settings.emailNotificationsEnabled
+                  ? 'bg-success/10 text-success'
+                  : 'bg-neutral-100 text-neutral-500'
+              }`}
+            >
+              {settings.emailNotificationsEnabled ? 'Active' : 'Inactive'}
+            </span>
+            {settings.emailNotificationsEnabled ? (
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg border border-danger text-danger hover:bg-danger/5"
+                onClick={() => onChange({ ...settings, emailNotificationsEnabled: false })}
+              >
+                Deactivate
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg border border-success text-success hover:bg-success/5"
+                onClick={() => onChange({ ...settings, emailNotificationsEnabled: true })}
+              >
+                Activate
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-neutral-200 rounded-lg p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-neutral-dark">Push notifications</p>
+            <p className="text-xs text-neutral-500">App push — not controlled by the email buttons above</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${
+                settings.pushNotificationsEnabled
+                  ? 'bg-success/10 text-success'
+                  : 'bg-neutral-100 text-neutral-500'
+              }`}
+            >
+              {settings.pushNotificationsEnabled ? 'Active' : 'Inactive'}
+            </span>
+            {settings.pushNotificationsEnabled ? (
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg border border-danger text-danger hover:bg-danger/5"
+                onClick={() => onChange({ ...settings, pushNotificationsEnabled: false })}
+              >
+                Deactivate
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-lg border border-success text-success hover:bg-success/5"
+                onClick={() => onChange({ ...settings, pushNotificationsEnabled: true })}
+              >
+                Activate
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-2">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -410,15 +477,6 @@ const NotificationSettings: React.FC<SettingsComponentProps> = ({ settings, onCh
             className="rounded border-neutral-300"
           />
           <span className="text-sm text-neutral-700">SMS Notifications Enabled</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={settings.pushNotificationsEnabled}
-            onChange={(e) => onChange({ ...settings, pushNotificationsEnabled: e.target.checked })}
-            className="rounded border-neutral-300"
-          />
-          <span className="text-sm text-neutral-700">Push Notifications Enabled</span>
         </label>
         <label className="flex items-center gap-2">
           <input

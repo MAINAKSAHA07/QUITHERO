@@ -28,10 +28,11 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto safe-area-bottom bg-white border-t border-[#0E2538]/10 shadow-[0_-4px_20px_rgba(14,37,56,0.06)] rounded-t-3xl"
+      className="fixed bottom-0 inset-x-0 z-50 mx-auto w-full max-w-md bg-white/92 backdrop-blur-xl border-t border-[#0E2538]/08 shadow-[0_-4px_20px_rgba(14,37,56,0.06)] rounded-t-3xl pb-[max(0.35rem,env(safe-area-inset-bottom,0px))]"
       aria-label="Main navigation"
     >
-      <div className="relative grid grid-cols-5 items-center gap-0 px-2 pt-2 pb-1">
+      {/* Fixed row height so the FAB can’t squash the tab bar on narrow phones */}
+      <div className="relative grid grid-cols-5 items-end px-1 pt-2 pb-1 min-h-[3.5rem]">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)
@@ -39,22 +40,22 @@ export default function BottomNavigation() {
 
           if (item.isFAB) {
             return (
-              <div key={item.path} className="relative flex justify-center items-center h-12">
+              <div key={item.path} className="relative flex justify-center items-end h-12 min-w-0">
                 <Link
                   to={item.path}
-                  className="absolute left-1/2 -translate-x-1/2 -top-5"
+                  className="absolute left-1/2 -translate-x-1/2 bottom-1"
                   aria-label={item.label}
                   data-tour-id="craving"
                 >
-                  {/* Press feedback only — no hover scale on high-frequency nav */}
+                  {/* Apple: press feedback on down, not hover — keep FAB within the bar’s optical slot */}
                   <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center transition-transform duration-100 ease-out active:scale-[0.97]"
+                    className="w-12 h-12 rounded-full flex items-center justify-center transition-transform duration-100 ease-out active:scale-[0.97]"
                     style={{
                       background: 'linear-gradient(135deg, #F6B884 0%, #E8894A 100%)',
-                      boxShadow: '0 6px 20px rgba(246, 184, 132, 0.4)',
+                      boxShadow: '0 4px 14px rgba(246, 184, 132, 0.45)',
                     }}
                   >
-                    <Icon className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    <Icon className="w-5 h-5 text-white" strokeWidth={2.5} />
                   </div>
                 </Link>
               </div>
@@ -76,18 +77,18 @@ export default function BottomNavigation() {
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center gap-0.5 h-12 touch-target transition-transform duration-100 ease-out active:scale-[0.97]"
+              className="flex flex-col items-center justify-end gap-0.5 h-12 min-w-0 px-0.5 transition-transform duration-100 ease-out active:scale-[0.97]"
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
               data-tour-id={tourId}
             >
               <Icon
                 strokeWidth={active ? 2.5 : 1.75}
-                className="w-5 h-5 transition-colors duration-200"
+                className="w-5 h-5 flex-shrink-0 transition-colors duration-200"
                 style={{ color: active ? color : 'rgba(14, 37, 56, 0.4)' }}
               />
               <span
-                className="text-[10px] font-semibold leading-none transition-colors duration-200"
+                className="w-full text-center text-[10px] font-semibold leading-tight tracking-[0.01em] truncate transition-colors duration-200"
                 style={{ color: active ? color : 'rgba(14, 37, 56, 0.4)' }}
               >
                 <TranslatedText text={item.label} />

@@ -82,6 +82,50 @@ export const FAQ_ITEMS = [
     answer:
       'Smono is a behavioural change and psychological support program. If you have a medical condition, use medication, are pregnant, or need clinical support, speak to a qualified healthcare professional before making major changes.',
   },
+  {
+    question: 'Can I gift Smono to someone I love?',
+    answer:
+      'Yes. Visit smono.app/gift to purchase a gift. They receive a private email invitation with your note and claim it by signing in with the email you entered. Access unlocks for them only.',
+  },
+  {
+    question: 'Is this a subscription?',
+    answer:
+      'No. Smono is a one-time purchase. Pay once and keep lifetime access — no monthly renewals.',
+  },
+] as const
+
+/** Gift landing FAQ — claim flow, recipient-only access. */
+export const GIFT_FAQ_ITEMS = [
+  {
+    question: 'Who gets access when I gift Smono?',
+    answer:
+      'Only the recipient you named. You pay and send the invitation; they claim and unlock the 30-day program.',
+  },
+  {
+    question: 'How does the recipient claim the gift?',
+    answer:
+      'They receive an email with your name, your optional note, and a claim link. They sign in with the exact email you entered, claim the gift, and can start Day 1 when ready.',
+  },
+  {
+    question: 'Do they have to quit on Day 1?',
+    answer:
+      'No. Smono does not force an immediate quit. Early days can include smoking while they learn — so pressure stays low and the final cigarette becomes a goodbye, not a panic.',
+  },
+  {
+    question: 'Will they know I paid?',
+    answer:
+      'They see your name and note in the invitation. Payment details stay private. The gift is framed as care, not surveillance.',
+  },
+  {
+    question: 'What if their email is wrong?',
+    answer:
+      'Enter the email they will actually use to sign in. If something goes wrong, contact support@smono.app with the order details and we will help reroute the claim.',
+  },
+  {
+    question: 'Is this medical treatment?',
+    answer:
+      'Smono is a behavioural change and psychological support program. If they have a medical condition, use medication, are pregnant, or need clinical support, they should speak to a qualified healthcare professional.',
+  },
 ] as const
 
 export function organizationJsonLd() {
@@ -128,7 +172,7 @@ export function softwareApplicationJsonLd() {
       price: '1999',
       priceCurrency: 'INR',
       description:
-        'Monthly program access for the ~30-day path; most people only need one month. Price varies by country in the app.',
+        'One-time payment for lifetime access to the ~30-day quit path. Price varies by country.',
     },
   }
 }

@@ -74,15 +74,22 @@
 }
 
 .blog-site-logo-img {
-  height: 28px;
+  /* Optical size = letter height (asset is tightly cropped). Apple nav wordmarks ~28–36pt. */
+  height: 36px;
   width: auto;
   object-fit: contain;
   display: block;
+  transition: transform 100ms ease-out, opacity 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.blog-site-logo:active .blog-site-logo-img {
+  transform: scale(0.97);
+  opacity: 0.85;
 }
 
 @media (min-width: 640px) {
   .blog-site-logo-img {
-    height: 32px;
+    height: 44px;
   }
 }
 
@@ -653,6 +660,59 @@
   font-weight: 600;
 }
 
+.blog-related {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(14, 37, 56, 0.1);
+}
+
+.blog-related-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 1rem;
+}
+
+.blog-related-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.blog-related-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(14, 37, 56, 0.08);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.blog-related-link:hover {
+  border-color: rgba(14, 37, 56, 0.18);
+  background: #fff;
+}
+
+.blog-related-meta {
+  font-size: 0.75rem;
+  color: var(--muted, #6b7c8a);
+}
+
+.blog-related-name {
+  font-weight: 600;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
 .blog-body {
   font-size: 1.05rem;
   line-height: 1.75;
@@ -858,6 +918,20 @@
   padding-bottom: 2rem;
 }
 
+/* /gift has no about-hero — just clear sticky chrome */
+.marketing-page > .gift {
+  padding-top: 1.25rem;
+  padding-bottom: clamp(3rem, 7vw, 5.5rem);
+}
+
+.marketing-page .gift-how,
+.marketing-page .gift-includes,
+.marketing-page .gift-story,
+.marketing-page .gift-close,
+.marketing-page .faq {
+  padding-block: clamp(2.5rem, 6vw, 4.5rem);
+}
+
 /* Dedicated SEO pages reuse homepage sections — tame scroll-story density */
 .marketing-page .reset-story {
   padding-top: 0.5rem;
@@ -897,6 +971,41 @@
 .marketing-page .reveal {
   opacity: 1;
   transform: none;
+}
+
+/* Gift landing keeps scroll reveals — rare first visit, explanatory (not SEO density) */
+.marketing-page .gift-story .reveal,
+.marketing-page .gift-how .reveal,
+.marketing-page .gift-includes .reveal,
+.marketing-page .gift-close .reveal,
+.marketing-page .faq .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.4s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    transform 0.4s var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.marketing-page .gift-how .gift-step-reveal {
+  transform: translate3d(-12px, 0, 0);
+}
+.marketing-page .gift-story .reveal.visible,
+.marketing-page .gift-how .reveal.visible,
+.marketing-page .gift-includes .reveal.visible,
+.marketing-page .gift-close .reveal.visible,
+.marketing-page .faq .reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-page .gift-story .reveal,
+  .marketing-page .gift-how .reveal,
+  .marketing-page .gift-includes .reveal,
+  .marketing-page .gift-close .reveal,
+  .marketing-page .faq .reveal {
+    opacity: 1;
+    transform: none !important;
+    transition: none !important;
+  }
 }
 
 .about-hero {

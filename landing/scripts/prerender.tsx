@@ -11,6 +11,7 @@ import { LandingPage } from '../src/LandingPage'
 import { BlogListPage } from '../src/pages/BlogListPage'
 import { BlogDetailPage } from '../src/pages/BlogDetailPage'
 import { blogExcerpt } from '../src/utils/stripHtml'
+import { pickRelatedBlogPosts } from '../src/utils/relatedBlogPosts'
 import { fetchPublishedBlogs } from './fetch-published-blogs'
 import { LegalPage } from '../src/pages/LegalPage'
 import { AboutPage } from '../src/pages/AboutPage'
@@ -282,9 +283,10 @@ for (const blog of blogs) {
   if (!slug) continue
   const title = `${blog.title} | Smono Blog`
   const description = blogExcerpt(blog.content, blog.excerpt, 160)
+  const related = pickRelatedBlogPosts(blog, blogs, 2)
   prerenderRoute(
     <StaticRouter location={`/blog/${slug}`}>
-      <BlogDetailPage initialPost={blog} />
+      <BlogDetailPage initialPost={blog} initialRelated={related} />
     </StaticRouter>,
     `blog/${slug}/index.html`,
     {
@@ -294,7 +296,7 @@ for (const blog of blogs) {
       ogType: 'article',
       ogImage: absoluteOgImage(blog.image_url),
     },
-    { bootstrap: blogBootstrap('smono-blog-post', blog) }
+    { bootstrap: blogBootstrap('smono-blog-post', { post: blog, related }) }
   )
 }
 

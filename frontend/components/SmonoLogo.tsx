@@ -21,17 +21,18 @@ export default function SmonoLogo({
   }
 
   const imgHeights = {
-    sm: 'h-6 sm:h-8',
-    md: 'h-8 sm:h-10',
-    lg: 'h-12 sm:h-16',
-    xl: 'h-16 sm:h-24',
+    // Tight-cropped wordmark — these heights are real letter heights (Apple optical scale).
+    sm: 'h-8 sm:h-9',
+    md: 'h-10 sm:h-11',
+    lg: 'h-14 sm:h-16',
+    xl: 'h-20 sm:h-28',
   }
 
   const logoImage = (
     <img
-      src="/smonologo.webp?v=3"
+      src="/smonologo.webp?v=5"
       alt="smono"
-      className={`${imgHeights[size]} object-contain select-none`}
+      className={`${imgHeights[size]} w-auto object-contain select-none transition-transform duration-100 ease-out active:scale-[0.97]`}
     />
   )
 

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
-import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Search, FileText, Globe, Calendar, Mail } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { MediaUrlField } from '../../components/MediaUrlField'
+import { buildBlogLaunchEmail, sendAdminBulkEmail } from '../../lib/sendEmail'
 
 interface Article {
   id: string
@@ -77,11 +78,20 @@ export const Articles = () => {
   const articles = articlesData?.success ? articlesData.data || [] : []
 
   const handleDelete = async (article: Article) => {
-    if (!confirm(`Are you sure you want to delete "${article.title}"?`)) return
+    if (
+      !confirm(
+        `Permanently delete “${article.title}”? This removes it from the landing blog and cannot be undone.`
+      )
+    ) {
+      return
+    }
     const result = await deleteMutation.mutateAsync(article.id)
     if (!result.success) {
       alert(result.error || 'Failed to delete article')
+      return
     }
+    if (editingArticle?.id === article.id) closeModal()
+    if (viewingArticle?.id === article.id) setViewingArticle(null)
   }
 
   const handleDuplicate = async (article: Article) => {
@@ -272,12 +282,14 @@ export const Articles = () => {
                         <Copy className="w-4 h-4 text-secondary" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(article)}
-                        className="p-2 hover:bg-neutral-100 rounded-lg"
-                        title="Delete"
+                        className="inline-flex items-center gap-1 px-2 py-1.5 text-sm text-danger hover:bg-danger/5 rounded-lg"
+                        title="Delete blog"
                         disabled={deleteMutation.isPending}
                       >
-                        <Trash2 className="w-4 h-4 text-danger" />
+                        <Trash2 className="w-4 h-4" />
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -292,15 +304,28 @@ export const Articles = () => {
         <ArticleModal
           article={editingArticle}
           onClose={closeModal}
-          onSuccess={() => {
-            closeModal()
+          onDelete={
+            editingArticle
+              ? async () => {
+                  await handleDelete(editingArticle)
+                }
+              : undefined
+          }
+          deleting={deleteMutation.isPending}
+          onSuccess={(opts) => {
             queryClient.invalidateQueries({ queryKey: ['articles'] })
+            if (!opts?.keepOpen) closeModal()
           }}
         />
       )}
 
       {viewingArticle && (
-        <ArticleViewModal article={viewingArticle} onClose={() => setViewingArticle(null)} />
+        <ArticleViewModal
+          article={viewingArticle}
+          onClose={() => setViewingArticle(null)}
+          onDelete={() => handleDelete(viewingArticle)}
+          deleting={deleteMutation.isPending}
+        />
       )}
     </div>
   )
@@ -309,10 +334,18 @@ export const Articles = () => {
 interface ArticleModalProps {
   article?: Article | null
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (opts?: { keepOpen?: boolean }) => void
+  onDelete?: () => void | Promise<void>
+  deleting?: boolean
 }
 
-const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
+const ArticleModal = ({
+  article,
+  onClose,
+  onSuccess,
+  onDelete,
+  deleting = false,
+}: ArticleModalProps) => {
   const [slugTouched, setSlugTouched] = useState(!!article?.slug)
   const [formData, setFormData] = useState({
     title: article?.title || '',
@@ -326,6 +359,9 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
     is_active: article?.is_active !== undefined ? article.is_active : true,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isNotifying, setIsNotifying] = useState(false)
+  const [notifyMsg, setNotifyMsg] = useState<string | null>(null)
+  const [savedId, setSavedId] = useState<string | undefined>(article?.id)
 
   const handleTitleChange = (title: string) => {
     setFormData((prev) => ({
@@ -335,56 +371,146 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const saveArticle = async (overrides?: {
+    status?: string
+    is_active?: boolean
+  }): Promise<{ slug: string; id?: string } | null> => {
     if (!formData.title.trim()) {
       alert('Title is required')
-      return
+      return null
     }
     if (!ARTICLE_TYPES.includes(formData.type as (typeof ARTICLE_TYPES)[number])) {
       alert('Invalid article type')
-      return
+      return null
     }
 
     const slug = (formData.slug || slugify(formData.title)).trim()
     if (!slug) {
       alert('URL slug is required')
-      return
+      return null
     }
 
+    const status = overrides?.status ?? formData.status
+    const isActive = overrides?.is_active ?? formData.is_active
+    const publishedAt =
+      status === 'published'
+        ? article?.published_at || new Date().toISOString()
+        : undefined
+
+    const payload = {
+      title: formData.title.trim(),
+      slug,
+      excerpt: formData.excerpt.trim() || undefined,
+      content: formData.content.trim(),
+      type: formData.type,
+      language: formData.language,
+      status,
+      image_url: formData.image_url.trim() || undefined,
+      is_active: isActive,
+      ...(publishedAt ? { published_at: publishedAt } : {}),
+    }
+
+    const existingId = savedId || article?.id
+    const result = existingId
+      ? await adminCollectionHelpers.update('content_items', existingId, payload)
+      : await adminCollectionHelpers.create('content_items', payload)
+
+    if (!result.success) {
+      alert(result.error || 'Failed to save article')
+      return null
+    }
+    const id = (result.data as { id?: string } | undefined)?.id || existingId
+    if (id) setSavedId(id)
+    if (overrides) {
+      setFormData((prev) => ({
+        ...prev,
+        status,
+        is_active: isActive,
+      }))
+    }
+    return { slug, id }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setIsSubmitting(true)
+    setNotifyMsg(null)
     try {
-      const publishedAt =
-        formData.status === 'published'
-          ? article?.published_at || new Date().toISOString()
-          : undefined
-
-      const payload = {
-        title: formData.title.trim(),
-        slug,
-        excerpt: formData.excerpt.trim() || undefined,
-        content: formData.content.trim(),
-        type: formData.type,
-        language: formData.language,
-        status: formData.status,
-        image_url: formData.image_url.trim() || undefined,
-        is_active: formData.is_active,
-        ...(publishedAt ? { published_at: publishedAt } : {}),
-      }
-
-      const result = article
-        ? await adminCollectionHelpers.update('content_items', article.id, payload)
-        : await adminCollectionHelpers.create('content_items', payload)
-
-      if (!result.success) {
-        alert(result.error || 'Failed to save article')
-        return
-      }
-      onSuccess()
+      const saved = await saveArticle()
+      if (saved) onSuccess()
     } catch (err: any) {
       alert(err?.message || 'Failed to save article')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleSaveAndNotify = async () => {
+    if (
+      !confirm(
+        `Publish this post and email all app users about “${formData.title.trim()}”?`
+      )
+    ) {
+      return
+    }
+
+    setIsNotifying(true)
+    setNotifyMsg(null)
+    try {
+      const saved = await saveArticle({ status: 'published', is_active: true })
+      if (!saved) return
+
+      const usersRes = await adminCollectionHelpers.getFullList('users', {
+        fields: 'id,email,name',
+      })
+      if (!usersRes.success) {
+        setNotifyMsg(usersRes.error || 'Could not load users')
+        return
+      }
+      const emails = [
+        ...new Set(
+          ((usersRes.data || []) as { email?: string }[])
+            .map((u) => String(u.email || '').trim().toLowerCase())
+            .filter((e) => e.includes('@'))
+        ),
+      ]
+      if (!emails.length) {
+        setNotifyMsg(
+          `Published, but no user emails found (${(usersRes.data || []).length} users loaded).`
+        )
+        onSuccess({ keepOpen: true })
+        return
+      }
+
+      const mail = buildBlogLaunchEmail({
+        title: formData.title.trim(),
+        excerpt: formData.excerpt.trim(),
+        slug: saved.slug,
+      })
+      const result = await sendAdminBulkEmail({
+        emails,
+        subject: mail.subject,
+        text: mail.text,
+        title: mail.title,
+        ctaLabel: mail.ctaLabel,
+        ctaUrl: mail.ctaUrl,
+        preheader: mail.preheader,
+      })
+
+      if (!result.ok && !result.sent) {
+        setNotifyMsg(result.error || 'Email send failed')
+        onSuccess({ keepOpen: true })
+        return
+      }
+      setNotifyMsg(
+        `Published. Emails sent: ${result.sent ?? 0}` +
+          (result.failed ? `, failed: ${result.failed}` : '')
+      )
+      onSuccess({ keepOpen: true })
+    } catch (err: any) {
+      setNotifyMsg(err?.message || 'Notify failed')
+    } finally {
+      setIsNotifying(false)
     }
   }
 
@@ -512,13 +638,52 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
               Active (visible on landing blog when published)
             </label>
           </div>
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
-            <button type="button" onClick={onClose} className="btn-secondary" disabled={isSubmitting}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : article ? 'Update' : 'Create'}
-            </button>
+          {notifyMsg && (
+            <p className="text-sm text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2">
+              {notifyMsg}
+            </p>
+          )}
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-neutral-200">
+            <div>
+              {article && onDelete ? (
+                <button
+                  type="button"
+                  onClick={() => void onDelete()}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-danger text-danger hover:bg-danger/5 disabled:opacity-50"
+                  disabled={isSubmitting || isNotifying || deleting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deleting ? 'Deleting…' : 'Delete blog'}
+                </button>
+              ) : null}
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary"
+                disabled={isSubmitting || isNotifying || deleting}
+              >
+                {notifyMsg ? 'Done' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAndNotify}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/5 disabled:opacity-50"
+                disabled={isSubmitting || isNotifying || deleting || !formData.title.trim()}
+                title="Publish and email all app users"
+              >
+                <Mail className="w-4 h-4" />
+                {isNotifying ? 'Emailing users…' : 'Publish & email users'}
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={isSubmitting || isNotifying || deleting}
+              >
+                {isSubmitting ? 'Saving...' : article ? 'Update' : 'Create'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -526,7 +691,17 @@ const ArticleModal = ({ article, onClose, onSuccess }: ArticleModalProps) => {
   )
 }
 
-const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () => void }) => {
+const ArticleViewModal = ({
+  article,
+  onClose,
+  onDelete,
+  deleting = false,
+}: {
+  article: Article
+  onClose: () => void
+  onDelete?: () => void | Promise<void>
+  deleting?: boolean
+}) => {
   const isHtml = /<[a-z][\s\S]*>/i.test(article.content || '')
   return (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -559,6 +734,24 @@ const ArticleViewModal = ({ article, onClose }: { article: Article; onClose: () 
             {article.content || <span className="text-neutral-400">No content</span>}
           </div>
         )}
+      </div>
+      <div className="p-6 border-t border-neutral-200 flex justify-between gap-3">
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={() => void onDelete()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-danger text-danger hover:bg-danger/5 disabled:opacity-50"
+            disabled={deleting}
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleting ? 'Deleting…' : 'Delete blog'}
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="button" onClick={onClose} className="btn-secondary">
+          Close
+        </button>
       </div>
     </div>
   </div>

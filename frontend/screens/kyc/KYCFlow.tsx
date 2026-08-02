@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import NotificationOptIn from './NotificationOptIn'
+import RightPlaceScreen from './RightPlaceScreen'
 import KYCQuestionScreen from './KYCQuestionScreen'
 import { kycQuestions } from './kycQuestions'
 import InsightSequence from './InsightSequence'
 import ArchetypeReveal from './ArchetypeReveal'
 import { BeliefAssessment } from '../../components/BeliefAssessment'
 import { PersonalizationLoader } from '../../components/PersonalizationLoader'
+import TranslatedText from '../../components/TranslatedText'
 import { useApp } from '../../context/AppContext'
 import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { profileService } from '../../services/profile.service'
@@ -21,10 +23,19 @@ import { localDateISO } from '../../utils/smokeFreeDays'
 import { Gender, Language, CravingTrigger, EmotionalState, QuitArchetype } from '../../types/enums'
 import { LANGUAGE_BY_KYC_LABEL, APP_LANGUAGES } from '../../constants/languages'
 import { hasChosenLanguage, markLanguageChosen } from '../../utils/languageChoice'
+import { getCountryConfig } from '../../utils/currency'
 
 export default function KYCFlow() {
   const [currentStep, setCurrentStep] = useState<
-    'optin' | 'questions_pre' | 'insight' | 'questions_post' | 'reveal' | 'belief' | 'loader' | 'checking'
+    | 'optin'
+    | 'right_place'
+    | 'questions_pre'
+    | 'insight'
+    | 'questions_post'
+    | 'reveal'
+    | 'belief'
+    | 'loader'
+    | 'checking'
   >('checking')
 
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -74,7 +85,12 @@ export default function KYCFlow() {
         } catch {
           /* ignore */
         }
-        navigate('/home', { replace: true })
+        // Only bounce home when arriving already complete.
+        // Mid-flow we save quit_archetype / onboarding_completed_at before reveal → belief → loader;
+        // redirecting here skipped PersonalizationLoader.
+        if (!profileChecked) {
+          navigate('/home', { replace: true })
+        }
         return
       }
 
@@ -168,7 +184,9 @@ export default function KYCFlow() {
       nicotine_forms: nicotineForms,
       how_long_using: monthsUsing,
       daily_consumption: Number(rawAnswers.daily_consumption) || 10,
-      pack_cost: Number(rawAnswers.pack_cost) || 300,
+      pack_cost:
+        Number(rawAnswers.pack_cost) ||
+        getCountryConfig(rawAnswers.country || 'IN').pricePerCigarette * 20,
       minutes_per_cigarette: Number(rawAnswers.minutes_per_cigarette) || 7,
       started_age_range: rawAnswers.started_age_range || '18–21',
       first_use_after_waking: rawAnswers.first_use_after_waking || 'Within 30 minutes',
@@ -181,7 +199,6 @@ export default function KYCFlow() {
       daily_stress_level: rawAnswers.daily_stress_level || 'Moderate stress',
       anxiety_social_pattern: rawAnswers.anxiety_social_pattern || 'Both equally',
       guilt_frequency: rawAnswers.guilt_frequency || 'Occasionally',
-      tried_quitting_before: rawAnswers.tried_quitting_before || 'No, this is my first time',
       previous_attempt_difficulty: rawAnswers.previous_attempt_difficulty || [],
       quit_attempt_count: rawAnswers.quit_attempt_count || 'Never, this is my first attempt',
       past_quit_tools: rawAnswers.past_quit_tools || [],
@@ -190,11 +207,7 @@ export default function KYCFlow() {
       priority_goal: rawAnswers.priority_goal || 'Clear lungs & better stamina',
       quit_goal_style: rawAnswers.quit_goal_style || 'I want to quit completely',
       quit_confidence: rawAnswers.quit_confidence || 'Moderately confident',
-      quit_reason: rawAnswers.quit_reason || '',
       fear_index: Number(rawAnswers.fear_index) || 5,
-      cravings_worry: rawAnswers.cravings_worry || 'Slightly worried',
-      relapse_worry: rawAnswers.relapse_worry || 'Slightly worried',
-      withdrawal_worry: rawAnswers.withdrawal_worry || 'Slightly worried',
       household_smokers: rawAnswers.household_smokers || 'No, smoke-free household',
       occupation_style: rawAnswers.occupation_style || 'Other',
       reminder_frequency: rawAnswers.reminder_frequency || 'Yes, morning and evening',
@@ -253,7 +266,7 @@ export default function KYCFlow() {
     }
 
     if (prevIndex < 0) {
-      setCurrentStep('optin')
+      setCurrentStep('right_place')
     } else if (!isPreInsightIndex(questionIndex) && isPreInsightIndex(prevIndex)) {
       // Scroll back to the Insight card before group D
       setCurrentStep('insight')
@@ -297,7 +310,7 @@ export default function KYCFlow() {
     }
   }
 
-  // Opt-in complete
+  // Opt-in complete → trust / pillars screen
   const handleOptIn = (enabled: boolean) => {
     setAnswers((prev) => {
       const next: Record<string, any> = { ...prev, enable_reminders: enabled }
@@ -309,6 +322,10 @@ export default function KYCFlow() {
       }
       return next
     })
+    setCurrentStep('right_place')
+  }
+
+  const startQuestions = () => {
     setCurrentStep('questions_pre')
     // Skip any hidden questions at the start (e.g. language already chosen)
     let start = 0
@@ -344,7 +361,9 @@ export default function KYCFlow() {
     return (
       <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col items-center justify-center bg-background gap-4 px-6">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-primary/20 border-t-brand-primary"></div>
-        <p className="text-sm text-text-primary/60">Loading…</p>
+        <p className="text-sm text-text-primary/60">
+          <TranslatedText text="Loading…" />
+        </p>
         <button
           type="button"
           className="mt-4 text-sm text-text-primary/50 underline underline-offset-2"
@@ -353,7 +372,7 @@ export default function KYCFlow() {
             setCurrentStep('optin')
           }}
         >
-          Continue
+          <TranslatedText text="Continue" />
         </button>
       </div>
     )
@@ -363,10 +382,21 @@ export default function KYCFlow() {
     return <NotificationOptIn onContinue={handleOptIn} />
   }
 
+  if (currentStep === 'right_place') {
+    return (
+      <RightPlaceScreen
+        onContinue={startQuestions}
+        onBack={() => setCurrentStep('optin')}
+      />
+    )
+  }
+
   if (currentStep === 'insight') {
     // Map raw answers for calculations
     const dailyConsumption = Number(answers.daily_consumption) || 10
-    const packCost = Number(answers.pack_cost) || 300
+    const packCost =
+      Number(answers.pack_cost) ||
+      getCountryConfig(answers.country || 'IN').pricePerCigarette * 20
     const minutesCig = Number(answers.minutes_per_cigarette) || 7
     
     let monthsUsing = 24
@@ -438,7 +468,10 @@ export default function KYCFlow() {
     )
   }
 
-  if (currentStep === 'belief' && user?.id) {
+  if (currentStep === 'belief') {
+    if (!user?.id) {
+      return <PersonalizationLoader onComplete={handleFinalRedirect} />
+    }
     return (
       <BeliefAssessment
         assessmentDay={0}

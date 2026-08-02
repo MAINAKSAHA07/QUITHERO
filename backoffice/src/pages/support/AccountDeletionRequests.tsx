@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
-import { deleteUserAndRelated } from '../../lib/deleteUser'
+import { deleteUserAndRelated, purgeExpiredDeletionContacts } from '../../lib/deleteUser'
 import { AlertCircle, CheckCircle, Clock, Trash2, XCircle, User, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -13,6 +13,10 @@ type DeletionRequest = {
   admin_notes?: string
   processed_at?: string
   created?: string
+  contact_email?: string
+  contact_name?: string
+  contact_phone?: string
+  retain_until?: string
   expand?: {
     user?: { id: string; email?: string; name?: string }
   }
@@ -25,10 +29,24 @@ function safeRelativeTime(value?: string): string {
   return formatDistanceToNow(d, { addSuffix: true })
 }
 
+function contactLabel(request: DeletionRequest): string {
+  return (
+    request.expand?.user?.email ||
+    request.contact_email ||
+    request.user ||
+    'Unknown user'
+  )
+}
+
 export const AccountDeletionRequests = () => {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState('pending')
   const [notes, setNotes] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // ponytail: best-effort cleanup of contacts past 30-day retain window
+    purgeExpiredDeletionContacts().catch(() => {})
+  }, [])
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['account_deletion_requests', statusFilter],
@@ -56,24 +74,17 @@ export const AccountDeletionRequests = () => {
       const adminNotes = notes[request.id]?.trim() || ''
 
       if (action === 'complete') {
-        const email = request.expand?.user?.email || request.user
-        // Detach required user relation first, keep an audit trail on this row
-        const detach = await adminCollectionHelpers.update('account_deletion_requests', request.id, {
-          status: 'completed',
-          processed_at: now,
-          admin_notes: [adminNotes, email ? `Deleted account: ${email}` : ''].filter(Boolean).join('\n'),
-          user: '',
-        })
-        if (!detach.success) {
-          // Schema may still require user — delete the request, then purge user data
-          await adminCollectionHelpers.delete('account_deletion_requests', request.id)
-        }
-
-        const deleted = await deleteUserAndRelated(request.user)
+        if (!request.user) throw new Error('This request has no linked user to delete')
+        const deleted = await deleteUserAndRelated(request.user, { adminNotes })
         if (!deleted.success) {
           throw new Error(deleted.error || 'Failed to delete user and related data')
         }
-        return
+        if (deleted.emailError) {
+          throw new Error(
+            `Account deleted, but acceptance email failed: ${deleted.emailError}`
+          )
+        }
+        return { emailSent: deleted.emailSent }
       }
 
       await adminCollectionHelpers.update('account_deletion_requests', request.id, {
@@ -81,6 +92,7 @@ export const AccountDeletionRequests = () => {
         processed_at: now,
         admin_notes: adminNotes,
       })
+      return { emailSent: false }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['account_deletion_requests'] })
@@ -92,10 +104,10 @@ export const AccountDeletionRequests = () => {
   })
 
   const handleAction = (request: DeletionRequest, action: 'complete' | 'reject') => {
-    const userLabel = request.expand?.user?.email || request.user
+    const userLabel = contactLabel(request)
     const message =
       action === 'complete'
-        ? `Permanently delete ${userLabel} and all linked data? This cannot be undone.`
+        ? `Delete ${userLabel}? They will get an acceptance email. Contact details stay in the DB for 30 days; all other data is purged.`
         : `Reject the deletion request for ${userLabel}?`
 
     if (!window.confirm(message)) return
@@ -141,7 +153,7 @@ export const AccountDeletionRequests = () => {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-neutral-dark">Account Deletion Requests</h1>
           <p className="text-neutral-600 mt-1">
-            Review user requests and delete accounts from the backend when approved.
+            Approve to delete the account, email the user, and keep contact details for 30 days.
           </p>
         </div>
 
@@ -172,11 +184,29 @@ export const AccountDeletionRequests = () => {
 
                     <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
                       <User className="w-4 h-4" />
-                      <span>{request.expand?.user?.email || request.user}</span>
-                      {request.expand?.user?.name && (
-                        <span className="text-neutral-400">({request.expand.user.name})</span>
+                      <span>{contactLabel(request)}</span>
+                      {(request.expand?.user?.name || request.contact_name) && (
+                        <span className="text-neutral-400">
+                          ({request.expand?.user?.name || request.contact_name})
+                        </span>
                       )}
                     </div>
+
+                    {request.status === 'completed' && (request.contact_email || request.contact_phone) && (
+                      <div className="text-xs text-neutral-500 mb-2 space-y-0.5">
+                        {request.contact_phone ? <div>Phone: {request.contact_phone}</div> : null}
+                        {request.retain_until ? (
+                          <div>
+                            Contact kept until{' '}
+                            {new Date(request.retain_until).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
                       <Calendar className="w-3 h-3" />

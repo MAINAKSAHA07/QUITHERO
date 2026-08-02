@@ -13,31 +13,66 @@ import {
   Flame,
   ChevronRight,
   Menu,
+  MessageCircle,
 } from 'lucide-react'
 import BottomNavigation from '../components/BottomNavigation'
 import Sidebar from '../components/Sidebar'
 import { appHeaderBtn } from '../components/AppHeader'
 import MilestoneModal from '../components/MilestoneModal'
+import AchievementNotification from '../components/AchievementNotification'
 import TranslatedText from '../components/TranslatedText'
 import Mascot from '../components/Mascot'
 import { useApp } from '../context/AppContext'
 import { useProgress } from '../hooks/useProgress'
+import { useAchievements } from '../hooks/useAchievements'
 import { cravingService } from '../services/craving.service'
 import { programService } from '../services/program.service'
+import { sessionService } from '../services/session.service'
 import { analyticsService } from '../services/analytics.service'
-import { CravingType, CravingTrigger } from '../types/enums'
+import { CravingType, CravingTrigger, SessionStatus } from '../types/enums'
 import { haptic, hapticPatterns } from '../utils/haptic'
 import { formatMoney, getCountryConfig } from '../utils/currency'
+import { formatSlipLifeLost, formatSlipLoss, formatSlipNicotine } from '../utils/slipCost'
+import { countTodayCravingActivity } from '../utils/cravingDayCounts'
 import KycRequiredModal from '../components/KycRequiredModal'
 import UpgradePrompt from '../components/UpgradePrompt'
 import { useKycGate } from '../hooks/useKycGate'
 import { needsDay2Upgrade } from '../utils/upgradePrompt'
-
 import { greetingForHour } from '../utils/reminderTime'
+import { pb } from '../lib/pocketbase'
+import {
+  consecutiveCompletedCount,
+  dayLock,
+  dayStepFraction,
+  expectedCurrentDayNumber,
+  formatUnlockWait,
+  indexProgressByDayId,
+  programCompletionPercent,
+} from '../utils/programProgress'
+import type { Achievement, SessionProgress } from '../types/models'
 
 const MILESTONE_DAYS = [3, 7, 14, 30]
+const CELEBRATION_BURSTS = Array.from({ length: 14 }, (_, i) => ({
+  id: i,
+  x: (i % 7) * 28 - 84,
+  y: -40 - (i % 5) * 18,
+  color: ['#3F8DD2', '#6EA48F', '#F6B884', '#E8894A', '#7B6B9B'][i % 5],
+  delay: (i % 5) * 0.05,
+}))
 
-function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
+function milestoneStorageKey(days: number) {
+  return `milestone_shown_${days}`
+}
+
+function ProgressRing({
+  value,
+  size = 112,
+  celebrate = false,
+}: {
+  value: number
+  size?: number
+  celebrate?: boolean
+}) {
   const stroke = 10
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
@@ -45,7 +80,12 @@ function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
   const offset = c - (clamped / 100) * c
 
   return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+    <motion.div
+      className="relative flex-shrink-0"
+      style={{ width: size, height: size }}
+      animate={celebrate ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+      transition={celebrate ? { duration: 0.9, repeat: 2, ease: 'easeInOut' } : undefined}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -79,7 +119,7 @@ function ProgressRing({ value, size = 112 }: { value: number; size?: number }) {
         <span className="text-2xl font-black text-[#0E2538] leading-none">{clamped}%</span>
         <span className="text-[10px] font-semibold text-[#0E2538]/50 mt-1">Program</span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -88,13 +128,27 @@ export default function Home() {
   const { user, userProfile, currentSession, sessionLoading, progressStats, fetchCurrentSession, isPremium } = useApp()
   const { showKycModal, setShowKycModal, gateSessionAccess } = useKycGate()
   const { stats, calculation, loading: progressLoading, refresh: refreshProgressData } = useProgress()
+  const { checkAndUnlock } = useAchievements()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [slipsCount, setSlipsCount] = useState(0)
   const [todayCravings, setTodayCravings] = useState(0)
   const [todaySlips, setTodaySlips] = useState(0)
   const [milestoneDay, setMilestoneDay] = useState<number | null>(null)
+  const [newAchievement, setNewAchievement] = useState<Achievement | null>(null)
+  const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([])
+  const [celebrating, setCelebrating] = useState(false)
   const [quickLogging, setQuickLogging] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [programProgress, setProgramProgress] = useState(0)
+  const [programStarted, setProgramStarted] = useState(false)
+  const [nextDayUnlockAt, setNextDayUnlockAt] = useState<number | null>(null)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  // ponytail: minute tick — the rest-period countdown is shown in whole minutes.
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
 
   const loadData = useCallback(async (refreshProgress = false) => {
     if (!user?.id) return
@@ -102,15 +156,72 @@ export default function Home() {
     try {
       // Resync current_day from session_progress (Home used to keep a stale day-1 forever)
       await fetchCurrentSession()
+
+      // Adaptive program % — completed days + partial current day (not currentDay/30)
+      try {
+        const sessionResult = await sessionService.getCurrentSession(user.id)
+        const liveSession = sessionResult.success ? sessionResult.data : null
+        const programId = liveSession?.program
+          ? typeof liveSession.program === 'string'
+            ? liveSession.program
+            : (liveSession.program as { id?: string })?.id
+          : undefined
+
+        if (programId) {
+          const daysResult = await programService.getProgramDays(programId)
+          const days = daysResult.success && daysResult.data ? daysResult.data : []
+          const allProgress = (await pb
+            .collection('session_progress')
+            .getFullList({
+              filter: `user = "${user.id}"`,
+              fields: 'id,program_day,status,last_step_index,completed_at',
+            })
+            .catch(() => [])) as SessionProgress[]
+          const progressByDay = indexProgressByDayId(allProgress)
+          const completedDays = consecutiveCompletedCount(days, progressByDay)
+          const totalDays = days.length || 30
+          let currentDayFraction = 0
+          const activeDayNum = expectedCurrentDayNumber(days, progressByDay)
+          const activeDay = days.find((d) => d.day_number === activeDayNum) || days[activeDayNum - 1]
+          const activeProg = activeDay?.id ? progressByDay.get(activeDay.id) : undefined
+          const activeIndex = days.findIndex((d) => d.id && d.id === activeDay?.id)
+          setNextDayUnlockAt(
+            activeIndex >= 0 ? dayLock(activeIndex, days, progressByDay).unlockAtMs : null
+          )
+          if (activeDay?.id && activeProg?.status === SessionStatus.IN_PROGRESS) {
+            const stepsResult = await programService.getSteps(activeDay.id)
+            const stepCount = stepsResult.success && stepsResult.data ? stepsResult.data.length : 0
+            currentDayFraction = dayStepFraction(activeProg.last_step_index, stepCount)
+          }
+          setProgramStarted(
+            completedDays > 0 ||
+              activeProg?.status === SessionStatus.IN_PROGRESS ||
+              activeProg?.status === SessionStatus.COMPLETED
+          )
+          setProgramProgress(
+            programCompletionPercent({ totalDays, completedDays, currentDayFraction })
+          )
+        } else {
+          setProgramStarted(false)
+          setProgramProgress(0)
+          setNextDayUnlockAt(null)
+        }
+      } catch {
+        setProgramStarted(false)
+        setProgramProgress(0)
+        setNextDayUnlockAt(null)
+      }
+
       const slipsResult = await cravingService.getCountByType(user.id, 'slip')
       setSlipsCount(slipsResult.success && slipsResult.data !== undefined ? slipsResult.data : 0)
       if (refreshProgress) await refreshProgressData()
       try {
-        const allCravingsResult = await cravingService.getAll({ filter: `user="${user.id}"` })
+        // getByUser includes slips; also treat resolution_method=smoked as a slip.
+        const allCravingsResult = await cravingService.getByUser(user.id)
         if (allCravingsResult.success && allCravingsResult.data) {
-          const items = allCravingsResult.data
-          setTodayCravings(items.filter((c: any) => c.type === 'craving').length)
-          setTodaySlips(items.filter((c: any) => c.type === 'slip').length)
+          const { resisted, slipped } = countTodayCravingActivity(allCravingsResult.data)
+          setTodayCravings(resisted)
+          setTodaySlips(slipped)
         }
       } catch { /* graceful fallback */ }
     } catch {
@@ -127,15 +238,52 @@ export default function Home() {
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const days = Math.floor(calculation?.days_smoke_free ?? stats?.days_smoke_free ?? 0)
-    if (days > 0) {
-      const shownKey = `milestone_shown_${days}`
-      if (!sessionStorage.getItem(shownKey) && MILESTONE_DAYS.includes(days)) {
-        setMilestoneDay(days)
-        sessionStorage.setItem(shownKey, '1')
-      }
+    const days = Math.floor(
+      calculation?.days_smoke_free ?? stats?.days_smoke_free ?? progressStats?.days_smoke_free ?? 0
+    )
+    if (days <= 0) return
+    const due = MILESTONE_DAYS.find(
+      (m) => days >= m && !localStorage.getItem(milestoneStorageKey(m))
+    )
+    if (due == null) return
+    localStorage.setItem(milestoneStorageKey(due), '1')
+    setMilestoneDay(due)
+    setCelebrating(true)
+    haptic(hapticPatterns.achievement)
+  }, [calculation, stats, progressStats])
+
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    ;(async () => {
+      const result = await checkAndUnlock()
+      if (cancelled || !result?.success || !result.newlyUnlocked?.length) return
+      const [first, ...rest] = result.newlyUnlocked
+      setNewAchievement(first)
+      setPendingAchievements(rest)
+      setCelebrating(true)
+      haptic(hapticPatterns.achievement)
+    })()
+    return () => {
+      cancelled = true
     }
-  }, [calculation, stats])
+  }, [user?.id, checkAndUnlock])
+
+  useEffect(() => {
+    if (!celebrating) return
+    const t = window.setTimeout(() => setCelebrating(false), 4500)
+    return () => window.clearTimeout(t)
+  }, [celebrating, milestoneDay, newAchievement])
+
+  const dismissAchievement = () => {
+    if (pendingAchievements.length > 0) {
+      const [next, ...rest] = pendingAchievements
+      setNewAchievement(next)
+      setPendingAchievements(rest)
+      return
+    }
+    setNewAchievement(null)
+  }
 
   const handleQuickResist = async () => {
     if (!user?.id || quickLogging) return
@@ -154,10 +302,6 @@ export default function Home() {
     setQuickLogging(false)
   }
 
-  useEffect(() => {
-    if (user?.id) analyticsService.trackPageView('home', user.id)
-  }, [user?.id])
-
   const displayStats = useMemo(() => {
     const rawDays = calculation?.days_smoke_free ?? progressStats?.days_smoke_free ?? stats?.days_smoke_free ?? 0
     const daysSmokeFree = Math.floor(rawDays)
@@ -170,20 +314,36 @@ export default function Home() {
     const nicotineNotConsumed = calculation?.nicotine_not_consumed ?? cigarettesNotSmoked * nicotinePerCig
     const moneySavedFormatted = formatMoney(moneySaved, userProfile?.country)
     const currencySymbol = getCountryConfig(userProfile?.country).symbol
-    return { daysSmokeFree, currentStreakDays, rawDays, checkIns, moneySaved, moneySavedFormatted, currencySymbol, slipsCount, nicotineNotConsumed, cigarettesNotSmoked }
+    return {
+      daysSmokeFree,
+      currentStreakDays,
+      rawDays,
+      checkIns,
+      moneySaved,
+      moneySavedFormatted,
+      currencySymbol,
+      slipsCount,
+      nicotineNotConsumed,
+      cigarettesNotSmoked,
+    }
   }, [stats, calculation, progressStats, slipsCount, userProfile?.country])
 
   const currentDay = currentSession?.current_day || 1
   const showUpgrade = needsDay2Upgrade(isPremium, currentDay)
-  const programProgress = Math.round((currentDay / 30) * 100)
   const firstName =
     userProfile?.onboarding_name?.trim() ||
     user?.name?.split(' ')[0] ||
     'there'
   const greeting = greetingForHour(new Date().getHours())
 
+  const restingMs = nextDayUnlockAt != null ? Math.max(0, nextDayUnlockAt - nowMs) : 0
+
   const handleContinueProgram = async () => {
     if (!user?.id) return
+    if (restingMs > 0) {
+      navigate('/sessions')
+      return
+    }
     if (showUpgrade) {
       navigate('/paywall')
       analyticsService.trackEvent('upgrade_cta_clicked', { source: 'home_continue' }, user.id)
@@ -272,7 +432,9 @@ export default function Home() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border border-white overflow-hidden mb-5"
+          className={`relative rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(63,141,210,0.08)] border overflow-hidden mb-5 ${
+            celebrating ? 'border-[#F6B884]/70 ring-2 ring-[#F6B884]/30' : 'border-white'
+          }`}
         >
           <div
             className="pointer-events-none absolute -bottom-8 -right-8 w-40 h-40 rounded-full opacity-40"
@@ -281,9 +443,21 @@ export default function Home() {
             }}
             aria-hidden
           />
+          {celebrating &&
+            CELEBRATION_BURSTS.map((p) => (
+              <motion.span
+                key={p.id}
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-8 w-2 h-2 rounded-full"
+                style={{ backgroundColor: p.color }}
+                initial={{ opacity: 1, x: 0, y: 0, scale: 0.6 }}
+                animate={{ opacity: 0, x: p.x, y: p.y, scale: 1.2 }}
+                transition={{ duration: 1.1, delay: p.delay, ease: 'easeOut' }}
+              />
+            ))}
           <div className="flex items-center justify-between mb-4 relative">
             <h2 className="text-base font-bold text-[#0E2538]">
-              <TranslatedText text="Your Progress" />
+              <TranslatedText text={celebrating ? 'Milestone unlocked!' : 'Your Progress'} />
             </h2>
             <button
               type="button"
@@ -294,10 +468,16 @@ export default function Home() {
             </button>
           </div>
           <div className="flex items-center gap-4 relative">
-            <ProgressRing value={programProgress} />
+            <ProgressRing value={programProgress} celebrate={celebrating} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[#0E2538]/70 leading-snug mb-3">
-                <TranslatedText text="Keep it up — you're building a better you." />
+                <TranslatedText
+                  text={
+                    celebrating
+                      ? "Celebrate this win — you're building a better you."
+                      : "Keep it up — you're building a better you."
+                  }
+                />
               </p>
               <p className="text-xs text-[#0E2538]/45 mb-3">
                 Day {currentDay} of 30
@@ -323,7 +503,9 @@ export default function Home() {
             type="button"
             onClick={handleContinueProgram}
             disabled={sessionLoading}
-            className="relative mt-5 w-full py-3.5 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60"
+            className={`relative mt-5 w-full py-3.5 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60 ${
+              restingMs > 0 && !showUpgrade ? 'opacity-70' : ''
+            }`}
             style={{ background: 'linear-gradient(90deg, #3F8DD2 0%, #6EA48F 55%, #F6B884 100%)' }}
           >
             {sessionLoading ? (
@@ -333,9 +515,11 @@ export default function Home() {
                 <TranslatedText text="Unlock Day 2" />
                 <ArrowRight className="w-4 h-4" />
               </>
+            ) : restingMs > 0 ? (
+              <TranslatedText text={`Next session in ${formatUnlockWait(restingMs)}`} />
             ) : (
               <>
-                <TranslatedText text="Continue Program" />
+                <TranslatedText text={programStarted ? 'Continue Program' : 'Start Program'} />
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -382,22 +566,59 @@ export default function Home() {
             />
           </div>
           {(todayCravings > 0 || todaySlips > 0) && (
-            <div className="flex gap-2 mt-2.5">
+            <div className="flex flex-wrap gap-2 mt-2.5">
               {todayCravings > 0 && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                  <Shield className="w-3 h-3" />
+                  <Shield className="w-3 h-3 flex-shrink-0" />
                   {todayCravings} resisted
                 </span>
               )}
               {todaySlips > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-100">
-                  <Cigarette className="w-3 h-3" />
-                  {todaySlips} slipped
+                <span className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-100">
+                  <Cigarette className="w-3 h-3 flex-shrink-0" />
+                  <span className="min-w-0 break-words">
+                    {todaySlips} slipped · −
+                    {formatSlipLoss(todaySlips, {
+                      packCost: userProfile?.pack_cost,
+                      country: userProfile?.country,
+                    })}
+                    {' · '}
+                    {formatSlipNicotine(todaySlips, userProfile?.country)}
+                    {' · '}
+                    {formatSlipLifeLost(todaySlips)}
+                  </span>
                 </span>
               )}
             </div>
           )}
         </motion.section>
+
+        {/* Coach beta entry */}
+        {userProfile?.enable_coach_chat ? (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.08 }}
+            className="mb-5"
+          >
+            <button
+              type="button"
+              onClick={() => navigate('/coach')}
+              className="w-full rounded-3xl bg-white border border-[#0E2538]/06 shadow-[0_4px_16px_rgba(63,141,210,0.06)] p-4 flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
+            >
+              <span className="w-11 h-11 rounded-2xl bg-[#E8F4FC] text-[#3F8DD2] flex items-center justify-center shrink-0">
+                <MessageCircle className="w-5 h-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-[#0E2538]">Talk to Coach</span>
+                <span className="block text-xs text-[#0E2538]/45 mt-0.5">
+                  Motivation, tough moments, or a specialist when you need one
+                </span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-[#0E2538]/30 shrink-0" />
+            </button>
+          </motion.section>
+        ) : null}
 
         {/* Quick actions */}
         <motion.section
@@ -475,6 +696,7 @@ export default function Home() {
         days={milestoneDay || 0}
         onClose={() => setMilestoneDay(null)}
       />
+      <AchievementNotification achievement={newAchievement} onClose={dismissAchievement} />
       <KycRequiredModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} />
       {showUpgrade && (
         <div className="pointer-events-none absolute inset-x-0 bottom-[5.75rem] z-40 px-4">

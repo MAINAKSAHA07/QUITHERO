@@ -12,8 +12,9 @@ import { ProgramDay, SessionProgress } from '../types/models'
 import pb from '../lib/pocketbase'
 import {
   indexProgressByDayId,
-  isDayUnlocked,
+  dayLock,
   dayStatus,
+  formatUnlockWait,
 } from '../utils/programProgress'
 import { formatDayTitle } from '../utils/formatDayTitle'
 import KycRequiredModal from '../components/KycRequiredModal'
@@ -26,6 +27,7 @@ interface DayWithProgress {
   day: ProgramDay
   progress: SessionProgress | null
   isLocked: boolean
+  unlockAtMs: number | null
   status: SessionStatus
 }
 
@@ -37,7 +39,8 @@ const _cache: {
 function sessionSubtitle(
   d: DayWithProgress,
   isFreemiumLocked: boolean,
-  showAsLocked: boolean
+  showAsLocked: boolean,
+  waitMs: number
 ): string {
   if (isFreemiumLocked) return 'Premium'
   if (d.status === SessionStatus.COMPLETED) {
@@ -48,6 +51,7 @@ function sessionSubtitle(
     const est = d.day.estimated_duration_min ?? 20
     return `In progress · ~${est} min`
   }
+  if (waitMs > 0) return `Unlocks in ${formatUnlockWait(waitMs)}`
   if (showAsLocked) return 'Locked'
   return 'Ready'
 }
@@ -59,11 +63,18 @@ export default function Sessions() {
   const [daysWithProgress, setDaysWithProgress] = useState<DayWithProgress[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
     if (user?.id) loadSessions(false)
   }, [user?.id, currentSession?.id])
+
+  // ponytail: minute tick is enough — the countdown is shown in whole minutes.
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
 
   const loadSessions = async (forceRefresh = false) => {
     if (!user?.id) return
@@ -100,11 +111,12 @@ export default function Sessions() {
 
       const progressByDay = indexProgressByDayId(allProgress)
 
+      setNowMs(Date.now())
       setDaysWithProgress(days.map((day, i) => {
         const progress = day.id ? (progressByDay.get(day.id) ?? null) : null
         const status = dayStatus(day, progressByDay)
-        const isLocked = !isDayUnlocked(i, days, progressByDay)
-        return { day, progress, isLocked, status }
+        const lock = dayLock(i, days, progressByDay)
+        return { day, progress, isLocked: lock.sequenceLocked, unlockAtMs: lock.unlockAtMs, status }
       }))
       hasLoadedOnce.current = true
     } finally {
@@ -127,6 +139,7 @@ export default function Sessions() {
       return
     }
     if (d.isLocked) return
+    if (d.unlockAtMs != null && d.unlockAtMs > Date.now()) return
     if (!d.day.id) return
     gateSessionAccess(() => navigate(`/sessions/${d.day.id}`))
   }
@@ -199,9 +212,11 @@ export default function Sessions() {
             const isCompleted = d.status === SessionStatus.COMPLETED
             const isInProgress = d.status === SessionStatus.IN_PROGRESS
             const isFreemiumLocked = !isPremium && i > 0
-            const sequenceLocked = d.isLocked && !isFreemiumLocked && !isInProgress && !isCompleted
+            const waitMs = d.unlockAtMs != null ? Math.max(0, d.unlockAtMs - nowMs) : 0
+            const sequenceLocked =
+              (d.isLocked || waitMs > 0) && !isFreemiumLocked && !isInProgress && !isCompleted
             const showAsLocked = (sequenceLocked || isFreemiumLocked) && !isInProgress && !isCompleted
-            const subtitle = sessionSubtitle(d, isFreemiumLocked, showAsLocked)
+            const subtitle = sessionSubtitle(d, isFreemiumLocked, showAsLocked, waitMs)
 
             return (
               <motion.button
@@ -239,10 +254,14 @@ export default function Sessions() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold text-sm truncate ${showAsLocked ? 'text-[#0E2538]/55' : 'text-[#0E2538]'}`}>
+                  <p
+                    className={`font-bold text-sm leading-snug line-clamp-2 ${
+                      showAsLocked ? 'text-[#0E2538]/55' : 'text-[#0E2538]'
+                    }`}
+                  >
                     <TranslatedText text={formatDayTitle(d.day.title)} />
                   </p>
-                  <p className="text-xs text-[#0E2538]/45 mt-0.5">
+                  <p className="text-xs text-[#0E2538]/45 mt-0.5 truncate">
                     <TranslatedText text={subtitle} />
                   </p>
                 </div>

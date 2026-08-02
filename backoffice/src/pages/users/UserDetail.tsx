@@ -3,11 +3,15 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
 import { deleteUserAndRelated } from '../../lib/deleteUser'
-import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain, ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Edit, Mail, User, Trash2, CheckCircle, TrendingUp, Award, FileText, BarChart3, Activity, Brain, ChevronDown, ChevronRight, Unlock, Lock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fmt, recordTypeColor, JsonBlock, TimeAgo, KYC_FIELDS, buildRecentActivityEvents } from '../../components/users/userDetailHelpers'
 import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
+import { setUserFullAccess } from '../../lib/grantAccess'
+import { setCoachChatAccess } from '../../lib/coachAccess'
+import { sendUserAdminMessage } from '../../lib/sendPush'
+import { sendAdminEmail } from '../../lib/sendEmail'
 import EditAppUserModal from './EditAppUserModal'
 
 type TabType = 'overview' | 'program' | 'cravings' | 'journal' | 'achievements' | 'analytics' | 'activity' | 'ai_insights'
@@ -20,6 +24,13 @@ export const UserDetail = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [showEdit, setShowEdit] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [accessBusy, setAccessBusy] = useState(false)
+  const [coachBusy, setCoachBusy] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
+  const [messageTitle, setMessageTitle] = useState('A note from Smono')
+  const [messageBody, setMessageBody] = useState('')
+  const [messageBusy, setMessageBusy] = useState(false)
+  const [messageStatus, setMessageStatus] = useState<string | null>(null)
 
   const { data: userData, isLoading: userLoading } = useQuery({
     queryKey: ['user', id],
@@ -177,10 +188,107 @@ export const UserDetail = () => {
 
   const openEdit = () => setShowEdit(true)
 
+  const handleAccessToggle = async (grant: boolean) => {
+    if (!id || accessBusy) return
+    const label = grant ? 'Grant full unlocked access to this user?' : 'Revoke full access (back to free / Day 1 only)?'
+    if (!window.confirm(label)) return
+    setAccessBusy(true)
+    try {
+      const result = await setUserFullAccess({
+        userId: id,
+        grant,
+        country: (profileData as { country?: string; subscription_country?: string } | null)?.country
+          || (profileData as { subscription_country?: string } | null)?.subscription_country,
+        profileId: (profileData as { id?: string } | null)?.id,
+      })
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+      await queryClient.invalidateQueries({ queryKey: ['user_profile', id] })
+    } finally {
+      setAccessBusy(false)
+    }
+  }
+
+  const handleCoachToggle = async (enable: boolean) => {
+    if (!id || coachBusy) return
+    const label = enable
+      ? 'Enable AI Coach beta for this user?'
+      : 'Disable AI Coach for this user?'
+    if (!window.confirm(label)) return
+    setCoachBusy(true)
+    try {
+      const result = await setCoachChatAccess({
+        userId: id,
+        enable,
+        profileId: (profileData as { id?: string } | null)?.id,
+      })
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+      await queryClient.invalidateQueries({ queryKey: ['user_profile', id] })
+    } finally {
+      setCoachBusy(false)
+    }
+  }
+
+  const openMessageModal = () => {
+    const first = (userData?.data as { name?: string } | undefined)?.name?.split(' ')[0] || 'there'
+    setMessageTitle('A note from Smono')
+    setMessageBody(`Hi ${first}, we're here if you need support on your quit journey. Open the app to continue.`)
+    setMessageStatus(null)
+    setShowMessageModal(true)
+  }
+
+  const handleSendPush = async () => {
+    if (!id || messageBusy) return
+    if (!messageTitle.trim() || !messageBody.trim()) {
+      setMessageStatus('Title and body are required')
+      return
+    }
+    setMessageBusy(true)
+    setMessageStatus(null)
+    const result = await sendUserAdminMessage({
+      userId: id,
+      title: messageTitle.trim(),
+      body: messageBody.trim(),
+    })
+    setMessageBusy(false)
+    if (result.ok) {
+      setMessageStatus('Saved in user’s Messages + push sent.')
+    } else {
+      setMessageStatus(result.error)
+    }
+  }
+
+  const handleSendEmail = async () => {
+    const u = userData?.data as { name?: string; email?: string } | undefined
+    const to = (u?.email || '').trim()
+    if (!to) {
+      setMessageStatus('User has no email address.')
+      return
+    }
+    const subject = messageTitle.trim() || 'A note from Smono'
+    const text = messageBody.trim()
+    if (!text) {
+      setMessageStatus('Write a message before sending email.')
+      return
+    }
+    setMessageBusy(true)
+    setMessageStatus(null)
+    const result = await sendAdminEmail({ to, subject, text })
+    setMessageBusy(false)
+    setMessageStatus(result.ok ? `Email sent to ${to}` : result.error)
+  }
+
   const handleDeleteUser = async () => {
     if (!id || !user) return
     const label = user.email || user.name || id
-    if (!window.confirm(`Permanently delete ${label} and all linked data? This cannot be undone.`)) {
+    if (!window.confirm(
+      `Delete ${label}? They will get an acceptance email. Contact details stay for 30 days; all other data is purged.`
+    )) {
       return
     }
     setDeleting(true)
@@ -189,6 +297,9 @@ export const UserDetail = () => {
       if (!result.success) {
         alert(result.error || 'Failed to delete user')
         return
+      }
+      if (result.emailError) {
+        alert(`User deleted, but acceptance email failed: ${result.emailError}`)
       }
       queryClient.invalidateQueries({ queryKey: ['users'] })
       navigate('/users')
@@ -264,6 +375,8 @@ export const UserDetail = () => {
   const currentSession = sessions[0]
   const cravingsResisted = cravings.filter((c: any) => c.type === 'craving').length
   const slips = cravings.filter((c: any) => c.type === 'slip').length
+  const isUnlocked = (profile as { subscription_status?: string } | null)?.subscription_status === 'active'
+  const coachEnabled = !!(profile as { enable_coach_chat?: boolean } | null)?.enable_coach_chat
 
   return (
     <>
@@ -290,6 +403,13 @@ export const UserDetail = () => {
             >
               {userIsActive ? 'Active (7d)' : 'Inactive'}
             </span>
+            <span
+              className={`px-2 py-1 text-xs rounded ${
+                isUnlocked ? 'bg-primary/10 text-primary' : 'bg-neutral-200 text-neutral-600'
+              }`}
+            >
+              {isUnlocked ? 'Full access' : 'Free / locked'}
+            </span>
             {lastActiveDate ? (
               <span className="text-xs text-neutral-500">
                 Last active {daysSince === 0 ? 'today' : daysSince === 1 ? 'yesterday' : `${daysSince} days ago`}
@@ -299,8 +419,48 @@ export const UserDetail = () => {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary flex items-center gap-2" type="button" disabled title="Coming soon">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {isUnlocked ? (
+            <button
+              type="button"
+              onClick={() => handleAccessToggle(false)}
+              disabled={accessBusy}
+              className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+              title="Revoke full program access"
+            >
+              <Lock className="w-4 h-4" />
+              {accessBusy ? 'Updating…' : 'Revoke access'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleAccessToggle(true)}
+              disabled={accessBusy}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              title="Unlock complete program for this user"
+            >
+              <Unlock className="w-4 h-4" />
+              {accessBusy ? 'Updating…' : 'Grant full access'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => handleCoachToggle(!coachEnabled)}
+            disabled={coachBusy}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium disabled:opacity-50 transition-colors ${
+              coachEnabled
+                ? 'bg-violet-100 text-violet-800 hover:bg-violet-200'
+                : 'bg-violet-600 text-white hover:bg-violet-700'
+            }`}
+            title="Beta AI Coach chat access"
+          >
+            {coachBusy ? 'Updating…' : coachEnabled ? 'Disable Coach' : 'Enable Coach'}
+          </button>
+          <button
+            type="button"
+            onClick={openMessageModal}
+            className="btn-secondary flex items-center gap-2"
+          >
             <Mail className="w-4 h-4" />
             Send Message
           </button>
@@ -346,6 +506,52 @@ export const UserDetail = () => {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'overview' && (
+      <div className="space-y-6">
+        {/* Program access — always visible */}
+        <div
+          className={`rounded-lg shadow-card p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between border ${
+            isUnlocked
+              ? 'bg-emerald-50 border-emerald-200'
+              : 'bg-amber-50 border-amber-200'
+          }`}
+        >
+          <div>
+            <h2 className="text-base font-semibold text-neutral-dark flex items-center gap-2">
+              {isUnlocked ? <Unlock className="w-4 h-4 text-emerald-700" /> : <Lock className="w-4 h-4 text-amber-700" />}
+              Program access
+            </h2>
+            <p className="text-sm text-neutral-600 mt-1">
+              {isUnlocked
+                ? 'This user has the full unlocked program (same as paid).'
+                : 'Free tier — Day 2+ is locked until they pay or you grant access.'}
+            </p>
+            <p className="text-xs text-neutral-500 mt-1">
+              Status: {(profile as { subscription_status?: string } | null)?.subscription_status || 'free'}
+            </p>
+          </div>
+          {isUnlocked ? (
+            <button
+              type="button"
+              onClick={() => handleAccessToggle(false)}
+              disabled={accessBusy}
+              className="btn-secondary flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+            >
+              <Lock className="w-4 h-4" />
+              {accessBusy ? 'Updating…' : 'Revoke access'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleAccessToggle(true)}
+              disabled={accessBusy}
+              className="flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <Unlock className="w-4 h-4" />
+              {accessBusy ? 'Updating…' : 'Grant full access'}
+            </button>
+          )}
+        </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
@@ -582,6 +788,12 @@ export const UserDetail = () => {
             <h2 className="text-lg font-semibold mb-4">Quick Stats</h2>
                 <div className="space-y-4">
               <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-500">Program access</span>
+                    <span className={`font-semibold ${isUnlocked ? 'text-primary' : 'text-neutral-600'}`}>
+                      {isUnlocked ? 'Full unlocked' : 'Free (Day 1)'}
+                    </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-500">Sessions Completed</span>
                     <span className="font-semibold">
                       {sessionsCompleted}
@@ -676,6 +888,7 @@ export const UserDetail = () => {
               </div>
             </div>
           </div>
+      </div>
         )}
 
         {activeTab === 'program' && (() => {
@@ -1244,6 +1457,71 @@ export const UserDetail = () => {
         profile={(profile as any) || null}
         onClose={() => setShowEdit(false)}
       />
+    )}
+
+    {showMessageModal && user && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={() => !messageBusy && setShowMessageModal(false)}
+      >
+        <div
+          className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6 space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="text-lg font-semibold">Send message</h2>
+          <p className="text-sm text-neutral-500">
+            Push notification to {user.name || user.email}. Email opens in your mail app.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Title</label>
+            <input
+              value={messageTitle}
+              onChange={(e) => setMessageTitle(e.target.value)}
+              maxLength={80}
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Body</label>
+            <textarea
+              value={messageBody}
+              onChange={(e) => setMessageBody(e.target.value)}
+              maxLength={200}
+              rows={4}
+              className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          {messageStatus && (
+            <p className="text-sm text-neutral-600 bg-neutral-50 rounded-lg px-3 py-2">{messageStatus}</p>
+          )}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={messageBusy}
+              onClick={() => setShowMessageModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={messageBusy || !user.email}
+              onClick={handleSendEmail}
+            >
+              Email
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={messageBusy}
+              onClick={handleSendPush}
+            >
+              {messageBusy ? 'Sending…' : 'Send to Messages'}
+            </button>
+          </div>
+        </div>
+      </div>
     )}
     </>
   )

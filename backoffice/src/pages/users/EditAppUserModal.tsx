@@ -53,7 +53,10 @@ export default function EditAppUserModal({ user, profile, onClose }: Props) {
       }
       // Only send email when we have one — empty email fails PB auth validation
       // (admins previously couldn't read emails without manageRule, so form was blank).
-      if (email) userPatch.email = email
+      if (email) {
+        userPatch.email = email
+        userPatch.emailConfirm = email
+      }
 
       const userResult = await adminCollectionHelpers.update('users', user.id, userPatch)
       if (!userResult.success) {

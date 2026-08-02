@@ -9,6 +9,12 @@ export default defineConfig(({ mode }) => {
     rootEnv.AWS_POCKETBASE_URL ||
     'http://54.153.95.239:8096'
   ).replace(/\/$/, '')
+  // Same EC2 host as the app push proxy — local 8787 only if API server is running.
+  const apiTarget = (
+    rootEnv.VITE_PUSH_PROXY_TARGET ||
+    rootEnv.AWS_PUBLIC_URL ||
+    'http://54.153.95.239'
+  ).replace(/\/$/, '')
 
   return {
     plugins: [react()],
@@ -27,11 +33,23 @@ export default defineConfig(({ mode }) => {
           rewrite: (p) => p.replace(/^\/api\/pocketbase/, ''),
         },
         '/api/push': {
-          target: rootEnv.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          target: apiTarget,
           changeOrigin: true,
         },
         '/api/support': {
-          target: rootEnv.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/api/coach': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/api/admin': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/api/email': {
+          target: apiTarget,
           changeOrigin: true,
         },
       },

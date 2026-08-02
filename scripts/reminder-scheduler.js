@@ -1,8 +1,38 @@
 import { adminAuth, getPbUrl } from './pb-admin.js'
 import { isPushReady, notifyUserPush } from './push.js'
 import { getDailyQuoteText } from './daily-quote.js'
+import { isSmtpReady } from './mail.js'
+import { isEmailNotificationsEnabled } from './email-enabled.js'
+import { sendDailyReminderEmail } from './lifecycle-email.js'
 
 const sentToday = new Map()
+let lastContactPurgeDay = ''
+
+/** Drop completed deletion rows past retain_until (contact-only retention). */
+async function purgeExpiredDeletionContacts() {
+  const token = await adminAuth()
+  if (!token) return 0
+  const pb = getPbUrl()
+  const now = new Date().toISOString()
+  const filter = encodeURIComponent(
+    `status = "completed" && retain_until != "" && retain_until < "${now}"`
+  )
+  const list = await fetch(
+    `${pb}/api/collections/account_deletion_requests/records?filter=${filter}&perPage=100&fields=id`,
+    { headers: { Authorization: token } }
+  ).catch(() => null)
+  if (!list?.ok) return 0
+  const data = await list.json()
+  let n = 0
+  for (const row of data.items || []) {
+    const del = await fetch(`${pb}/api/collections/account_deletion_requests/records/${row.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: token },
+    }).catch(() => null)
+    if (del?.ok) n++
+  }
+  return n
+}
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10)
@@ -50,11 +80,22 @@ function reminderTitle(timeHHMM) {
 }
 
 export function startReminderScheduler() {
-  if (!isPushReady()) return
+  if (!isPushReady() && !isSmtpReady()) return
 
   const tick = async () => {
     const token = await adminAuth()
     if (!token) return
+
+    const day = todayKey()
+    if (lastContactPurgeDay !== day) {
+      lastContactPurgeDay = day
+      try {
+        const n = await purgeExpiredDeletionContacts()
+        if (n > 0) console.log(`[Reminder] Purged ${n} expired deletion contact(s)`)
+      } catch (err) {
+        console.error('[Reminder] contact purge', err?.message || err)
+      }
+    }
 
     const pb = getPbUrl()
     const filter = encodeURIComponent('enable_reminders=true')
@@ -65,7 +106,9 @@ export function startReminderScheduler() {
 
     if (!res?.ok) return
     const data = await res.json()
-    const day = todayKey()
+    const pushOk = isPushReady()
+    // Email is optional and independent — push still runs if email is off
+    const mailOk = isSmtpReady() && (await isEmailNotificationsEnabled())
 
     for (const profile of data.items || []) {
       const userId = typeof profile.user === 'string' ? profile.user : profile.user?.id
@@ -80,14 +123,28 @@ export function startReminderScheduler() {
       sentToday.set(dedupe, true)
 
       const quoteBody = await getDailyQuoteText(token, profile.language || 'en')
-      const result = await notifyUserPush(userId, {
-        title: reminderTitle(reminderTime),
-        body: quoteBody,
-        url: '/home',
-        tag: `daily-quote-${day}`,
-      })
-      if (result.sent > 0) {
-        console.log(`[Reminder] Sent quote to ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'} @ ${reminderTime})`)
+
+      if (pushOk) {
+        const result = await notifyUserPush(userId, {
+          title: reminderTitle(reminderTime),
+          body: quoteBody,
+          url: '/home',
+          tag: `daily-quote-${day}`,
+        })
+        if (result.sent > 0) {
+          console.log(`[Reminder] Push → ${userId.slice(0, 8)}… (${profile.timezone || 'UTC'} @ ${reminderTime})`)
+        }
+      }
+
+      if (mailOk) {
+        try {
+          const mail = await sendDailyReminderEmail(userId, quoteBody, reminderTime)
+          if (mail?.ok) {
+            console.log(`[Reminder] Email → ${userId.slice(0, 8)}…`)
+          }
+        } catch (err) {
+          console.error('[Reminder] email', err?.message || err)
+        }
       }
     }
 
@@ -102,5 +159,5 @@ export function startReminderScheduler() {
 
   setInterval(tick, 60_000)
   setTimeout(tick, 5000)
-  console.log('[Reminder] Scheduler started (timezone-aware, checks every minute)')
+  console.log('[Reminder] Scheduler started (push independent of email kill-switch)')
 }

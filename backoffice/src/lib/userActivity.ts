@@ -72,6 +72,41 @@ export function countActiveUsers(
   return users.filter((u) => isUserActiveWithinDays(u, activityByUser, days)).length
 }
 
+/** Rolling window (not calendar days) — last N hours of real activity. */
+export function isUserActiveWithinHours(
+  user: { id: string },
+  activityByUser: Map<string, number>,
+  hours: number
+): boolean {
+  const ms = activityByUser.get(user.id)
+  if (!ms) return false
+  return ms >= Date.now() - Math.max(0, hours) * 60 * 60 * 1000
+}
+
+export function listUsersActiveWithinHours<T extends { id: string }>(
+  users: T[],
+  activityByUser: Map<string, number>,
+  hours: number
+): T[] {
+  return users.filter((u) => isUserActiveWithinHours(u, activityByUser, hours))
+}
+
+export function listUsersActiveWithinDays<T extends { id: string; lastActive?: string }>(
+  users: T[],
+  activityByUser: Map<string, number>,
+  days: number
+): T[] {
+  return users.filter((u) => isUserActiveWithinDays(u, activityByUser, days))
+}
+
+export function countActiveUsersWithinHours(
+  users: { id: string }[],
+  activityByUser: Map<string, number>,
+  hours: number
+): number {
+  return listUsersActiveWithinHours(users, activityByUser, hours).length
+}
+
 export function daysSinceLastActive(
   user: { id: string; lastActive?: string },
   activityByUser: Map<string, number>
@@ -100,4 +135,9 @@ if (import.meta.env?.DEV) {
     getUserLastActive({ lastActive: '2026-07-13' }, undefined) === null,
     'getUserLastActive ignores heartbeat when no indexed events'
   )
+  const recent = Date.now() - 30 * 60 * 1000
+  const hourMap = new Map([['h', recent]])
+  console.assert(isUserActiveWithinHours({ id: 'h' }, hourMap, 24) === true, 'within 24h')
+  console.assert(isUserActiveWithinHours({ id: 'h' }, hourMap, 0) === false, '0h window empty')
+  console.assert(listUsersActiveWithinHours([{ id: 'h' }], hourMap, 24).length === 1, 'list 24h')
 }

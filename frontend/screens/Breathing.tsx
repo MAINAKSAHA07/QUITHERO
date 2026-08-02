@@ -122,10 +122,6 @@ export default function Breathing() {
   const isCompleteRef = useRef(false)
 
   useEffect(() => {
-    if (user?.id) analyticsService.trackPageView('breathing', user.id)
-  }, [user?.id])
-
-  useEffect(() => {
     phaseRef.current = phase
   }, [phase])
   useEffect(() => {

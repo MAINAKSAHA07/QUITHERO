@@ -38,6 +38,8 @@ export interface UserProfile {
   enable_reminders?: boolean
   enable_craving_alerts?: boolean
   enable_achievement_notifications?: boolean
+  /** Beta: AI Coach chat (admin-gated). */
+  enable_coach_chat?: boolean
   // New onboarding fields
   smoking_triggers?: CravingTrigger[] // Multi-select triggers
   emotional_states?: EmotionalState[] // Emotional states linked to smoking
@@ -128,6 +130,8 @@ export interface MCQStepContent {
   question: string
   options: string[]
   correct_answer?: number
+  /** When true, user can pick several options (no single “correct” grading). */
+  allow_multiple?: boolean
 }
 
 export interface OpenStepContent {
@@ -187,8 +191,10 @@ export interface SessionProgress {
 
 // Step Response
 export interface MCQResponse {
-  selected_option: number
+  selected_option?: number
+  selected_options?: number[]
   selected_label?: string
+  selected_labels?: string[]
   question?: string
   step_title?: string
   step_type?: string

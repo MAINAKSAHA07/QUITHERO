@@ -19,19 +19,36 @@ import { Pricing } from './sections/Pricing'
 import { Faq } from './sections/Faq'
 import { FinalCta } from './sections/FinalCta'
 import { Footer } from './sections/Footer'
+import { LandingCoach } from './components/LandingCoach'
 import { usePageSeo } from './hooks/usePageSeo'
 import { SEO_DESCRIPTION, SEO_TITLE } from './lib/seo.config'
 
-export function LandingPage() {
-  useLandingInteractions()
+type LandingPageProps = {
+  /**
+   * Buy-first: every start CTA opens checkout (homepage + /buynow).
+   * Pass false only if you need free Day 1 app links again.
+   */
+  buyMode?: boolean
+  /** Override SEO canonical (e.g. /buynow/ when reusing this page). */
+  canonicalPath?: string
+}
+
+export function LandingPage({
+  buyMode = true,
+  canonicalPath = '/',
+}: LandingPageProps = {}) {
+  useLandingInteractions({ buyMode })
   usePageSeo({
-    title: SEO_TITLE,
+    title:
+      canonicalPath.includes('buynow')
+        ? 'Buy Smono | 30-Day Quit Smoking Program'
+        : SEO_TITLE,
     description: SEO_DESCRIPTION,
-    canonicalPath: '/',
+    canonicalPath,
   })
   return (
-    <main id="main-content">
-      <Header />
+    <main id="main-content" data-buy-mode={buyMode ? '1' : undefined}>
+      <Header buyMode={buyMode} />
       <Hero />
       <Problem />
       <Journey />
@@ -47,10 +64,11 @@ export function LandingPage() {
       <WhoFor />
       <Comparison />
       <Quote />
-      <Pricing />
+      <Pricing buyMode={buyMode} />
       <Faq />
       <FinalCta />
       <Footer />
+      <LandingCoach buyMode={buyMode} />
     </main>
   )
 }

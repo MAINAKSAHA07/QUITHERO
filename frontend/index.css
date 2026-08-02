@@ -42,6 +42,15 @@
     min-height: 100vh;
     min-height: 100dvh;
     background-attachment: fixed;
+    /* Stop iOS text inflation from crushing fixed chrome (tab bar, chat bubbles). */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
 }
 

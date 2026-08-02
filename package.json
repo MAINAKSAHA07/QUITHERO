@@ -40,6 +40,7 @@
     "pb:setup-account-deletion": "node PocketBase/setup-account-deletion.js",
     "pb:setup-payment-events": "node PocketBase/setup-payment-events.js",
     "pb:setup-coupons": "node PocketBase/setup-coupons.js",
+    "pb:setup-gifts": "node PocketBase/setup-gifts.js",
     "pb:setup-device-tokens": "node PocketBase/setup-device-tokens.js",
     "pb:setup-support-chat": "node PocketBase/setup-support-chat.js",
     "cap:sync": "npm run build && npx cap sync",
@@ -53,7 +54,12 @@
     "pb:setup-media": "node PocketBase/setup-media.js",
     "pb:setup-app-settings": "node PocketBase/setup-app-settings.js",
     "pb:setup-notification-prefs": "node PocketBase/setup-notification-prefs.js",
-    "pb:setup-onboarding-completed": "node PocketBase/setup-onboarding-completed.js"
+    "pb:setup-onboarding-completed": "node PocketBase/setup-onboarding-completed.js",
+    "pb:setup-smtp": "node PocketBase/setup-smtp.js",
+    "pb:setup-password-reset": "node PocketBase/setup-password-reset.js",
+    "pb:seed-email-templates": "node PocketBase/seed-email-templates.js",
+    "pb:setup-notification-template-content": "node PocketBase/setup-notification-template-content.js",
+    "generate:smtp": "node scripts/generate-smtp-env.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -72,8 +78,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "firebase": "^12.16.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",
+    "nodemailer": "^9.0.3",
     "pocketbase": "^0.26.5",
     "razorpay": "^2.9.8",
     "react": "^18.2.0",
@@ -85,6 +93,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.8",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",

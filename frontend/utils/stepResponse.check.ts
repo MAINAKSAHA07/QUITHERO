@@ -23,4 +23,14 @@ const mcq = withStoredQuestion(mcqStep, { selected_option: 1 })
 console.assert(mcq.selected_label === 'B', 'stores MCQ label')
 console.assert(mcq.question === 'Pick one', 'stores MCQ question')
 
+const multi = withStoredQuestion(
+  { ...mcqStep, content_json: { question: 'Pick many', options: ['A', 'B', 'C'], allow_multiple: true } } as unknown as Step,
+  { selected_options: [0, 2] }
+)
+console.assert(
+  Array.isArray(multi.selected_labels) &&
+    multi.selected_labels.join(',') === 'A,C',
+  'stores multi MCQ labels'
+)
+
 console.log('stepResponse.check.ts: ok')

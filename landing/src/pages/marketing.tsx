@@ -1,4 +1,5 @@
 import { type ComponentType } from 'react'
+import { LandingPage } from '../LandingPage'
 import { MarketingPage } from '../components/MarketingPage'
 import { Journey } from '../sections/Journey'
 import { HowItFails } from '../sections/HowItFails'
@@ -15,6 +16,13 @@ import { Comparison } from '../sections/Comparison'
 import { Languages } from '../sections/Languages'
 import { Pricing } from '../sections/Pricing'
 import { FinalCta } from '../sections/FinalCta'
+import { Gift } from '../sections/Gift'
+import { GiftFor } from '../sections/GiftFor'
+import { GiftHow } from '../sections/GiftHow'
+import { GiftIncludes } from '../sections/GiftIncludes'
+import { GiftClose } from '../sections/GiftClose'
+import { Faq } from '../sections/Faq'
+import { GIFT_FAQ_ITEMS } from '../lib/seo.config'
 
 export type MarketingRoute = {
   slug: string
@@ -101,14 +109,37 @@ export function PricingPage() {
   return (
     <MarketingPage
       title="Smono Pricing | Quit Smoking Program"
-      description="Smono Complete Program pricing: a 10-day quit path with 20 days of support. Daily CBT lessons, trigger mapping, craving support, and relapse prevention."
+      description="Smono Complete Program pricing: one-time lifetime access to a 10-day quit path with 20 days of support. Daily CBT lessons, trigger mapping, craving support, and relapse prevention."
       canonicalPath="/pricing/"
       eyebrow="Simple pricing"
       h1="What You Get Inside Smono"
-      lead="Billed monthly, but the full program is 30 days — most people only need one month. Sessions take 20 to 40 minutes a day."
+      lead="One-time payment for lifetime access. The full program is 30 days — sessions take 20 to 40 minutes a day."
+      buyMode
     >
-      <Pricing />
+      <Pricing buyMode />
       <FinalCta />
+    </MarketingPage>
+  )
+}
+
+export function GiftPage() {
+  return (
+    <MarketingPage
+      title="Gift Smono | Help Someone You Love Quit Smoking"
+      description="Give a 30-day CBT-based quit-smoking program to someone you care about. They receive a private email invitation with your personal note — only they unlock and begin."
+      canonicalPath="/gift/"
+      hero={false}
+    >
+      <Gift headingLevel="h1" />
+      <GiftFor />
+      <GiftHow />
+      <GiftIncludes />
+      <GiftClose />
+      <Faq
+        items={GIFT_FAQ_ITEMS}
+        title="Questions about gifting"
+        sub="How the invite, claim, and dual access work — before you pay."
+      />
     </MarketingPage>
   )
 }
@@ -184,7 +215,27 @@ export function MedicalDisclaimerPage() {
   )
 }
 
+export function BuyNowPage() {
+  return <LandingPage buyMode canonicalPath="/buynow/" />
+}
+
 export const MARKETING_ROUTES: MarketingRoute[] = [
+  {
+    slug: 'buynow',
+    path: '/buynow',
+    title: 'Buy Smono | 30-Day Quit Smoking Program',
+    description:
+      'Buy Smono’s personalized 30-day quit-smoking program: 10-day quit path with 20 days of smoke-free support. CBT, mindfulness, and relapse prevention.',
+    Component: BuyNowPage,
+  },
+  {
+    slug: 'gift',
+    path: '/gift',
+    title: 'Gift Smono | Help Someone You Love Quit Smoking',
+    description:
+      'Give a 30-day CBT-based quit-smoking program to someone you care about. They receive a private email invitation with your personal note — only they unlock and begin.',
+    Component: GiftPage,
+  },
   {
     slug: 'how-it-works',
     path: '/how-it-works',

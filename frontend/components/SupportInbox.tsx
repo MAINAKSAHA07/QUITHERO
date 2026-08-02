@@ -227,14 +227,14 @@ export default function SupportInbox({
                     type="button"
                     onClick={() => setActive(null)}
                     className="w-9 h-9 rounded-full bg-[#F4FBFF] flex items-center justify-center flex-shrink-0"
-                    aria-label="Back to tickets"
+                    aria-label="Back to messages"
                   >
                     <ArrowLeft className="w-5 h-5 text-[#0E2538]/70" />
                   </button>
                 ) : null}
                 <div className="min-w-0">
                   <h3 className="text-base font-bold text-[#0E2538] truncate">
-                    {active ? active.subject : 'My Support Tickets'}
+                    {active ? active.subject : 'Messages'}
                   </h3>
                   {active ? (
                     <span
@@ -246,7 +246,7 @@ export default function SupportInbox({
                     <p className="text-xs text-[#0E2538]/45 mt-0.5">
                       {tickets.length
                         ? `${tickets.length} conversation${tickets.length === 1 ? '' : 's'}`
-                        : 'Ask anything about your quit journey'}
+                        : 'Chat with us or start a conversation'}
                     </p>
                   )}
                 </div>
@@ -278,9 +278,9 @@ export default function SupportInbox({
                       <MessageCircle className="w-7 h-7" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[#0E2538]">No tickets yet</p>
+                      <p className="text-sm font-semibold text-[#0E2538]">No messages yet</p>
                       <p className="text-xs text-[#0E2538]/45 mt-1 leading-relaxed">
-                        Need help with a session, billing, or a bug? Send a note and we’ll reply here.
+                        Need help with a session, billing, or a bug? Start a conversation and we’ll reply here.
                       </p>
                     </div>
                     <button
@@ -288,7 +288,7 @@ export default function SupportInbox({
                       onClick={onNewTicket}
                       className="w-full mt-2 py-3.5 rounded-xl bg-[#3F8DD2] text-white font-semibold text-sm"
                     >
-                      Contact Support
+                      Start a conversation
                     </button>
                   </div>
                 ) : (
@@ -320,7 +320,7 @@ export default function SupportInbox({
                           </span>
                         </div>
                         <p className="text-xs text-[#0E2538]/50">
-                          {unread ? 'New reply from support' : 'Tap to open conversation'}
+                          {unread ? 'New message' : 'Tap to open conversation'}
                         </p>
                         {t.created ? (
                           <p className="text-[10px] text-[#0E2538]/35 mt-1.5">
@@ -335,7 +335,7 @@ export default function SupportInbox({
                       onClick={onNewTicket}
                       className="w-full mt-1 py-3 rounded-xl border border-[#0E2538]/10 bg-white text-[#0E2538] font-semibold text-sm"
                     >
-                      New ticket
+                      New conversation
                     </button>
                   </>
                 )}
@@ -343,7 +343,7 @@ export default function SupportInbox({
               </div>
             ) : (
               <>
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#F8FBFD]">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-3 bg-[#F8FBFD]">
                   {messages.length === 0 ? (
                     <p className="text-center text-xs text-[#0E2538]/40 py-8">
                       No messages in this thread yet
@@ -354,16 +354,16 @@ export default function SupportInbox({
                       return (
                         <div
                           key={m.id || `${m.created}-${m.body?.slice(0, 12)}`}
-                          className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                          className={`flex min-w-0 ${mine ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                            className={`min-w-0 max-w-[min(85%,20rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                               mine
                                 ? 'bg-[#3F8DD2] text-white rounded-br-md'
                                 : 'bg-white text-[#0E2538] border border-[#0E2538]/08 rounded-bl-md shadow-sm'
                             }`}
                           >
-                            <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.body}</p>
                             {m.created ? (
                               <p
                                 className={`text-[10px] mt-1 ${
@@ -382,7 +382,7 @@ export default function SupportInbox({
                 </div>
 
                 {active.status !== SupportTicketStatus.CLOSED ? (
-                  <div className="p-3 border-t border-[#0E2538]/06 bg-white flex gap-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <div className="p-3 border-t border-[#0E2538]/06 bg-white flex gap-2 min-w-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                     <input
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
@@ -394,7 +394,7 @@ export default function SupportInbox({
                       }}
                       placeholder="Write a reply…"
                       disabled={sending}
-                      className="flex-1 bg-[#F4FBFF] border border-[#0E2538]/10 rounded-xl px-4 py-3 text-sm text-[#0E2538] placeholder:text-[#0E2538]/35 focus:border-[#3F8DD2] focus:ring-2 focus:ring-[#3F8DD2]/20 focus:outline-none disabled:opacity-50"
+                      className="min-w-0 flex-1 bg-[#F4FBFF] border border-[#0E2538]/10 rounded-xl px-4 py-3 text-sm text-[#0E2538] placeholder:text-[#0E2538]/35 focus:border-[#3F8DD2] focus:ring-2 focus:ring-[#3F8DD2]/20 focus:outline-none disabled:opacity-50"
                     />
                     <button
                       type="button"

@@ -213,6 +213,13 @@ class SessionPersonalizationService {
         } else if (payload.worksheet) {
           lines.push(`- Day ${dayNum ?? '?'} exercise (${slug}): worksheet completed`)
           count++
+        } else if (Array.isArray(payload.selected_options) && payload.selected_options.length) {
+          const labels = Array.isArray(payload.selected_labels)
+            ? payload.selected_labels.map((l: unknown) => `"${clip(String(l), 60)}"`).join(', ')
+            : payload.selected_options.join(', ')
+          const head = q ? ` Q: "${clip(q, 80)}"` : ''
+          lines.push(`- Day ${dayNum ?? '?'} quiz (${slug}):${head} → ${labels}`)
+          count++
         } else if (payload.selected_option != null) {
           const label = payload.selected_label
             ? ` "${clip(String(payload.selected_label), 80)}"`

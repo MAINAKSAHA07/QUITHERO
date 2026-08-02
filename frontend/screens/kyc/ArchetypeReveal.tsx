@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import GlassButton from '../../components/GlassButton'
+import TranslatedText from '../../components/TranslatedText'
 import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { QuitArchetype } from '../../types/enums'
 
@@ -29,10 +30,14 @@ export default function ArchetypeReveal({ name, description, icon, characteristi
 
       <motion.div {...fade} transition={{ ...springUi, delay: reduce ? 0 : 0.05 }} className="text-center mb-8">
         <p className="text-sm text-[#3F8DD2] font-semibold mb-1 tracking-wide">
-          Your Smono Type
+          <TranslatedText text="Your Smono Type" />
         </p>
-        <h1 className="text-3xl font-bold text-[#0E2538] mb-3 tracking-tight">{name}</h1>
-        <p className="text-[#0E2538]/55 text-sm max-w-xs mx-auto leading-relaxed">{description}</p>
+        <h1 className="text-3xl font-bold text-[#0E2538] mb-3 tracking-tight">
+          <TranslatedText text={name} />
+        </h1>
+        <p className="text-[#0E2538]/55 text-sm max-w-xs mx-auto leading-relaxed">
+          <TranslatedText text={description} />
+        </p>
       </motion.div>
 
       <div className="w-full max-w-sm space-y-3 mb-10">
@@ -46,14 +51,16 @@ export default function ArchetypeReveal({ name, description, icon, characteristi
             <div className="w-6 h-6 rounded-full bg-[#3F8DD2]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span className="text-[#3F8DD2] text-xs font-bold">{i + 1}</span>
             </div>
-            <p className="text-sm text-[#0E2538]/75 leading-relaxed">{trait}</p>
+            <p className="text-sm text-[#0E2538]/75 leading-relaxed">
+              <TranslatedText text={trait} />
+            </p>
           </motion.div>
         ))}
       </div>
 
       {/* CTA immediately available — never gate on staggered animation */}
       <GlassButton onClick={onContinue} className="px-10 py-4">
-        Start My Journey
+        <TranslatedText text="Start My Journey" />
       </GlassButton>
     </div>
   )

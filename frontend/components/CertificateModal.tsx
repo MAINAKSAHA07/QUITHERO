@@ -188,7 +188,7 @@ export default function CertificateModal({
     }
     logo.onload = paint
     logo.onerror = paint
-    logo.src = '/smonologo.webp?v=3'
+    logo.src = '/smonologo.webp?v=5'
     // Fallback if cached
     if (logo.complete) paint()
 

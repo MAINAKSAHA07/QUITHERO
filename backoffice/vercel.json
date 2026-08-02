@@ -10,6 +10,26 @@
       "destination": "/api/pocketbase/:path*"
     },
     {
+      "source": "/api/push/:path*",
+      "destination": "https://app.smono.app/api/push/:path*"
+    },
+    {
+      "source": "/api/support/:path*",
+      "destination": "https://app.smono.app/api/support/:path*"
+    },
+    {
+      "source": "/api/coach/:path*",
+      "destination": "https://app.smono.app/api/coach/:path*"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "https://app.smono.app/api/admin/:path*"
+    },
+    {
+      "source": "/api/email/:path*",
+      "destination": "https://app.smono.app/api/email/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -26,5 +46,3 @@
     }
   ]
 }
-
-

@@ -33,6 +33,13 @@ import {
 import { behaviorTracker } from '../services/behavior-tracker.service'
 import { contentService } from '../services/content.service'
 import { CravingType, CravingTrigger, ResolutionMethod } from '../types/enums'
+import { slipImpact } from '../utils/slipCost'
+import {
+  slipMotivationLine,
+  slipRecoveryHeadline,
+  slipRecoveryName,
+} from '../utils/slipRecoveryCopy'
+import type { SlipAchievementPreview } from '../components/SlipRecovery'
 
 const fallbackQuotes = [
   {
@@ -110,7 +117,7 @@ function IconBubble({
 export default function CravingSupport() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user, userProfile, refreshProgress } = useApp()
+  const { user, userProfile, refreshProgress, progressStats, currentSession } = useApp()
   const { cravings, logCraving, fetchCravings } = useCravings()
   const [showLogForm, setShowLogForm] = useState(false)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
@@ -125,6 +132,8 @@ export default function CravingSupport() {
   const [automaticThought, setAutomaticThought] = useState('')
   const [notes, setNotes] = useState('')
   const [slipped, setSlipped] = useState(false)
+  const [loggedAsSlip, setLoggedAsSlip] = useState(false)
+  const [slipAchievements, setSlipAchievements] = useState<SlipAchievementPreview[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [lastCravingId, setLastCravingId] = useState<string | null>(null)
@@ -206,20 +215,21 @@ export default function CravingSupport() {
       })
 
       if (result.success) {
+        const wasSlip = slipped
         if (result.data?.id) setLastCravingId(result.data.id)
-        await analyticsService.trackCravingLogged(user.id, slipped ? 'slip' : 'craving', trigger)
+        await analyticsService.trackCravingLogged(user.id, wasSlip ? 'slip' : 'craving', trigger)
         await refreshProgress()
         await achievementService.checkAndUnlock(user.id)
         behaviorProfileService.computeAndSave(user.id).catch(() => {})
         behaviorTracker.trackCravingLogged(
           String(trigger),
           intensity,
-          slipped ? 'slip' : 'craving'
+          wasSlip ? 'slip' : 'craving'
         )
 
         // AI interventions — respect craving alert pref
         if (userProfile?.enable_craving_alerts !== false) {
-          if (slipped) {
+          if (wasSlip) {
             aiNotificationScheduler.triggerSlipRecovery(user.id).catch(() => {})
           } else {
             const windowMs = 2 * 60 * 60 * 1000
@@ -241,10 +251,30 @@ export default function CravingSupport() {
         }).length
 
         setEncouragementMessage(
-          slipped
+          wasSlip
             ? "It's okay. Tomorrow is a new day. You've come this far — keep going!"
             : `Great job! You've resisted ${cravingsThisWeek + 1} craving${cravingsThisWeek > 0 ? 's' : ''} this week.`
         )
+        setLoggedAsSlip(wasSlip)
+        if (wasSlip) {
+          const unlocked = await achievementService.getUserAchievements(user.id)
+          const previews: SlipAchievementPreview[] =
+            unlocked.success && unlocked.data
+              ? (unlocked.data
+                  .map((ua: any) => {
+                    const a = ua.expand?.achievement
+                    if (!a?.title) return null
+                    return {
+                      title: String(a.title),
+                      description: a.description ? String(a.description) : undefined,
+                    }
+                  })
+                  .filter(Boolean) as SlipAchievementPreview[])
+              : []
+          setSlipAchievements(previews)
+        } else {
+          setSlipAchievements([])
+        }
         setShowEncouragement(true)
         setIntensity(3)
         setTrigger('')
@@ -254,10 +284,13 @@ export default function CravingSupport() {
         setSlipped(false)
         setShowLogForm(false)
 
-        setTimeout(() => {
-          setShowEncouragement(false)
-          setShowResolutionPicker(true)
-        }, 2000)
+        // Slips stay on SlipRecovery until dismiss; resisted → resolution picker
+        if (!wasSlip) {
+          setTimeout(() => {
+            setShowEncouragement(false)
+            setShowResolutionPicker(true)
+          }, 2000)
+        }
       } else {
         setError(result.error || 'Failed to save craving. Please try again.')
       }
@@ -487,7 +520,10 @@ export default function CravingSupport() {
       if (method && lastCravingId && user?.id) {
         try {
           const { pb } = await import('../lib/pocketbase')
-          await pb.collection('cravings').update(lastCravingId, { resolution_method: method })
+          await pb.collection('cravings').update(lastCravingId, {
+            resolution_method: method,
+            ...(method === ResolutionMethod.SMOKED ? { type: CravingType.SLIP } : {}),
+          })
         } catch {
           /* non-critical */
         }
@@ -538,8 +574,32 @@ export default function CravingSupport() {
     )
   }
 
-  if (showEncouragement && slipped) {
-    return <SlipRecovery daysFree={0} onDismiss={() => navigate('/home')} />
+  if (showEncouragement && loggedAsSlip) {
+    const daysFree = Math.floor(progressStats?.days_smoke_free ?? 0)
+    const impact = slipImpact({
+      cigaretteCount: 1,
+      packCost: userProfile?.pack_cost,
+      country: userProfile?.country,
+    })
+    const name = slipRecoveryName(userProfile)
+    return (
+      <SlipRecovery
+        daysFree={daysFree}
+        amountLost={impact.money}
+        nicotineConsumed={impact.nicotine}
+        lifeLost={impact.lifeLost}
+        headline={slipRecoveryHeadline(name, daysFree)}
+        motivationLine={slipMotivationLine(userProfile)}
+        achievements={slipAchievements}
+        programStarted={(currentSession?.current_day ?? 1) > 1 || daysFree > 0}
+        onDismiss={() => {
+          setShowEncouragement(false)
+          setLoggedAsSlip(false)
+          setSlipAchievements([])
+          navigate('/home')
+        }}
+      />
+    )
   }
 
   if (showEncouragement) {

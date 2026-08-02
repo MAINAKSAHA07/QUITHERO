@@ -14,6 +14,9 @@ const HAS_CREATED = new Set([
   'support_ticket_messages',
   'payment_events',
   'coupons',
+  'user_segments',
+  'coach_sessions',
+  'coach_messages',
 ])
 export const recentSort = (collection: string) =>
   HAS_CREATED.has(collection) ? '-created' : '-id'

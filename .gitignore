@@ -62,3 +62,5 @@ android/
 
 # Document sources
 *.docx
+
+.deploy.sh

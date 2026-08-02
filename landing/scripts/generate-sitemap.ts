@@ -17,7 +17,13 @@ const urls: Array<{ loc: string; changefreq: string; priority: string }> = [
   ...MARKETING_ROUTES.map((r) => ({
     loc: pageUrl(r.path),
     changefreq: 'monthly',
-    priority: r.slug === 'how-it-works' || r.slug === 'quit-smoking-program' ? '0.8' : '0.6',
+    priority:
+      r.slug === 'how-it-works' ||
+      r.slug === 'quit-smoking-program' ||
+      r.slug === 'gift' ||
+      r.slug === 'buynow'
+        ? '0.8'
+        : '0.6',
   })),
   { loc: pageUrl('/blog/'), changefreq: 'weekly', priority: '0.8' },
   { loc: pageUrl('/privacy/'), changefreq: 'yearly', priority: '0.3' },

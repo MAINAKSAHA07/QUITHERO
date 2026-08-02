@@ -96,17 +96,20 @@ self.addEventListener('push', (event) => {
 
       const ticketId = supportTicketIdFromPush(data)
 
-      try {
-        const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-        for (const client of list) {
-          client.postMessage({
-            type: 'support_reply',
-            ticketId,
-            url: data.url || '/',
-          })
+      // Only support pushes wake the in-app support poll/toast.
+      if (ticketId) {
+        try {
+          const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+          for (const client of list) {
+            client.postMessage({
+              type: 'support_reply',
+              ticketId,
+              url: data.url || '/',
+            })
+          }
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
       }
 
       if (ticketId && viewingSupportTicketId === ticketId) return
@@ -148,22 +151,25 @@ function absoluteUrl(path) {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const data = event.notification.data || {}
-  const targetUrl = absoluteUrl(data.url || '/')
+  const path = data.url || '/'
+  const targetUrl = absoluteUrl(path)
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      const payload = {
+      const opened = {
         type: 'smono_notification_opened',
         eventId: data.eventId,
         triggerType: data.triggerType,
       }
+      // SPA navigate — client.navigate is missing in many browsers; postMessage always.
+      const go = { type: 'smono_navigate', url: path }
       for (const client of list) {
-        client.postMessage(payload)
+        client.postMessage(opened)
+        client.postMessage(go)
         if ('focus' in client) {
           if ('navigate' in client) {
             return client.navigate(targetUrl).then(() => client.focus())
           }
-          client.focus()
-          return undefined
+          return client.focus()
         }
       }
       return clients.openWindow(targetUrl)

@@ -64,7 +64,7 @@ export async function markSupportReplyNoticesOpened(ticketId: string): Promise<v
   try {
     const rows = await pb.collection('notification_events').getList(1, 20, {
       filter: `trigger_type = "support_reply" && archetype_at_send ~ "${ticketId}"`,
-      sort: '-created',
+      sort: '-sent_at',
     })
     const now = new Date().toISOString()
     await Promise.all(
@@ -95,7 +95,7 @@ export async function checkPendingSupportReplyNotices(userId: string): Promise<v
   try {
     const rows = await pb.collection('notification_events').getList(1, 12, {
       filter: `user = "${userId}" && trigger_type = "support_reply"`,
-      sort: '-created',
+      sort: '-sent_at',
     })
     const notified = readIdSet(NOTIFIED_KEY)
     for (const row of rows.items) {

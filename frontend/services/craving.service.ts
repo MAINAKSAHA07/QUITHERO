@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { Craving } from '../types/models'
 import { ApiResponse } from '../types/api'
 import { pb, recentSort } from '../lib/pocketbase'
+import { buildCravingTrend } from '../utils/cravingTrend'
 
 export class CravingService extends BaseService {
   constructor() {
@@ -46,33 +47,12 @@ export class CravingService extends BaseService {
    */
   async getTrend(userId: string, days: number = 30): Promise<ApiResponse<any[]>> {
     try {
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - days)
-      const startMs = startDate.getTime()
-
+      // Slips are relapses, not cravings — exclude them from the craving-pattern graph.
       const cravings = await pb.collection(this.collectionName).getFullList({
-        filter: `user = "${userId}"`,
+        filter: `user = "${userId}" && type != "slip"`,
         sort: recentSort(this.collectionName),
       })
-
-      const recent = cravings.filter((craving: any) => {
-        if (!craving.created) return true
-        return new Date(craving.created).getTime() >= startMs
-      })
-
-      // Group by date
-      const grouped = recent.reduce((acc: any, craving: any) => {
-        const date = craving.created
-          ? craving.created.split('T')[0]
-          : new Date().toISOString().split('T')[0]
-        if (!acc[date]) {
-          acc[date] = { date, count: 0 }
-        }
-        acc[date].count++
-        return acc
-      }, {})
-
-      return { success: true, data: Object.values(grouped) }
+      return { success: true, data: buildCravingTrend(cravings as any[], days) }
     } catch (error: any) {
       return this.handleError(error)
     }
@@ -83,7 +63,8 @@ export class CravingService extends BaseService {
    */
   async getTriggerBreakdown(userId: string): Promise<ApiResponse<any[]>> {
     try {
-      const cravings = await this.getByUser(userId)
+      // Only true cravings have meaningful triggers; slips are relapses, exclude them.
+      const cravings = await this.getByUser(userId, { filter: 'type != "slip"' })
       if (!cravings.success || !cravings.data) {
         return { success: false, error: 'Failed to fetch cravings' }
       }

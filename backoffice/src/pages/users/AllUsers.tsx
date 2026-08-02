@@ -5,16 +5,23 @@ import { deleteUserAndRelated } from '../../lib/deleteUser'
 import { getUserLastActive, isUserActiveWithinDays, daysSinceLastActive } from '../../lib/userActivity'
 import { fetchActivityByUser } from '../../lib/fetchActivityByUser'
 import {
-  isSegmentId,
   SEGMENT_IDS,
   SEGMENT_LABELS,
   segmentNeedsActivity,
+  segmentNeedsProfiles,
+  customCriteriaNeedsActivity,
+  customCriteriaNeedsEngagement,
+  normalizeCriteria,
+  indexProfilesByUser,
   userMatchesSegment,
+  userMatchesCustomCriteria,
+  resolveSegmentFilter,
   type SegmentId,
+  type StoredUserSegment,
 } from '../../lib/userSegments'
-import { Plus, Download, Search, Eye, Edit, Trash2, Bell, UserCheck, UserX, X } from 'lucide-react'
+import { Plus, Download, Search, Eye, Edit, Trash2, Bell, UserCheck, UserX, X, Mail } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { sendUserPushNotification } from '../../lib/sendPush'
+import { sendUserAdminMessage } from '../../lib/sendPush'
 import {
   useReactTable,
   getCoreRowModel,
@@ -43,7 +50,31 @@ export const AllUsers = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const segmentParam = searchParams.get('segment')
-  const segmentFilter: SegmentId | null = isSegmentId(segmentParam) ? segmentParam : null
+
+  const { data: customSegmentsData } = useQuery({
+    queryKey: ['user_segments'],
+    queryFn: () => adminCollectionHelpers.getFullList('user_segments', { sort: '-created' }),
+  })
+
+  const customById = useMemo(() => {
+    const map = new Map<string, StoredUserSegment>()
+    for (const r of (customSegmentsData?.data || []) as any[]) {
+      map.set(r.id, {
+        id: r.id,
+        name: r.name,
+        description: r.description || '',
+        criteria: normalizeCriteria(r.criteria),
+      })
+    }
+    return map
+  }, [customSegmentsData?.data])
+
+  const resolvedSegment = resolveSegmentFilter(segmentParam, customById)
+  const segmentFilter: SegmentId | null =
+    resolvedSegment?.kind === 'predefined' ? resolvedSegment.id : null
+  const customSegmentFilter =
+    resolvedSegment?.kind === 'custom' ? resolvedSegment.segment : null
+  const hasSegmentFilter = Boolean(segmentFilter || customSegmentFilter)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -59,11 +90,18 @@ export const AllUsers = () => {
 
   // Client filters need the full user set (pagination alone can't filter correctly)
   const needsClientFilter =
-    Boolean(segmentFilter) || statusFilter === 'active' || statusFilter === 'inactive'
+    hasSegmentFilter || statusFilter === 'active' || statusFilter === 'inactive'
   const useFullList = needsClientFilter
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['users', useFullList ? 'full' : 'page', page, perPage, searchQuery, segmentFilter],
+    queryKey: [
+      'users',
+      useFullList ? 'full' : 'page',
+      page,
+      perPage,
+      searchQuery,
+      segmentParam,
+    ],
     queryFn: async (): Promise<{
       success: boolean
       data: User[]
@@ -107,7 +145,12 @@ export const AllUsers = () => {
   })
 
   const needsEngagement =
-    segmentFilter === 'high-risk' || segmentFilter === 'star-performers'
+    segmentFilter === 'high-risk' ||
+    segmentFilter === 'star-performers' ||
+    (customSegmentFilter != null &&
+      customCriteriaNeedsEngagement(customSegmentFilter.criteria))
+
+  const needsProfiles = segmentFilter != null && segmentNeedsProfiles(segmentFilter)
 
   const { data: sessionsData, isFetched: sessionsFetched } = useQuery({
     queryKey: ['sessions', 'segment-filter'],
@@ -119,6 +162,16 @@ export const AllUsers = () => {
     queryKey: ['cravings', 'segment-filter'],
     queryFn: () => adminCollectionHelpers.getFullList('cravings'),
     enabled: needsEngagement,
+  })
+
+  const { data: profilesData, isFetched: profilesFetched } = useQuery({
+    queryKey: ['user_profiles', 'segment-filter'],
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('user_profiles', {
+        fields:
+          'id,user,onboarding_completed_at,quit_archetype,quit_date,smoking_triggers,emotional_states,daily_consumption',
+      }),
+    enabled: needsProfiles,
   })
 
   const {
@@ -136,6 +189,8 @@ export const AllUsers = () => {
   const activityReady = (() => {
     const needs =
       (segmentFilter != null && segmentNeedsActivity(segmentFilter)) ||
+      (customSegmentFilter != null &&
+        customCriteriaNeedsActivity(customSegmentFilter.criteria)) ||
       statusFilter === 'active' ||
       statusFilter === 'inactive'
     return !needs || (activityFetched && !activityLoading)
@@ -144,12 +199,17 @@ export const AllUsers = () => {
   const engagementReady =
     !needsEngagement || (sessionsFetched && cravingsFetched)
 
-  const filtersReady = activityReady && engagementReady
+  const profilesReady = !needsProfiles || profilesFetched
+
+  const filtersReady = activityReady && engagementReady && profilesReady
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const result = await deleteUserAndRelated(userId)
       if (!result.success) throw new Error(result.error || 'Failed to delete user')
+      if (result.emailError) {
+        throw new Error(`User deleted, but acceptance email failed: ${result.emailError}`)
+      }
       return result
     },
     onSuccess: () => {
@@ -159,19 +219,24 @@ export const AllUsers = () => {
 
   const usersRaw: User[] = data?.data ?? []
 
+  const profilesByUser = useMemo(
+    () => indexProfilesByUser((profilesData?.data || []) as any[]),
+    [profilesData?.data]
+  )
+
   const filteredUsers = useMemo(() => {
     if (!filtersReady) return []
     let list = usersRaw
 
+    const sessions = (sessionsData?.data || []) as { user?: string; status?: string }[]
+    const cravings = (cravingsData?.data || []) as { user?: string; type?: string }[]
+    const ctx = { activityByUser, sessions, cravings, profilesByUser }
+
     if (segmentFilter) {
-      const sessions = (sessionsData?.data || []) as { user?: string; status?: string }[]
-      const cravings = (cravingsData?.data || []) as { user?: string; type?: string }[]
+      list = list.filter((user) => userMatchesSegment(user, segmentFilter, ctx))
+    } else if (customSegmentFilter) {
       list = list.filter((user) =>
-        userMatchesSegment(user, segmentFilter, {
-          activityByUser,
-          sessions,
-          cravings,
-        })
+        userMatchesCustomCriteria(user, customSegmentFilter.criteria, ctx)
       )
     } else if (statusFilter === 'active' || statusFilter === 'inactive') {
       list = list.filter((user) => {
@@ -184,10 +249,12 @@ export const AllUsers = () => {
   }, [
     usersRaw,
     segmentFilter,
+    customSegmentFilter,
     statusFilter,
     activityByUser,
     sessionsData?.data,
     cravingsData?.data,
+    profilesByUser,
     filtersReady,
   ])
 
@@ -205,7 +272,11 @@ export const AllUsers = () => {
   const fetchError =
     data?.success === false ? data.error : isError ? (error as Error)?.message : null
 
-  const setSegmentInUrl = (next: SegmentId | '') => {
+  const activeSegmentLabel = segmentFilter
+    ? SEGMENT_LABELS[segmentFilter]
+    : customSegmentFilter?.name || null
+
+  const setSegmentInUrl = (next: string) => {
     const params = new URLSearchParams(searchParams)
     if (next) params.set('segment', next)
     else params.delete('segment')
@@ -215,7 +286,7 @@ export const AllUsers = () => {
   useEffect(() => {
     setPage(1)
     setRowSelection({})
-  }, [segmentFilter, searchQuery, statusFilter])
+  }, [segmentParam, searchQuery, statusFilter])
 
   const selectedUsers = useMemo(() => {
     return Object.keys(rowSelection)
@@ -225,7 +296,11 @@ export const AllUsers = () => {
   }, [rowSelection, users])
 
   const handleDelete = async (userId: string) => {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (
+      confirm(
+        'Delete this user? They will get an acceptance email. Contact details stay for 30 days; all other data is purged.'
+      )
+    ) {
       try {
         await deleteUserMutation.mutateAsync(userId)
       } catch (error: any) {
@@ -237,7 +312,11 @@ export const AllUsers = () => {
 
   const handleBulkDelete = async () => {
     if (selectedUsers.length === 0) return
-    if (confirm(`Are you sure you want to delete ${selectedUsers.length} user(s)? This action cannot be undone.`)) {
+    if (
+      confirm(
+        `Delete ${selectedUsers.length} user(s)? Each gets an acceptance email. Contact details stay for 30 days.`
+      )
+    ) {
       try {
         await Promise.all(selectedUsers.map(user => deleteUserMutation.mutateAsync(user.id)))
         setRowSelection({})
@@ -261,12 +340,10 @@ export const AllUsers = () => {
     let failed = 0
     const errors: string[] = []
     for (const user of selectedUsers) {
-      const result = await sendUserPushNotification({
+      const result = await sendUserAdminMessage({
         userId: user.id,
         title: notifyTitle.trim(),
         body: notifyBody.trim(),
-        url: '/home',
-        tag: 'admin-broadcast',
       })
       if (result.ok) ok += 1
       else {
@@ -484,8 +561,8 @@ export const AllUsers = () => {
         <div>
           <h1 className="text-2xl font-semibold text-neutral-dark tracking-tight">Users</h1>
           <p className="text-sm text-neutral-500 mt-0.5">
-            {segmentFilter
-              ? `${totalItems} in ${SEGMENT_LABELS[segmentFilter]} · page ${page} of ${totalPages}`
+            {activeSegmentLabel
+              ? `${totalItems} in ${activeSegmentLabel} · page ${page} of ${totalPages}`
               : `${totalItems} total · page ${page} of ${totalPages}`}
           </p>
         </div>
@@ -515,10 +592,10 @@ export const AllUsers = () => {
         </div>
       )}
 
-      {segmentFilter && (
+      {activeSegmentLabel && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
           <p className="text-sm text-neutral-700">
-            Showing <span className="font-semibold">{SEGMENT_LABELS[segmentFilter]}</span>
+            Showing <span className="font-semibold">{activeSegmentLabel}</span>
             <span className="text-neutral-500"> ({totalItems})</span>
           </p>
           <button
@@ -549,6 +626,23 @@ export const AllUsers = () => {
             >
               <Bell className="w-4 h-4" />
               Send Notification
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const emails = selectedUsers
+                  .map((u) => String(u.email || '').trim())
+                  .filter((e) => e.includes('@'))
+                if (!emails.length) {
+                  alert('Selected users have no email addresses.')
+                  return
+                }
+                navigate('/settings/send-email', { state: { emails } })
+              }}
+              className="btn-secondary text-sm flex items-center gap-2"
+            >
+              <Mail className="w-4 h-4" />
+              Send Email
             </button>
             <button className="btn-secondary text-sm flex items-center gap-2">
               <UserCheck className="w-4 h-4" />
@@ -592,10 +686,10 @@ export const AllUsers = () => {
             />
           </div>
           <select
-            value={segmentFilter || ''}
+            value={resolvedSegment ? segmentParam || '' : ''}
             onChange={(e) => {
               const value = e.target.value
-              setSegmentInUrl(isSegmentId(value) ? value : '')
+              setSegmentInUrl(value)
               if (value) setStatusFilter('all')
             }}
             className="px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -606,6 +700,11 @@ export const AllUsers = () => {
                 {SEGMENT_LABELS[id]}
               </option>
             ))}
+            {[...customById.values()].map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
           </select>
           <select
             value={statusFilter}
@@ -614,7 +713,7 @@ export const AllUsers = () => {
               if (e.target.value !== 'all') setSegmentInUrl('')
               setPage(1)
             }}
-            disabled={Boolean(segmentFilter)}
+            disabled={hasSegmentFilter}
             className="px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           >
             <option value="all">All Status</option>

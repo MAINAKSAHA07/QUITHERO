@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Trophy, RefreshCw, TrendingUp } from 'lucide-react'
+import { Trophy, RefreshCw, TrendingUp, Cigarette } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import SmonoLogo from '../components/SmonoLogo'
 import AppHeader, { appHeaderBtn } from '../components/AppHeader'
@@ -23,11 +23,11 @@ import { useAchievements } from '../hooks/useAchievements'
 import UpgradePrompt from '../components/UpgradePrompt'
 import { needsDay2Upgrade } from '../utils/upgradePrompt'
 import { profileService } from '../services/profile.service'
-import { analyticsService } from '../services/analytics.service'
 import { beliefService, BeliefDelta } from '../services/belief.service'
 import { CravingTrigger } from '../types/enums'
 import { Achievement } from '../types/models'
 import { formatMoney, getCountryConfig } from '../utils/currency'
+import { slipImpact } from '../utils/slipCost'
 import { cravingService } from '../services/craving.service'
 import { daysUntilQuitDate } from '../utils/smokeFreeDays'
 
@@ -75,6 +75,7 @@ export default function Progress() {
   const [newlyUnlocked, setNewlyUnlocked] = useState<Achievement | null>(null)
   const [showNotification, setShowNotification] = useState(false)
   const [beliefDeltas, setBeliefDeltas] = useState<BeliefDelta[]>([])
+  const [slipsCount, setSlipsCount] = useState(0)
   const [preQuitData, setPreQuitData] = useState<{
     isPreQuit: boolean
     daysUntilQuit: number
@@ -127,13 +128,19 @@ export default function Progress() {
           }
         } catch { /* continue */ }
 
+        const slipsResult = await cravingService.getCountByType(user.id, 'slip')
+        if (!cancelled) {
+          setSlipsCount(slipsResult.success && slipsResult.data !== undefined ? slipsResult.data : 0)
+        }
+
         const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
         const trendResult = await cravingService.getTrend(user.id, days)
         if (!cancelled && trendResult.success && trendResult.data) {
           const formatted = trendResult.data
             .map((item: { date: string; count: number }) => {
               try {
-                const date = new Date(item.date)
+                // Parse as local midnight — item.date is already a local calendar day.
+                const date = new Date(item.date + 'T00:00:00')
                 const day =
                   timeFilter === 'week'
                     ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
@@ -185,7 +192,6 @@ export default function Progress() {
     }
 
     run()
-    analyticsService.trackPageView('progress', user.id)
     return () => { cancelled = true }
     // ponytail: stable deps only — refreshProgressData identity changes when stats update
   }, [user?.id, timeFilter, currentSession?.current_day])
@@ -196,18 +202,20 @@ export default function Progress() {
     try {
       await refreshProgressData()
       const days = timeFilter === 'week' ? 7 : timeFilter === 'month' ? 30 : 365
-      const [trendResult, breakdownResult] = await Promise.all([
+      const [trendResult, breakdownResult, slipsResult] = await Promise.all([
         cravingService.getTrend(user.id, days),
         cravingService.getTriggerBreakdown(user.id),
+        cravingService.getCountByType(user.id, 'slip'),
       ])
+      setSlipsCount(slipsResult.success && slipsResult.data !== undefined ? slipsResult.data : 0)
       if (trendResult.success && trendResult.data) {
         setCravingTrend(
           trendResult.data
             .map((item: { date: string; count: number }) => ({
               day:
                 timeFilter === 'week'
-                  ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(item.date).getDay()]
-                  : new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                  ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(item.date + 'T00:00:00').getDay()]
+                  : new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
               cravings: item.count,
               date: item.date,
             }))
@@ -263,6 +271,20 @@ export default function Progress() {
       healthImprovement: Math.min(100, Math.round(daysSmokeFree * 2)),
     }
   }, [stats, calculation, progressStats, userCountry])
+
+  const slipStats = useMemo(() => {
+    const impact = slipImpact({
+      cigaretteCount: slipsCount,
+      packCost: userProfile?.pack_cost,
+      country: userCountry,
+    })
+    return {
+      count: slipsCount,
+      money: impact.money,
+      nicotine: impact.nicotine,
+      lifeLost: impact.lifeLost,
+    }
+  }, [slipsCount, userProfile?.pack_cost, userCountry])
 
   const formattedAchievements = useMemo(
     () => achievements.map((a) => ({ ...a, unlocked: isUnlocked(a.key) })),
@@ -390,6 +412,41 @@ export default function Progress() {
             />
           </motion.section>
         )}
+
+        {/* Slip impact — always reserved so layout doesn't jump */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-3xl bg-white p-5 shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white min-h-[168px]"
+        >
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-[#0E2538] flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-[#FFF5F5] text-[#D96B6B] flex items-center justify-center flex-shrink-0">
+                  <Cigarette className="w-4 h-4" strokeWidth={2.25} />
+                </span>
+                <TranslatedText text="Slip impact" />
+              </h3>
+              <p className="text-xs text-[#0E2538]/45 mt-1.5 leading-snug">
+                <TranslatedText text="Estimates from logged slips — awareness, not judgment." />
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-2xl font-black text-[#D96B6B] tabular-nums leading-none">
+                {slipStats.count}
+              </p>
+              <p className="text-[10px] font-semibold text-[#D96B6B]/70 mt-1 uppercase tracking-wide">
+                <TranslatedText text={slipStats.count === 1 ? 'Slip' : 'Slips'} />
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <SlipStatCell label="Money" value={slipStats.count > 0 ? `−${slipStats.money}` : '—'} />
+            <SlipStatCell label="Nicotine" value={slipStats.count > 0 ? slipStats.nicotine : '—'} />
+            <SlipStatCell label="Life" value={slipStats.count > 0 ? slipStats.lifeLost : '—'} />
+          </div>
+        </motion.section>
 
         {/* Insights */}
         <SoftCard title="Insights">
@@ -595,6 +652,17 @@ function StatGrid({
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function SlipStatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-h-[72px] p-3 rounded-2xl bg-[#FFF5F5] border border-[#D96B6B]/15 text-center flex flex-col items-center justify-center">
+      <div className="text-sm font-bold text-[#D96B6B] tabular-nums leading-tight break-all">{value}</div>
+      <div className="text-[10px] text-[#D96B6B]/65 font-medium mt-1">
+        <TranslatedText text={label} />
+      </div>
     </div>
   )
 }

@@ -22,9 +22,15 @@ import { startReminderScheduler } from './reminder-scheduler.js'
 import { startSmokeCheckScheduler } from './smoke-check-scheduler.js'
 import { handleSupportApi } from './support-api.js'
 import { isSupportCryptoReady } from './support-crypto.js'
-import { handleRazorpayApi, isRazorpayReady } from './razorpay-api.js'
+import { handleRazorpayApi, handlePaymentReturn, isRazorpayReady } from './razorpay-api.js'
 import { handleRazorpayWebhook, isWebhookConfigured } from './razorpay-webhook.js'
 import { handleIapApi, isIapReady } from './iap-api.js'
+import { handleAdminAccessApi } from './admin-access-api.js'
+import { handleAdminDeleteUserApi } from './admin-delete-user.js'
+import { handleCoachApi, gateCoachAiTurn } from './coach-api.js'
+import { handleEmailApi } from './email-api.js'
+import { handleLandingCoachApi } from './landing-coach-api.js'
+import { isSmtpReady } from './mail.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -62,11 +68,25 @@ function json(res, status, body) {
 }
 
 async function handleAiPersonalize(req, res) {
-  const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await readBody(req)
+  const raw = req.method === 'GET' || req.method === 'HEAD' ? undefined : await readBody(req)
+  let parsedBody = null
+  if (raw) {
+    try {
+      parsedBody = JSON.parse(raw.toString() || '{}')
+    } catch {
+      return json(res, 400, { error: 'invalid_request' })
+    }
+  }
+
+  if (parsedBody?.requestType === 'coach_chat') {
+    const blocked = await gateCoachAiTurn(parsedBody.userId, req.headers.authorization)
+    if (blocked) return json(res, blocked.status, { error: blocked.error })
+  }
+
   const request = new Request(`http://127.0.0.1/api/ai/personalize`, {
     method: req.method,
     headers: req.headers,
-    body,
+    body: raw,
   })
   const response = await aiHandler(request)
   const headers = Object.fromEntries(response.headers.entries())
@@ -258,6 +278,14 @@ const server = http.createServer(async (req, res) => {
       await handleSupportApi(req, res, url.pathname, url.searchParams, readBody, json)
       return
     }
+    if (url.pathname.startsWith('/api/coach/')) {
+      await handleCoachApi(req, res, url.pathname, url.searchParams, readBody, json)
+      return
+    }
+    if (url.pathname === '/api/payment-return') {
+      await handlePaymentReturn(req, res, url, readBody)
+      return
+    }
     if (url.pathname === '/api/create-order' || url.pathname === '/api/verify-payment' || url.pathname === '/api/preview-coupon') {
       await handleRazorpayApi(req, res, url.pathname, readBody, json)
       return
@@ -266,8 +294,28 @@ const server = http.createServer(async (req, res) => {
       await handleRazorpayWebhook(req, res, readBody, json)
       return
     }
+    if (url.pathname === '/api/landing-coach/session' || url.pathname === '/api/landing-coach/message') {
+      await handleLandingCoachApi(req, res, url.pathname, readBody, json)
+      return
+    }
+    if (url.pathname === '/api/claim-gift' || url.pathname === '/api/finalize-gift') {
+      await handleGiftApi(req, res, url.pathname, readBody, json)
+      return
+    }
     if (url.pathname.startsWith('/api/iap/')) {
       await handleIapApi(req, res, url.pathname, readBody, json)
+      return
+    }
+    if (url.pathname === '/api/admin/grant-access' || url.pathname === '/api/admin/revoke-access') {
+      await handleAdminAccessApi(req, res, url.pathname, readBody, json)
+      return
+    }
+    if (url.pathname === '/api/admin/delete-user') {
+      await handleAdminDeleteUserApi(req, res, url.pathname, readBody, json)
+      return
+    }
+    if (url.pathname.startsWith('/api/email/')) {
+      await handleEmailApi(req, res, url.pathname, readBody, json)
       return
     }
     json(res, 404, { error: 'not_found' })
@@ -285,6 +333,6 @@ server.listen(PORT, '127.0.0.1', () => {
   const hasAi = Boolean(process.env.ANTHROPIC_API_KEY)
   const hasPush = isPushReady()
   console.error(
-    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'} supportCrypto=${isSupportCryptoReady() ? 'on' : 'off'} razorpay=${isRazorpayReady() ? 'on' : 'off'} webhook=${isWebhookConfigured() ? 'on' : 'off'} iap=${isIapReady() ? 'on' : 'off'}`
+    `[api-server] 127.0.0.1:${PORT} ai=${hasAi ? 'on' : 'off'} push=${hasPush ? 'on' : 'off'} supportCrypto=${isSupportCryptoReady() ? 'on' : 'off'} razorpay=${isRazorpayReady() ? 'on' : 'off'} webhook=${isWebhookConfigured() ? 'on' : 'off'} iap=${isIapReady() ? 'on' : 'off'} smtp=${isSmtpReady() ? 'on' : 'off'}`
   )
 })

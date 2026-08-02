@@ -29,6 +29,7 @@ import { beliefService } from '../services/belief.service'
 import { BeliefAssessment } from '../components/BeliefAssessment'
 import { useTouchSwipe } from '../hooks/useTouchSwipe'
 import { withStoredQuestion } from '../utils/stepResponse'
+import { msUntilNextDay } from '../utils/programProgress'
 import { formatDayTitle } from '../utils/formatDayTitle'
 import { needsDay2Upgrade } from '../utils/upgradePrompt'
 import { useLiveTranslation } from '../hooks/useTranslation'
@@ -278,6 +279,28 @@ export default function Session() {
       if (dayNum > 1 && !isPremium) {
         navigate('/paywall')
         return
+      }
+
+      // 12h rest between days — Home "Continue" and deep links must respect it too.
+      const existingProgress = progressResult.success ? progressResult.data : null
+      const alreadyOpen =
+        existingProgress?.status === SessionStatus.COMPLETED ||
+        existingProgress?.status === SessionStatus.IN_PROGRESS
+      if (dayNum > 1 && !alreadyOpen) {
+        const programId =
+          typeof dayResult.data.program === 'string'
+            ? dayResult.data.program
+            : (dayResult.data.program as { id?: string })?.id
+        if (programId) {
+          const prevDay = await programService.getProgramDayByNumber(programId, dayNum - 1)
+          if (prevDay.success && prevDay.data?.id) {
+            const prevProgress = await sessionService.getSessionProgress(user.id, prevDay.data.id)
+            if (msUntilNextDay(prevProgress.data) > 0) {
+              navigate('/sessions')
+              return
+            }
+          }
+        }
       }
 
       if ((dayNum === 15 || dayNum === 30) && user?.id) {
@@ -673,6 +696,11 @@ export default function Session() {
             initialSelected={
               typeof savedObj?.selected_option === 'number' ? savedObj.selected_option : null
             }
+            initialSelectedMultiple={
+              Array.isArray(savedObj?.selected_options)
+                ? (savedObj.selected_options as number[]).filter((n) => typeof n === 'number')
+                : null
+            }
           />
         )
 
@@ -936,7 +964,7 @@ export default function Session() {
         timeSpentSeconds={completedDurationSeconds}
         stepsCompleted={steps.length}
         hasNextDay={(programDay.day_number || 0) < 30}
-        nextCtaLabel={!isPremium ? 'Unlock Day 2' : 'Next Day'}
+        nextCtaLabel={!isPremium ? 'Unlock Day 2' : 'View Program'}
         onNextDay={() => {
           setShowCompletionModal(false)
           // Free users finish Day 1 → paywall before Day 2

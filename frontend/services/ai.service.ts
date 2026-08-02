@@ -25,7 +25,7 @@ function hasMotivation(profile: UserProfile, ...keywords: string[]): boolean {
   )
 }
 
-function buildOnboardingContext(profile: UserProfile): string {
+export function buildOnboardingContext(profile: UserProfile): string {
   const lines: string[] = ['ONBOARDING PROFILE:']
 
   if (profile.onboarding_name) {
@@ -34,7 +34,7 @@ function buildOnboardingContext(profile: UserProfile): string {
 
   if (profile.language) {
     lines.push(
-      `- Preferred language: ${profile.language} — write ALL user-facing copy in this language`
+      `- Preferred language: ${profile.language} (write ALL user-facing copy in this language)`
     )
   }
 
@@ -236,7 +236,7 @@ function buildOnboardingContext(profile: UserProfile): string {
 
 // ─── Personalization Rules Derived from Onboarding ───────────────────────────
 
-function buildPersonalizationRules(profile: UserProfile): string {
+export function buildPersonalizationRules(profile: UserProfile): string {
   const rules: string[] = ['PERSONALIZATION RULES (derived from onboarding):']
 
   const firstUse = profile.first_use_after_waking?.toLowerCase() ?? ''

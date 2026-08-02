@@ -3,16 +3,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlogBody } from '../components/BlogBody'
 import { BlogShare } from '../components/BlogShare'
 import { BlogSiteChrome } from '../components/BlogSiteChrome'
-import { getBlogBySlug } from '../services/blogs'
+import { getBlogBySlug, getPublishedBlogs } from '../services/blogs'
 import type { BlogPost } from '../types/blog'
 import { useLandingInteractions } from '../hooks/useLandingInteractions'
 import { usePageSeo } from '../hooks/usePageSeo'
 import { resolveMediaUrl } from '../utils/mediaUrl'
 import { isFullHtmlDocument } from '../utils/prepareBlogHtml'
-import { readPrerenderedBlogPost } from '../utils/prerenderData'
+import { readPrerenderedBlogDetail } from '../utils/prerenderData'
 import { SEO_DESCRIPTION } from '../lib/seo.config'
 import { blogExcerpt } from '../utils/stripHtml'
 import { displayBlogTitle, displayBlogType } from '../utils/blogDisplay'
+import { pickRelatedBlogPosts } from '../utils/relatedBlogPosts'
 
 function formatDate(value?: string) {
   if (!value) return ''
@@ -23,9 +24,13 @@ function formatDate(value?: string) {
   })
 }
 
-type ArticleViewProps = { post: BlogPost; slug: string }
+type ArticleViewProps = {
+  post: BlogPost
+  slug: string
+  related?: BlogPost[]
+}
 
-export function BlogArticleView({ post, slug }: ArticleViewProps) {
+export function BlogArticleView({ post, slug, related = [] }: ArticleViewProps) {
   const fullDoc = isFullHtmlDocument(post.content || '')
   const title = displayBlogTitle(post.title)
   const typeLabel = displayBlogType(post.type)
@@ -62,25 +67,54 @@ export function BlogArticleView({ post, slug }: ArticleViewProps) {
         )}
         <BlogBody content={post.content || ''} />
         <BlogShare title={title} slug={slug} excerpt={post.excerpt} variant="bar" />
+
+        {related.length > 0 && (
+          <nav className="blog-related" aria-label="Related articles">
+            <h2 className="blog-related-title">Keep reading</h2>
+            <ul className="blog-related-list">
+              {related.map((r) => {
+                const rSlug = r.slug || r.id
+                return (
+                  <li key={r.id}>
+                    <Link to={`/blog/${rSlug}`} className="blog-related-link">
+                      <span className="blog-related-meta">
+                        {formatDate(r.published_at || r.created)}
+                      </span>
+                      <span className="blog-related-name">{displayBlogTitle(r.title)}</span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+        )}
       </div>
     </article>
   )
 }
 
-type PageProps = { initialPost?: BlogPost }
+type PageProps = { initialPost?: BlogPost; initialRelated?: BlogPost[] }
 
-export function BlogDetailPage({ initialPost }: PageProps) {
+export function BlogDetailPage({ initialPost, initialRelated }: PageProps) {
   useLandingInteractions()
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const seeded = initialPost ?? readPrerenderedBlogPost()
+  const seededDetail = initialPost
+    ? { post: initialPost, related: initialRelated }
+    : readPrerenderedBlogDetail()
+  const seeded = seededDetail?.post
   const [post, setPost] = useState<BlogPost | null>(seeded ?? null)
+  const [related, setRelated] = useState<BlogPost[]>(
+    initialRelated ?? seededDetail?.related ?? []
+  )
   const [loading, setLoading] = useState(!seeded)
   const seoSlug = slug || seeded?.slug || seeded?.id || ''
   const seoTitle = post
     ? `${displayBlogTitle(post.title)} | Smono Blog`
     : 'Smono Blog'
-  const seoDescription = post ? blogExcerpt(post.content, post.excerpt, 160) || SEO_DESCRIPTION : SEO_DESCRIPTION
+  const seoDescription = post
+    ? blogExcerpt(post.content, post.excerpt, 160) || SEO_DESCRIPTION
+    : SEO_DESCRIPTION
   usePageSeo({
     title: seoTitle,
     description: seoDescription,
@@ -95,6 +129,7 @@ export function BlogDetailPage({ initialPost }: PageProps) {
     // Use prerender when it matches this slug; otherwise always fetch (new posts after deploy)
     if (seeded && (seeded.slug === slug || seeded.id === slug)) {
       setPost(seeded)
+      if (seededDetail?.related?.length) setRelated(seededDetail.related)
       setLoading(false)
       return
     }
@@ -118,7 +153,23 @@ export function BlogDetailPage({ initialPost }: PageProps) {
     return () => {
       cancelled = true
     }
-  }, [slug, navigate, seeded])
+  }, [slug, navigate, seeded, seededDetail?.related])
+
+  useEffect(() => {
+    if (!post) return
+    if ((initialRelated ?? seededDetail?.related)?.length) return
+    let cancelled = false
+    getPublishedBlogs()
+      .then((all) => {
+        if (!cancelled) setRelated(pickRelatedBlogPosts(post, all, 2))
+      })
+      .catch(() => {
+        /* keep empty related */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [post, initialRelated, seededDetail?.related])
 
   if (loading) {
     return (
@@ -136,7 +187,7 @@ export function BlogDetailPage({ initialPost }: PageProps) {
 
   return (
     <BlogSiteChrome>
-      <BlogArticleView post={post} slug={postSlug} />
+      <BlogArticleView post={post} slug={postSlug} related={related} />
     </BlogSiteChrome>
   )
 }

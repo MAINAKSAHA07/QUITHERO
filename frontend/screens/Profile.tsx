@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Phone,
   Map,
-  Inbox,
+  Heart,
 } from 'lucide-react'
 import BottomNavigation from '../components/BottomNavigation'
 import GlassButton from '../components/GlassButton'
@@ -58,6 +58,7 @@ import {
   joinPhone,
   isValidE164Phone,
 } from '../utils/phone'
+import { buildSelfUserPatch, emailChangeRequested } from '../utils/selfUserPatch'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -106,7 +107,6 @@ export default function Profile() {
     if (user?.id) {
       fetchUserProfile()
       refreshProgress()
-      analyticsService.trackPageView('profile', user.id)
       getPendingDeletionRequest(user.id).then((result) => {
         setPendingDeletionRequest(!!result.data)
       })
@@ -231,18 +231,25 @@ export default function Profile() {
     setSuccess('')
 
     try {
-      // Update auth user (name, email)
       const pb = (await import('../lib/pocketbase')).pb
-      await pb.collection('users').update(user.id, {
-        name: editForm.name,
-        email: editForm.email,
-      })
+      // Never send email on self-update — PB rejects it without manage access
+      // (validation_values_mismatch). Name only; email via confirmation mail.
+      await pb.collection('users').update(user.id, buildSelfUserPatch(editForm.name))
+
+      const nextEmail = emailChangeRequested(user.email || '', editForm.email)
+      if (nextEmail) {
+        await pb.collection('users').requestEmailChange(nextEmail)
+      }
 
       const { profileService } = await import('../services/profile.service')
       const result = await profileService.upsert(user.id, { phone: editForm.phone.trim() })
       if (!result.success) throw new Error(result.error || 'Failed to update profile')
 
-      setSuccess('Profile updated successfully!')
+      setSuccess(
+        nextEmail
+          ? 'Profile saved. Check your inbox to confirm the new email.'
+          : 'Profile updated successfully!'
+      )
       setIsEditing(false)
       await analyticsService.trackEvent('profile_updated', {}, user.id)
       await fetchUserProfile()
@@ -375,6 +382,11 @@ export default function Profile() {
     const faqText = faqs.map((faq, i) => `${i + 1}. ${faq.q}\n   ${faq.a}`).join('\n\n')
     alert(`Frequently Asked Questions:\n\n${faqText}\n\nFor more help, contact support.`)
     analyticsService.trackEvent('faqs_viewed', {}, user?.id)
+  }
+
+  const handleOpenMessages = () => {
+    setShowSupportInbox(true)
+    analyticsService.trackEvent('support_inbox_opened', {}, user?.id)
   }
 
   const handleContactSupport = () => {
@@ -891,15 +903,14 @@ export default function Profile() {
           </h3>
           <div className="rounded-3xl bg-white shadow-[0_4px_16px_rgba(63,141,210,0.06)] border border-white overflow-hidden divide-y divide-[#0E2538]/06">
             <AccountRow icon={HelpCircle} label="FAQs" onClick={handleFAQs} />
-            <AccountRow icon={MessageCircle} label="Contact Support" onClick={handleContactSupport} />
+            {userProfile?.enable_coach_chat ? (
+              <AccountRow icon={Heart} label="Coach" onClick={() => navigate('/coach')} />
+            ) : null}
             <AccountRow
-              icon={Inbox}
-              label="My Support Tickets"
+              icon={MessageCircle}
+              label="Messages"
               badge={supportUnread > 0 ? supportUnread : undefined}
-              onClick={() => {
-                setShowSupportInbox(true)
-                analyticsService.trackEvent('support_inbox_opened', {}, user?.id)
-              }}
+              onClick={handleOpenMessages}
             />
             <AccountRow icon={Star} label="Rate App" onClick={handleRateApp} />
             <AccountRow icon={Share2} label="Share App" onClick={handleShareApp} />
@@ -991,7 +1002,7 @@ export default function Profile() {
             onFocusTicketConsumed={() => setFocusSupportTicketId(null)}
             onNewTicket={() => {
               setShowSupportInbox(false)
-              setShowSupportModal(true)
+              handleContactSupport()
             }}
           />
         </>

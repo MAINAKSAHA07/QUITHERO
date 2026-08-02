@@ -1,36 +1,37 @@
 import { Bell, ShieldAlert, Sparkles, TrendingUp, Heart } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import TranslatedText from '../../components/TranslatedText'
 import { enablePushNotifications } from '../../utils/pushNotifications'
 
 interface NotificationOptInProps {
   onContinue: (enabled: boolean) => void
 }
 
-export default function NotificationOptIn({ onContinue }: NotificationOptInProps) {
-  const benefits = [
-    {
-      icon: Sparkles,
-      title: 'Smoke check-ins every 6 hours',
-      desc: 'Quick prompts to confirm you stayed smoke-free and keep your stats accurate.',
-    },
-    {
-      icon: ShieldAlert,
-      title: 'Craving rescue prompts',
-      desc: 'Instant breathing or CBT tools when you face triggers.',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Weekly progress & savings check-ins',
-      desc: 'See your cumulative cash saved and health milestones.',
-    },
-    {
-      icon: Heart,
-      title: 'Encouragement at high-risk times',
-      desc: 'Quiet, positive nudges calibrated to your emotional profile.',
-    },
-  ]
+const BENEFITS = [
+  {
+    icon: Sparkles,
+    title: 'Smoke check-ins every 6 hours',
+    desc: 'Quick prompts to confirm you stayed smoke-free and keep your stats accurate.',
+  },
+  {
+    icon: ShieldAlert,
+    title: 'Craving rescue prompts',
+    desc: 'Instant breathing or CBT tools when you face triggers.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Weekly progress & savings check-ins',
+    desc: 'See your cumulative cash saved and health milestones.',
+  },
+  {
+    icon: Heart,
+    title: 'Encouragement at high-risk times',
+    desc: 'Quiet, positive nudges calibrated to your emotional profile.',
+  },
+] as const
 
+export default function NotificationOptIn({ onContinue }: NotificationOptInProps) {
   return (
     <div className="h-screen max-h-[100dvh] w-full max-w-md mx-auto flex flex-col overflow-hidden bg-[#F4FBFF] relative p-4 justify-center safe-area-top safe-area-bottom">
       <div className="overflow-y-auto max-h-full py-4 scrollbar-thin">
@@ -40,14 +41,14 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
           </div>
 
           <h1 className="text-2xl font-bold text-[#0E2538] mb-3 tracking-tight">
-            Stay supported, every day
+            <TranslatedText text="Stay supported, every day" />
           </h1>
           <p className="text-sm text-[#0E2538]/55 mb-8 leading-relaxed">
-            Enable reminders for daily modules, craving support prompts, progress nudges, and encouragement when you need it most.
+            <TranslatedText text="Enable reminders for daily modules, craving support prompts, progress nudges, and encouragement when you need it most." />
           </p>
 
           <div className="space-y-4 text-left mb-8">
-            {benefits.map((b, i) => {
+            {BENEFITS.map((b, i) => {
               const Icon = b.icon
               return (
                 <div key={i} className="flex gap-4 items-start">
@@ -56,10 +57,10 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-[#0E2538]">
-                      {b.title}
+                      <TranslatedText text={b.title} />
                     </h3>
                     <p className="text-xs text-[#0E2538]/50 mt-0.5 leading-normal">
-                      {b.desc}
+                      <TranslatedText text={b.desc} />
                     </p>
                   </div>
                 </div>
@@ -76,14 +77,14 @@ export default function NotificationOptIn({ onContinue }: NotificationOptInProps
               fullWidth
               className="py-4 text-sm font-bold"
             >
-              Enable Support Reminders
+              <TranslatedText text="Enable Support Reminders" />
             </GlassButton>
             <button
               type="button"
               onClick={() => onContinue(false)}
               className="w-full text-center text-[#0E2538]/45 text-sm font-semibold py-2.5 rounded-xl active:scale-[0.98] active:text-[#0E2538]/70 active:bg-[#0E2538]/[0.04] transition-[transform,color,background-color] duration-100"
             >
-              Maybe Later
+              <TranslatedText text="Maybe Later" />
             </button>
           </div>
         </GlassCard>

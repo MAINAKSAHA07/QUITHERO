@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { beliefService } from '../services/belief.service'
+import TranslatedText from './TranslatedText'
 
 interface BeliefAssessmentProps {
   assessmentDay: 0 | 15 | 30
@@ -60,7 +61,7 @@ export const BeliefAssessment: React.FC<BeliefAssessmentProps> = ({
         <div className="flex-shrink-0">
           <div className="w-full flex items-center justify-between p-4 bg-background/50 backdrop-blur-md border-b border-white/10">
             <span className="text-text-primary/60 text-xs font-bold uppercase tracking-wider mx-auto">
-              Belief Assessment
+              <TranslatedText text="Belief Assessment" />
             </span>
           </div>
         </div>
@@ -70,10 +71,10 @@ export const BeliefAssessment: React.FC<BeliefAssessmentProps> = ({
           <div className="flex flex-col gap-6">
             <div className="text-center px-2">
               <h2 className="text-lg font-bold font-display text-text-primary leading-tight mb-2">
-                {DAY_HEADINGS[assessmentDay]}
+                <TranslatedText text={DAY_HEADINGS[assessmentDay]} />
               </h2>
               <p className="text-xs text-text-primary/60 font-medium">
-                Rate each belief from 0 (not at all) to 10 (completely true)
+                <TranslatedText text="Rate each belief from 0 (not at all) to 10 (completely true)" />
               </p>
             </div>
 
@@ -81,7 +82,7 @@ export const BeliefAssessment: React.FC<BeliefAssessmentProps> = ({
               {BELIEF_QUESTIONS.map((q) => (
                 <div key={q.key} className="p-5 rounded-2xl bg-white/40 border border-white/25 backdrop-blur-xl shadow-glass flex flex-col gap-3">
                   <label className="text-sm font-semibold text-text-primary/80">
-                    {q.label}
+                    <TranslatedText text={q.label} />
                   </label>
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold text-text-primary/40 w-4">0</span>
@@ -109,7 +110,7 @@ export const BeliefAssessment: React.FC<BeliefAssessmentProps> = ({
             disabled={saving}
             className="w-full py-4 rounded-xl glass-button-primary disabled:opacity-50 text-white text-base font-semibold shadow-glow transition-all duration-200 active:scale-[0.98]"
           >
-            {saving ? 'Saving...' : 'Continue'}
+            <TranslatedText text={saving ? 'Saving...' : 'Continue'} />
           </button>
         </div>
       </div>

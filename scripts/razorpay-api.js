@@ -12,6 +12,11 @@ import {
   applyPercentOffMajor,
   validateCouponRecord,
 } from './coupon-pricing.js'
+import {
+  createPendingGift,
+  markGiftPaid,
+  validateGiftDetails,
+} from './gift-service.js'
 
 function getRazorpay() {
   const key_id = process.env.RAZORPAY_KEY_ID
@@ -98,6 +103,74 @@ export async function redeemCouponForOrder(couponCode, orderId) {
   })
 }
 
+function parseFormBody(raw) {
+  const text = raw.toString() || ''
+  if (!text) return {}
+  try {
+    if (text.trimStart().startsWith('{')) return JSON.parse(text)
+  } catch {
+    /* fall through */
+  }
+  return Object.fromEntries(new URLSearchParams(text))
+}
+
+/** Build app claim-payment URL after Razorpay redirect checkout. */
+export function buildClaimPaymentRedirect({ razorpay_order_id, razorpay_payment_id, razorpay_signature, country }) {
+  const app = (process.env.PUBLIC_URL || 'https://app.smono.app').replace(/\/$/, '')
+  const q = new URLSearchParams({
+    razorpay_order_id: String(razorpay_order_id || ''),
+    razorpay_payment_id: String(razorpay_payment_id || ''),
+    razorpay_signature: String(razorpay_signature || ''),
+    country: String(country || 'IN').toUpperCase().slice(0, 2) || 'IN',
+  })
+  return `${app}/claim-payment?${q.toString()}`
+}
+
+/** POST /api/payment-return — Razorpay redirect/UPI flow lands here, then 302 → app. */
+export async function handlePaymentReturn(req, res, url, readBody) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    })
+    res.end()
+    return
+  }
+
+  const country = String(url.searchParams.get('country') || 'IN').toUpperCase().slice(0, 2) || 'IN'
+  let fields = {}
+
+  if (req.method === 'POST') {
+    fields = parseFormBody(await readBody(req))
+  } else if (req.method === 'GET') {
+    fields = Object.fromEntries(url.searchParams.entries())
+  } else {
+    res.writeHead(405, { 'Content-Type': 'text/plain' })
+    res.end('Method not allowed')
+    return
+  }
+
+  const orderId = fields.razorpay_order_id
+  const paymentId = fields.razorpay_payment_id
+  const signature = fields.razorpay_signature
+
+  if (!orderId || !paymentId || !signature) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' })
+    res.end('Missing payment details')
+    return
+  }
+
+  const location = buildClaimPaymentRedirect({
+    razorpay_order_id: orderId,
+    razorpay_payment_id: paymentId,
+    razorpay_signature: signature,
+    country,
+  })
+  res.writeHead(302, { Location: location })
+  res.end()
+}
+
 export async function handleRazorpayApi(req, res, pathname, readBody, json) {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -161,6 +234,9 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
 
     const country = String(body.country || 'IN').toUpperCase().slice(0, 2)
     const plan = resolvePlan(country)
+    const isGift = body.kind === 'gift'
+    const giftDetails = isGift ? validateGiftDetails(body) : null
+    if (giftDetails && !giftDetails.ok) return json(res, 400, { error: giftDetails.error })
 
     const priced = await resolveCheckoutAmount(plan, body.coupon)
     if (priced.error) return json(res, 400, { error: priced.error })
@@ -178,6 +254,7 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
     try {
       const notes = {
         country,
+        ...(isGift ? { kind: 'gift' } : {}),
         ...(user?.id ? { user_id: user.id } : { guest: '1' }),
       }
       if (priced.coupon) {
@@ -193,6 +270,9 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
         receipt,
         notes,
       })
+      if (isGift) {
+        await createPendingGift({ order, details: giftDetails, country, priced })
+      }
       return json(res, 200, {
         order_id: order.id,
         amount: order.amount,
@@ -203,6 +283,7 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
         original_amount: priced.original,
         coupon: priced.coupon || undefined,
         percent_off: priced.percent_off || undefined,
+        gift: isGift || undefined,
       })
     } catch (err) {
       const status = err?.statusCode === 401 ? 401 : 500
@@ -250,16 +331,22 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
     }
 
     try {
-      await activateSubscription(user.id, country)
-
-      // Redeem coupon from order notes (idempotent)
+      // Fetch once: gift ownership and coupon redemption both come from trusted order notes.
       try {
         const rzp = getRazorpay()
         const order = await rzp.orders.fetch(razorpay_order_id)
+        if (order?.notes?.kind === 'gift') {
+          // Gift = recipient-only access. Buyer confirmation is email-only.
+          await markGiftPaid(razorpay_order_id, razorpay_payment_id)
+        } else {
+          await activateSubscription(user.id, country)
+        }
         const couponCode = order?.notes?.coupon
         if (couponCode) await redeemCouponForOrder(couponCode, razorpay_order_id)
       } catch (err) {
-        console.error('[razorpay/verify-payment] coupon redeem', err?.message || err)
+        if (err?.status) throw err
+        console.error('[razorpay/verify-payment] order finalize', err?.message || err)
+        throw err
       }
 
       return json(res, 200, {
@@ -269,7 +356,7 @@ export async function handleRazorpayApi(req, res, pathname, readBody, json) {
       })
     } catch (err) {
       console.error('[razorpay/verify-payment]', err.message)
-      return json(res, 500, {
+      return json(res, err.status || 500, {
         success: false,
         error: err.message || 'Payment verified but activation failed',
         payment_id: razorpay_payment_id,

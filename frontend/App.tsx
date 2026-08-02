@@ -5,6 +5,8 @@ import LanguageSelection from './screens/LanguageSelection'
 import Onboarding from './screens/Onboarding'
 import Login from './screens/auth/Login'
 import SignUp from './screens/auth/SignUp'
+import ForgotPassword from './screens/auth/ForgotPassword'
+import ConfirmPasswordReset from './screens/auth/ConfirmPasswordReset'
 import KYCFlow from './screens/kyc/KYCFlow'
 import Home from './screens/Home'
 import Sessions from './screens/Sessions'
@@ -16,6 +18,8 @@ import Journal from './screens/Journal'
 import Profile from './screens/Profile'
 import Paywall from './screens/Paywall'
 import ClaimPayment from './screens/ClaimPayment'
+import ClaimGift from './screens/ClaimGift'
+import CoachChat from './screens/CoachChat'
 import ObjectionSurvey from './screens/ObjectionSurvey'
 import ObjectionScreen from './screens/ObjectionScreen'
 import SubscriptionConfirmation from './screens/SubscriptionConfirmation'
@@ -25,6 +29,8 @@ import InstallPrompt from './components/InstallPrompt'
 import SmokeCheckGate from './components/SmokeCheckGate'
 import AppTourGate from './components/AppTourGate'
 import SupportReplyToast from './components/SupportReplyToast'
+import AnalyticsPageTracker from './components/AnalyticsPageTracker'
+import MetaPixelPageTracker from './components/MetaPixelPageTracker'
 import { profileService } from './services/profile.service'
 import { postAuthPath } from './utils/kyc'
 import { installDeepLinkHandler } from './utils/deepLinks'
@@ -123,6 +129,8 @@ function AppRoutes() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/confirm-password-reset" element={<ConfirmPasswordReset />} />
       <Route path="/terms" element={<ExternalRedirect to={LANDING_TERMS_URL} />} />
       <Route path="/privacy" element={<ExternalRedirect to={LANDING_PRIVACY_URL} />} />
       {/* Protected routes */}
@@ -136,8 +144,10 @@ function AppRoutes() {
       <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/coach" element={<ProtectedRoute><CoachChat /></ProtectedRoute>} />
       <Route path="/paywall" element={<ProtectedRoute><Paywall /></ProtectedRoute>} />
       <Route path="/claim-payment" element={<ProtectedRoute><ClaimPayment /></ProtectedRoute>} />
+      <Route path="/claim-gift" element={<ProtectedRoute><ClaimGift /></ProtectedRoute>} />
       <Route path="/objection-survey" element={<ProtectedRoute><ObjectionSurvey /></ProtectedRoute>} />
       <Route path="/objection/:key" element={<ProtectedRoute><ObjectionScreen /></ProtectedRoute>} />
       <Route path="/subscription-confirmed" element={<ProtectedRoute><SubscriptionConfirmation /></ProtectedRoute>} />
@@ -176,6 +186,8 @@ function App() {
           }}
         >
           <DeepLinkBridge />
+          <AnalyticsPageTracker />
+          <MetaPixelPageTracker />
           <AppRoutes />
           <SupportReplyToast />
           <InstallPrompt />

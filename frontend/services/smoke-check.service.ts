@@ -126,16 +126,15 @@ export class SmokeCheckService {
       })
 
       if (smoked) {
-        try {
-          await cravingService.create({
-            user: userId,
-            type: CravingType.SLIP,
-            intensity: 3,
-            trigger: CravingTrigger.HABIT,
-            notes: 'Logged via smoke check-in',
-          })
-        } catch (cravingErr) {
-          console.warn('[SmokeCheck] Craving log failed:', cravingErr)
+        const slipResult = await cravingService.create({
+          user: userId,
+          type: CravingType.SLIP,
+          intensity: 3,
+          trigger: CravingTrigger.HABIT,
+          notes: 'Logged via smoke check-in',
+        })
+        if (!slipResult.success) {
+          console.warn('[SmokeCheck] Craving log failed:', slipResult.error)
         }
       }
 

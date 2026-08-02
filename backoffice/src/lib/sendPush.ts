@@ -1,23 +1,40 @@
 import { pb } from './pocketbase'
 
-export type PushNotifyResult =
-  | { ok: true; sent: number }
-  | { ok: false; error: string; sent?: number }
+export type AdminMessageResult =
+  | { ok: true; ticketId: string; messageId?: string }
+  | { ok: false; error: string }
 
-/** Admin win-back / re-engagement push via API server (VAPID). */
-export async function sendUserPushNotification(opts: {
+/**
+ * Support/push APIs live on the app host (EC2), not the backoffice static host.
+ * Relative /api/* fails in prod (Vercel SPA → 405).
+ */
+function appApiBase(): string {
+  const fromEnv = (
+    import.meta.env.VITE_PUSH_API_ORIGIN ||
+    import.meta.env.VITE_APP_API_ORIGIN ||
+    ''
+  ).replace(/\/$/, '')
+  if (fromEnv) return fromEnv
+  if (import.meta.env.PROD) return 'https://app.smono.app'
+  return ''
+}
+
+function supportUrl(path: string): string {
+  const base = appApiBase()
+  return base ? `${base}${path}` : path
+}
+
+/** Store admin outreach in the user's Messages inbox + push deep-link to that thread. */
+export async function sendUserAdminMessage(opts: {
   userId: string
   title: string
   body: string
-  url?: string
-  tag?: string
-  dayNumber?: number
-}): Promise<PushNotifyResult> {
+}): Promise<AdminMessageResult> {
   const token = pb.authStore.token
   if (!token) return { ok: false, error: 'Admin session expired. Sign in again.' }
 
   try {
-    const res = await fetch('/api/push/notify', {
+    const res = await fetch(supportUrl('/api/support/admin-message'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,27 +44,43 @@ export async function sendUserPushNotification(opts: {
         userId: opts.userId,
         title: opts.title,
         body: opts.body,
-        url: opts.url || '/home',
-        tag: opts.tag || 'winback',
-        dayNumber: opts.dayNumber,
       }),
     })
     const data = (await res.json().catch(() => ({}))) as {
       ok?: boolean
-      sent?: number
+      ticketId?: string
+      messageId?: string
       error?: string
     }
-    if (!res.ok) {
+    if (!res.ok || !data.ticketId) {
       return {
         ok: false,
-        sent: data.sent ?? 0,
-        error: data.error || `Push failed (${res.status})`,
+        error: data.error || `Message failed (${res.status})`,
       }
     }
-    return { ok: true, sent: data.sent ?? 0 }
+    return { ok: true, ticketId: data.ticketId, messageId: data.messageId }
   } catch {
-    return { ok: false, error: 'Could not reach push service. Is the API server running?' }
+    return {
+      ok: false,
+      error: 'Could not reach Messages API. Check VITE_PUSH_API_ORIGIN / app API is up.',
+    }
   }
+}
+
+/** @deprecated Prefer sendUserAdminMessage — push-only does not land in inbox. */
+export async function sendUserPushNotification(opts: {
+  userId: string
+  title: string
+  body: string
+  url?: string
+  tag?: string
+  dayNumber?: number
+}): Promise<AdminMessageResult & { sent?: number }> {
+  return sendUserAdminMessage({
+    userId: opts.userId,
+    title: opts.title,
+    body: opts.body,
+  })
 }
 
 export function buildWinBackEmail(user: { name?: string; email?: string; programProgress?: number }) {
@@ -60,9 +93,15 @@ export function buildWinBackEmail(user: { name?: string; email?: string; program
     `It's been a while — your quit journey is still here when you're ready.`,
     `You left off around Day ${day}. Opening the app picks up where you stopped.`,
     '',
-    'https://app.smono.app',
-    '',
     '— the smono team',
   ].join('\n')
-  return { subject, body, mailto: `mailto:${encodeURIComponent(user.email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` }
+  return {
+    subject,
+    body,
+    to: user.email || '',
+    title: 'Your journey is still here',
+    ctaLabel: 'Continue my program',
+    ctaUrl: 'https://app.smono.app',
+    preheader: 'Pick up where you left off — no judgment.',
+  }
 }

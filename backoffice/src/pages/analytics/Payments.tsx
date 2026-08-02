@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { CreditCard, Filter } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { adminCollectionHelpers, recentSort } from '../../lib/pocketbase'
+import { dedupePaymentEvents } from '../../lib/paymentEvents'
 
 type PaymentEvent = {
   id: string
@@ -23,6 +24,15 @@ type PaymentEvent = {
   expand?: {
     user?: { id: string; email?: string; name?: string }
   }
+}
+
+type GiftPurchase = {
+  id: string
+  buyer_email?: string
+  recipient_email?: string
+  status?: string
+  razorpay_order_id?: string
+  created?: string
 }
 
 function formatAmount(amount?: number, currency?: string) {
@@ -76,8 +86,19 @@ export function Payments() {
       })
     },
   })
+  const { data: giftsData, refetch: refetchGifts } = useQuery({
+    queryKey: ['gifts'],
+    queryFn: () =>
+      adminCollectionHelpers.getFullList('gifts', {
+        sort: recentSort('gifts'),
+      }),
+  })
 
-  const rows = (data?.data || []) as unknown as PaymentEvent[]
+  const rawRows = (data?.data || []) as unknown as PaymentEvent[]
+  const gifts = (giftsData?.data || []) as unknown as GiftPurchase[]
+
+  // Collapse authorized/captured/order.paid for one payment into a single row.
+  const rows = useMemo(() => dedupePaymentEvents(rawRows), [rawRows])
 
   const stats = useMemo(() => {
     const captured = rows.filter((r) => r.event === 'payment.captured' || r.event === 'order.paid')
@@ -106,7 +127,10 @@ export function Payments() {
         </div>
         <button
           type="button"
-          onClick={() => refetch()}
+          onClick={() => {
+            void refetch()
+            void refetchGifts()
+          }}
           className="text-sm px-3 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50"
           disabled={isFetching}
         >
@@ -132,6 +156,41 @@ export function Payments() {
           <p className="text-xl font-semibold mt-1">{stats.totalLabel}</p>
         </div>
       </div>
+
+      <section className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b border-neutral-100">
+          <h2 className="font-semibold text-neutral-900">Gift purchases</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">Buyer and recipient claim status.</p>
+        </div>
+        {gifts.length === 0 ? (
+          <p className="p-5 text-sm text-neutral-500">No gift purchases yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 text-left text-neutral-500">
+                <tr>
+                  <th className="px-4 py-3 font-medium">When</th>
+                  <th className="px-4 py-3 font-medium">Buyer</th>
+                  <th className="px-4 py-3 font-medium">Recipient</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Order</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gifts.map((gift) => (
+                  <tr key={gift.id} className="border-t border-neutral-100">
+                    <td className="px-4 py-3 whitespace-nowrap">{safeRelative(gift.created)}</td>
+                    <td className="px-4 py-3">{gift.buyer_email || '—'}</td>
+                    <td className="px-4 py-3">{gift.recipient_email || '—'}</td>
+                    <td className="px-4 py-3">{gift.status || 'pending'}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{gift.razorpay_order_id || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <div className="flex items-center gap-2 flex-wrap">
         <Filter className="w-4 h-4 text-neutral-400" />

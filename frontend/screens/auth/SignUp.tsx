@@ -12,6 +12,7 @@ import { useApp } from '../../context/AppContext'
 import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { authHelpers, mapAuthRecordToAppUser } from '../../lib/pocketbase'
 import { analyticsService } from '../../services/analytics.service'
+import { trackMetaEvent } from '../../lib/metaPixel'
 import { profileService } from '../../services/profile.service'
 import { postAuthPath } from '../../utils/kyc'
 import { hasChosenLanguage, markLanguageChosen } from '../../utils/languageChoice'
@@ -113,6 +114,7 @@ export default function SignUp() {
           email: formData.email,
           name: formData.name,
         }, result.data.record.id)
+        trackMetaEvent('CompleteRegistration', { status: true })
 
         // Language once at start — skip if already chosen (e.g. /language before signup)
         if (hasChosenLanguage()) {
@@ -143,6 +145,7 @@ export default function SignUp() {
         const mapped = mapAuthRecordToAppUser(record as Record<string, unknown>)
         if (mapped) setUser(mapped)
         await analyticsService.trackEvent('user_registered', { method: 'google' }, record.id)
+        trackMetaEvent('CompleteRegistration', { status: true, method: 'google' })
 
         if (hasChosenLanguage()) {
           await goAfterAuth(record.id)

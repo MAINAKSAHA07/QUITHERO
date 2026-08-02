@@ -218,6 +218,33 @@ export const authHelpers = {
   isAuthenticated() {
     return pb.authStore.isValid
   },
+  async requestPasswordReset(email: string) {
+    try {
+      await pb.collection('users').requestPasswordReset(email.trim())
+      // Always succeed to the UI — PB does not reveal whether the email exists
+      return { success: true as const }
+    } catch (error: any) {
+      // Network / SMTP failures should surface; unknown-email still returns 204 from PB
+      return {
+        success: false as const,
+        error: formatAuthError(error, 'Could not send reset email. Try again in a moment.'),
+      }
+    }
+  },
+  async confirmPasswordReset(token: string, password: string, passwordConfirm: string) {
+    try {
+      await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm)
+      return { success: true as const }
+    } catch (error: any) {
+      return {
+        success: false as const,
+        error: formatAuthError(
+          error,
+          'Reset failed. The link may have expired — request a new one.'
+        ),
+      }
+    }
+  },
 }
 
 // ponytail: users.lastActive removed — backoffice uses indexed app events only

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import GlassCard from '../../components/GlassCard'
 import GlassButton from '../../components/GlassButton'
+import TranslatedText from '../../components/TranslatedText'
 import { useMotionPrefs } from '../../hooks/useMotionPrefs'
 import { formatMoney } from '../../utils/currency'
 import {
@@ -34,7 +35,6 @@ export default function InsightSequence({
   const [cardIndex, setCardIndex] = useState(0)
   const { fade, springUi } = useMotionPrefs()
 
-  // Math Calculations
   const lifetimeSpend = calculateLifetimeSpend(dailyConsumption, howLongUsing, packCost)
   const monthlySpend = calculateMonthlySpend(dailyConsumption, packCost)
   const yearlySpend = calculateYearlySpend(dailyConsumption, packCost)
@@ -64,25 +64,30 @@ export default function InsightSequence({
   }
 
   const cards = [
-    // Card 1: Cost Reveal
     {
       title: 'This habit has cost more than you think.',
       subtitle: 'Based on your actual consumption details.',
       visual: (
         <div className="space-y-4 my-6">
           <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-between">
-            <span className="text-sm text-text-primary/70">Estimated Lifetime Cost</span>
+            <span className="text-sm text-text-primary/70">
+              <TranslatedText text="Estimated Lifetime Cost" />
+            </span>
             <span className="text-xl font-bold text-red-400">{formatMoney(lifetimeSpend, country)}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-              <span className="block text-xs text-text-primary/60">Monthly Cost</span>
+              <span className="block text-xs text-text-primary/60">
+                <TranslatedText text="Monthly Cost" />
+              </span>
               <span className="text-lg font-bold text-text-primary mt-1 block">
                 {formatMoney(monthlySpend, country)}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-              <span className="block text-xs text-text-primary/60">Yearly Cost</span>
+              <span className="block text-xs text-text-primary/60">
+                <TranslatedText text="Yearly Cost" />
+              </span>
               <span className="text-lg font-bold text-text-primary mt-1 block">
                 {formatMoney(yearlySpend, country)}
               </span>
@@ -93,23 +98,28 @@ export default function InsightSequence({
       tip: 'The good news? That money stays in your wallet starting today.',
       btnText: 'Understand Time Spent',
     },
-    // Card 2: Time Spent
     {
       title: 'Hours lost that you can start reclaiming.',
       subtitle: `Based on ~${minutesPerCigarette} minutes spent per session.`,
       visual: (
         <div className="space-y-4 my-6">
           <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center justify-between">
-            <span className="text-sm text-text-primary/70">Active Time Spent</span>
-            <span className="text-xl font-bold text-amber-400">{activeHours.toLocaleString()} Hours</span>
+            <span className="text-sm text-text-primary/70">
+              <TranslatedText text="Active Time Spent" />
+            </span>
+            <span className="text-xl font-bold text-amber-400">
+              {activeHours.toLocaleString()} <TranslatedText text="Hours" />
+            </span>
           </div>
           <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
-            <span className="text-sm text-text-primary/60">Equivalent to roughly</span>
+            <span className="text-sm text-text-primary/60">
+              <TranslatedText text="Equivalent to roughly" />
+            </span>
             <span className="block text-2xl font-bold text-text-primary mt-1">
-              {activeDays} Full Days
+              {activeDays} <TranslatedText text="Full Days" />
             </span>
             <span className="text-xs text-text-primary/45 mt-1 block">
-              of active smoking from lighting to finish.
+              <TranslatedText text="of active smoking from lighting to finish." />
             </span>
           </div>
         </div>
@@ -117,7 +127,6 @@ export default function InsightSequence({
       tip: 'Imagine what you could do with those hours back.',
       btnText: 'Reveal Health Impact',
     },
-    // Card 3: Health Toll
     {
       title: 'Your body has carried the load.',
       subtitle: 'Safe, educational estimates based on medical guidelines.',
@@ -125,27 +134,31 @@ export default function InsightSequence({
         <div className="space-y-4 my-6">
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10">
-              <span className="block text-xs text-text-primary/60 font-semibold">Cigarettes Consumed</span>
+              <span className="block text-xs text-text-primary/60 font-semibold">
+                <TranslatedText text="Cigarettes Consumed" />
+              </span>
               <span className="text-xl font-bold text-purple-400 mt-1 block">
                 {lifetimeCigarettes.toLocaleString()}
               </span>
             </div>
             <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10">
-              <span className="block text-xs text-text-primary/60 font-semibold">Stamina Impact</span>
+              <span className="block text-xs text-text-primary/60 font-semibold">
+                <TranslatedText text="Stamina Impact" />
+              </span>
               <span className="text-xl font-bold text-purple-400 mt-1 block">
-                {lifeDaysLost} Days
+                {lifeDaysLost} <TranslatedText text="Days" />
               </span>
             </div>
           </div>
           <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left text-xs text-text-primary/60 leading-relaxed">
-            🌿 <strong>Educational Note:</strong> Every session temporarily increases carbon monoxide in your blood. Quitting allows your lungs and circulatory system to restore their natural capacity.
+            🌿 <strong><TranslatedText text="Educational Note:" /></strong>{' '}
+            <TranslatedText text="Every session temporarily increases carbon monoxide in your blood. Quitting allows your lungs and circulatory system to restore their natural capacity." />
           </div>
         </div>
       ),
       tip: 'Within 24 hours of quitting, your oxygen levels return to normal.',
       btnText: 'Look at the Future',
     },
-    // Card 4: Reclaimed Future — then continue KYC (plan loader only at end)
     {
       title: 'Now imagine what you could regain.',
       subtitle: 'Your potential progress in just one year of quitting.',
@@ -153,26 +166,32 @@ export default function InsightSequence({
         <div className="space-y-4 my-6">
           <div className="grid grid-cols-3 gap-2.5">
             <div className="p-3 rounded-xl bg-success/5 border border-success/15 text-center">
-              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">Money Reclaimed</span>
+              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">
+                <TranslatedText text="Money Reclaimed" />
+              </span>
               <span className="text-base font-bold text-success mt-1 block">
                 {formatMoney(yearlySavings, country)}
               </span>
             </div>
             <div className="p-3 rounded-xl bg-success/5 border border-success/15 text-center">
-              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">Avoided Units</span>
+              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">
+                <TranslatedText text="Avoided Units" />
+              </span>
               <span className="text-base font-bold text-success mt-1 block">
                 {avoidedYear.toLocaleString()}
               </span>
             </div>
             <div className="p-3 rounded-xl bg-success/5 border border-success/15 text-center">
-              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">Time Saved</span>
+              <span className="block text-[10px] text-text-primary/60 uppercase font-semibold">
+                <TranslatedText text="Time Saved" />
+              </span>
               <span className="text-base font-bold text-success mt-1 block">
-                {yearlyHoursReclaimed} hrs
+                {yearlyHoursReclaimed} <TranslatedText text="hrs" />
               </span>
             </div>
           </div>
           <div className="p-4 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-center text-xs text-text-primary/80">
-            ✨ Smono helps you lock in these gains day by day.
+            ✨ <TranslatedText text="Smono helps you lock in these gains day by day." />
           </div>
         </div>
       ),
@@ -194,16 +213,16 @@ export default function InsightSequence({
           >
             <GlassCard className="p-6 sm:p-8" borderGlow={false}>
               <h1 className="text-xl sm:text-2xl font-bold text-[#0E2538] mb-2 text-center tracking-tight">
-                {current.title}
+                <TranslatedText text={current.title} />
               </h1>
               <p className="text-xs sm:text-sm text-[#0E2538]/50 text-center mb-6">
-                {current.subtitle}
+                <TranslatedText text={current.subtitle} />
               </p>
 
               {current.visual}
 
               <p className="text-xs text-[#0E2538]/45 text-center mt-4 mb-6 leading-relaxed">
-                {current.tip}
+                <TranslatedText text={current.tip} />
               </p>
 
               <GlassButton
@@ -211,7 +230,7 @@ export default function InsightSequence({
                 fullWidth
                 className="py-4 text-sm font-bold flex items-center justify-center gap-2"
               >
-                {current.btnText}
+                <TranslatedText text={current.btnText} />
               </GlassButton>
             </GlassCard>
           </motion.div>

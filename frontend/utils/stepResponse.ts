@@ -34,5 +34,15 @@ export function withStoredQuestion(
     if (label != null) base.selected_label = String(label)
   }
 
+  if (Array.isArray(base.selected_options) && Array.isArray(content.options)) {
+    const options = content.options as unknown[]
+    const labels = (base.selected_options as unknown[])
+      .filter((i): i is number => typeof i === 'number')
+      .map((i) => options[i])
+      .filter((l) => l != null)
+      .map(String)
+    if (labels.length) base.selected_labels = labels
+  }
+
   return base
 }

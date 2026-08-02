@@ -35,6 +35,14 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
           changeOrigin: true,
         },
+        '/api/coach': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/ai': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
         '/api/create-order': {
           target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
           changeOrigin: true,
@@ -44,6 +52,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         '/api/verify-payment': {
+          target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
+          changeOrigin: true,
+        },
+        '/api/claim-gift': {
           target: env.VITE_PUSH_PROXY_TARGET || 'http://127.0.0.1:8787',
           changeOrigin: true,
         },

@@ -1,29 +1,15 @@
 /**
- * deleteUserAndRelated must wipe user-owned rows before users.delete,
- * otherwise PocketBase blocks on required relations.
+ * deleteUserAndRelated must call the server delete API (email + purge).
  */
 import assert from 'node:assert/strict'
 
-const USER_OWNED = [
-  'account_deletion_requests',
-  'user_profiles',
-  'progress_stats',
-  'belief_assessments',
-  'technique_outcomes',
-  'support_tickets',
-]
-
-function planPurge(userId: string) {
-  assert.ok(userId)
-  return USER_OWNED.map((collection) => ({
-    collection,
-    filter: `user = "${userId}"`,
-  }))
+function deleteUrl(base: string): string {
+  const b = base.replace(/\/$/, '')
+  return b ? `${b}/api/admin/delete-user` : '/api/admin/delete-user'
 }
 
-const plan = planPurge('abc123')
-assert.equal(plan.length, 6)
-assert.equal(plan[0].filter, 'user = "abc123"')
-assert.ok(plan.every((p) => p.filter.includes('abc123')))
+assert.equal(deleteUrl(''), '/api/admin/delete-user')
+assert.equal(deleteUrl('https://app.smono.app'), 'https://app.smono.app/api/admin/delete-user')
+assert.equal(deleteUrl('https://app.smono.app/'), 'https://app.smono.app/api/admin/delete-user')
 
 console.log('deleteUser.check.ts: ok')

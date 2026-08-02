@@ -5,10 +5,12 @@ import { BlogDetailPage } from './pages/BlogDetailPage'
 import { LegalPage } from './pages/LegalPage'
 import { AboutPage } from './pages/AboutPage'
 import { MARKETING_ROUTES } from './pages/marketing'
+import { MarketingAnalyticsTracker } from './components/MarketingAnalyticsTracker'
 
 export function App() {
   return (
     <BrowserRouter>
+      <MarketingAnalyticsTracker />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/about" element={<AboutPage />} />

@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
 import SmonoLogo from '../components/SmonoLogo'
 import GlassCard from '../components/GlassCard'
-import GlassButton from '../components/GlassButton'
 import { useApp } from '../context/AppContext'
 import { useMotionPrefs } from '../hooks/useMotionPrefs'
 import TranslatedText from '../components/TranslatedText'
@@ -20,56 +19,40 @@ export default function LanguageSelection() {
   const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
   const { fade, springUi } = useMotionPrefs()
-  // Update selected language when current language changes
+
   useEffect(() => {
-    if (currentLanguage) {
-      setSelectedLang(currentLanguage)
-    }
+    if (currentLanguage) setSelectedLang(currentLanguage)
   }, [currentLanguage])
 
-  const handleContinue = async () => {
-    if (!selectedLang) return
-
+  const applyLanguage = async (code: string) => {
+    if (!code || saving) return
+    setSelectedLang(code)
     setSaving(true)
     try {
-      setLanguage(selectedLang)
-      markLanguageChosen(selectedLang)
-      
-      // Clear translation cache when language changes
+      setLanguage(code)
+      markLanguageChosen(code)
+
       const { translationService } = await import('../services/translation.service')
       translationService.clearCache()
-      
-      // If user is logged in, save language to user profile
+
       if (user?.id) {
         try {
           const result = await profileService.updateProfile(user.id, {
-            language: selectedLang as Language,
+            language: code as Language,
           })
-          
           if (result.success && result.data && updateUserProfile) {
             await updateUserProfile(result.data)
           }
-          
-          // Track analytics
-          await analyticsService.trackEvent('language_changed', {
-            language: selectedLang,
-          }, user.id)
+          await analyticsService.trackEvent('language_changed', { language: code }, user.id)
         } catch (error) {
           console.error('Failed to save language to profile:', error)
-          // Don't block navigation if profile update fails
         }
       }
-      
-      // Navigate back to previous page or onboarding if coming from initial setup
+
       const from = new URLSearchParams(window.location.search).get('from')
-      if (from) {
-        navigate(from)
-      } else {
-        navigate('/onboarding')
-      }
+      navigate(from || '/onboarding')
     } catch (error) {
       console.error('Error changing language:', error)
-    } finally {
       setSaving(false)
     }
   }
@@ -81,60 +64,54 @@ export default function LanguageSelection() {
           <div className="flex flex-col items-center text-center mb-8">
             <SmonoLogo size="lg" showMascot className="mb-4" />
             <h1 className="text-3xl font-bold text-[#0E2538] mb-2 tracking-tight">
-            <TranslatedText text="Choose Your Language" />
-          </h1>
-          <p className="text-[#0E2538]/55 mb-8">
-            <TranslatedText text="You can change this later in settings" />
-          </p>
+              <TranslatedText text="Choose Your Language" />
+            </h1>
+            <p className="text-[#0E2538]/55 mb-8">
+              <TranslatedText text="You can change this later in settings" />
+            </p>
           </div>
 
           <div className="space-y-3 mb-8">
             {APP_LANGUAGES.map((lang) => {
               const selected = selectedLang === lang.code
               return (
-              <motion.div
-                key={lang.code}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.1 }}
-              >
-                <GlassCard
-                  onClick={() => setSelectedLang(lang.code)}
-                  borderGlow={false}
-                  className={`p-4 cursor-pointer transition-[box-shadow,transform] duration-100 ${
-                    selected
-                      ? 'shadow-[0_0_0_2px_rgba(63,141,210,0.45)]'
-                      : 'active:bg-white/80'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-3xl" aria-hidden>{lang.flag}</span>
-                      <span className="text-lg font-medium text-[#0E2538]">
-                        {lang.name}
-                      </span>
-                    </div>
-                    {selected && (
-                      <div className="w-6 h-6 rounded-full bg-[#3F8DD2] flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
+                <motion.div key={lang.code} whileTap={{ scale: 0.98 }} transition={{ duration: 0.1 }}>
+                  <GlassCard
+                    onClick={() => void applyLanguage(lang.code)}
+                    borderGlow={false}
+                    className={`p-4 cursor-pointer transition-[box-shadow,transform] duration-100 ${
+                      saving ? 'opacity-60 pointer-events-none' : ''
+                    } ${
+                      selected
+                        ? 'shadow-[0_0_0_2px_rgba(63,141,210,0.45)]'
+                        : 'active:bg-white/80'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl" aria-hidden>
+                          {lang.flag}
+                        </span>
+                        <span className="text-lg font-medium text-[#0E2538]">{lang.name}</span>
                       </div>
-                    )}
-                  </div>
-                </GlassCard>
-              </motion.div>
-            )})}
+                      {selected ? (
+                        <div className="w-6 h-6 rounded-full bg-[#3F8DD2] flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      ) : null}
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              )
+            })}
           </div>
-
-          <GlassButton
-            onClick={handleContinue}
-            disabled={!selectedLang || saving}
-            fullWidth
-            className="py-4 text-lg"
-          >
-            {saving ? 'Saving…' : <TranslatedText text="Continue" />}
-          </GlassButton>
+          {saving ? (
+            <p className="text-center text-sm text-[#0E2538]/45">
+              <TranslatedText text="Saving…" />
+            </p>
+          ) : null}
         </motion.div>
       </div>
     </div>
   )
 }
-
