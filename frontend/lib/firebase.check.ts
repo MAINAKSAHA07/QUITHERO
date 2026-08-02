@@ -1,16 +1,16 @@
 /**
- * ponytail: firebase config must stay complete for SDK init
+ * ponytail: firebase config shape — uses placeholders, never real keys in git
  */
 import assert from 'node:assert/strict'
 
 const cfg = {
-  apiKey: '',
-  authDomain: 'smono-54134.firebaseapp.com',
-  projectId: 'smono-54134',
-  storageBucket: 'smono-54134.firebasestorage.app',
-  messagingSenderId: '969689528370',
-  appId: '1:969689528370:web:1158185fb363228b03242b',
-  measurementId: 'G-H4ZFZ7N46P',
+  apiKey: 'test-firebase-api-key',
+  authDomain: 'example.firebaseapp.com',
+  projectId: 'example-project',
+  storageBucket: 'example-project.appspot.com',
+  messagingSenderId: '000000000000',
+  appId: '1:000000000000:web:abcdef0123456789',
+  measurementId: 'G-TESTMEASURE',
 }
 
 for (const [k, v] of Object.entries(cfg)) {
@@ -18,5 +18,6 @@ for (const [k, v] of Object.entries(cfg)) {
 }
 assert.match(cfg.measurementId, /^G-/)
 assert.match(cfg.appId, /^1:/)
+assert.equal(cfg.apiKey.includes('AIza'), false, 'check must not embed a real Google API key')
 
 console.log('firebase.check OK')
